@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat-Alogo | Inventario, POS y Catálogo Web</title>
+    
+    <link rel="stylesheet" href="css/style.css">
+    
+    <meta name="description" content="Llevá tu negocio al siguiente nivel con Cat-Alogo. Inventario, Punto de Venta y Catálogo Web sin comisiones.">
+
+
+    <!-- ... (tu código actual de arriba) ... -->
+    <meta name="description" content="Llevá tu negocio al siguiente nivel con Cat-Alogo. Inventario, Punto de Venta y Catálogo Web sin comisiones.">
+
+    
+    <!-- ==========================================
+                                    PROTOCOLO OPEN GRAPH (WhatsApp y Redes Sociales)
+        ========================================== -->
+    <meta property="og:type" content="website">
+    
+    <!-- IMPORTANTE: Cambia esta URL por la tuya de Vercel cuando la tengas -->
+    <meta property="og:url" content="https://tu-usuario.vercel.app/"> 
+    
+    <meta property="og:title" content="Cat-Alogo | Ecosistema Comercial Local-First">
+    <meta property="og:description" content="Explorá nuestra plataforma. Ingresá ahora para potenciar tus ventas, controlar tu stock y enviar tickets por WhatsApp en segundos.">
+    
+    <!-- Imagen de portada para WhatsApp (Asegúrate de que la ruta exista) -->
+    <meta property="og:image" content="https://tu-usuario.vercel.app/img/app-pc.png">
+    <meta property="og:image:secure_url" content="https://tu-usuario.vercel.app/img/app-pc.png">
+    
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Interfaz de Cat-Alogo en PC y Celular">
+    
+    <!-- Favicon (Ícono de la pestaña) -->
+    <link rel="icon" href="img/favicon.png" type="image/png" />
+    <!-- ... (resto de tu head) ... -->
+
+        <!-- ======================================================================= -->
+
+    <link rel="icon" href="img/favicon.png" type="image/png" />
+</head>
+<body>
+
+    <!-- ==========================================
+         BARRA DE NAVEGACIÓN (Navbar)
+         ========================================== -->
+    <nav class="navbar" id="main-nav">
+        <div class="nav-container">
+            <a href="#" class="logo">
+                <img src="img/logo-app.png" alt="Logo Cat-Alogo" class="logo-img">
+                <span class="logo-text">Cat-Alogo</span>
+            </a>
+
+            <div class="nav-menu" id="nav-menu">
+                <ul class="nav-links">
+                    <li><a href="#funciones">Funciones</a></li>
+                    <li><a href="#como-funciona">Cómo Funciona</a></li>
+                    <li><a href="#detalles">Características</a></li>
+                </ul>
+
+                <div class="nav-actions">
+                    <!-- BOTÓN MODIFICADO: Llama al modal de Login -->
+                    <button class="btn btn-secondary" onclick="openLoginModal()">Iniciar Sesión</button>
+                    <a href="https://play.google.com/store/apps/details?id=com.catalogstudio.app" target="_blank" rel="noopener" class="btn btn-primary">Descargar App</a>
+                </div>
+            </div>
+
+            <button class="hamburger" id="hamburger-btn" aria-label="Abrir menú">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- ==========================================
+             SECCIÓN PRINCIPAL (Hero Section)
+             ========================================== -->
+        <section class="hero" id="inicio">
+            <div class="hero-container">
+                <div class="hero-content">
+                    <span class="badge-amber">🚀 Ecosistema Comercial Local-First</span>
+                    
+                    <h1 class="hero-title">
+                        Llevá tu negocio al <br> 
+                        siguiente nivel con <br>
+                        <span class="highlight">Cat-Alogo</span>
+                    </h1>
+                    
+                    <p class="hero-description">
+                        La plataforma todo-en-uno para gestionar tu inventario, vender online sin comisiones y controlar tus finanzas.
+                    </p>
+                    
+                    <div class="hero-buttons">
+                        <a href="https://play.google.com/store/apps/details?id=com.catalogstudio.app" target="_blank" rel="noopener" class="btn btn-primary btn-large">
+                            <span class="icon">▶</span> ¡Descargar App Gratis en la Google Play Store!
+                        </a>
+                        <div class="btn-soon-container">
+                            <a href="#" class="btn btn-outline btn-large disabled" onclick="event.preventDefault();">
+                                💻 ¡Usar Cat-Alogo en la PC o Tablet!
+                            </a>
+                            <span class="badge-soon">Próximamente</span>
+                        </div>
+                    </div>
+                    
+                    <div class="hero-trust">
+                        <div class="trust-item"><span class="icon-amber">⚡</span> Catálogo Web</div>
+                        <div class="trust-item"><span class="icon-amber">📝</span> Crea y diseña Catálogo PDF</div>
+                        <div class="trust-item"><span class="icon-amber">💰</span> Control de finanzas</div>
+                        <div class="trust-item"><span class="icon-amber">🛻</span> Mensaje a proveedores</div>
+                    </div>
+                </div>
+
+                <div class="hero-visual">
+                    <img src="img/app-pc.png" alt="Vista de Cat-Alogo en PC" class="img-pc zoom-image">
+                    <img src="img/app-movil.png" alt="Vista de Cat-Alogo en Celular" class="img-mobile zoom-image">
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SECCIÓN: CÓMO FUNCIONA EN 3 PASOS
+             ========================================== -->
+        <section class="how-it-works" id="como-funciona">
+            <div class="container-steps">
+                <div class="steps-header">
+                    <span class="badge-amber">FLUJO DE TRABAJO</span>
+                    <h2 class="section-title">Tu negocio en marcha en 3 pasos</h2>
+                    <p class="section-subtitle">Sin configuraciones complejas ni servidores. Tu negocio listo para vender en el mostrador y en internet en minutos.</p>
+                </div>
+
+                <div class="steps-grid">
+                    <div class="step-card">
+                        <div class="step-number">01</div>
+                        <div class="step-icon-box">
+                            <span class="step-icon">📦</span>
+                        </div>
+                        <h3 class="step-title">Carga tus productos en segundos</h3>
+                        <p class="step-desc">Usa el Importador Express o sube tu inventario directamente desde el celular o la PC. Tu catálogo estará listo al instante.</p>
+                    </div>
+
+                    <div class="step-card">
+                        <div class="step-number">02</div>
+                        <div class="step-icon-box">
+                            <span class="step-icon">💬</span>
+                        </div>
+                        <h3 class="step-title">Vende online y por WhatsApp</h3>
+                        <p class="step-desc">Comparte tu link único. Tus clientes navegan, arman su carrito y te envían el pedido directo a tu WhatsApp oficial y a la App.</p>
+                    </div>
+
+                    <div class="step-card">
+                        <div class="step-number">03</div>
+                        <div class="step-icon-box">
+                            <span class="step-icon">📊</span>
+                        </div>
+                        <h3 class="step-title">Controla tu caja y ganancias</h3>
+                        <p class="step-desc">Registra ventas en mostrador, calcula recargos automáticamente y conoce tu rentabilidad real (EBITDA) en tiempo real.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+             SECCIÓN: GRILLA BENTO DE MÓDULOS
+             ========================================== -->
+        <section class="modules-section" id="funciones">
+            <div class="container-modules">
+                <div class="modules-header">
+                    <span class="badge-amber">GRILLA BENTO DE MÓDULOS</span>
+                    <h2 class="section-title">Todo lo que necesitas para crecer</h2>
+                </div>
+
+                <div class="bento-grid">
+                    
+                    <div class="bento-item">
+                        <span class="badge-premium">Ventas / Pedidos</span>
+                        <div class="bento-content">
+                            <h3>Punto de Venta (POS)</h3>
+                                <p>Cobros ágiles, búsqueda inteligente y ventas a crédito.</p>
+                        </div>
+                        <div class="bento-image">
+                            <img src="img/pos.png" alt="Interfaz de Venta POS Cat-Alogo" class="zoom-image">
+                            <img src="img/pos1.png" alt="Interfaz de Venta POS Cat-Alogo" class="zoom-image">
+                        </div>
+                    </div>
+
+                    <div class="bento-item">
+                        <span class="badge-premium">Cat-Web</span>
+                        <div class="bento-content">
+                            <h3>Catálogo Web sin comisiones</h3>
+                                <p>Diseño premium personalizado con link único para tu negocio.</p>
+                        </div>
+                        <div class="bento-image">
+                            <img src="img/catweb.png" alt="Personalizar Tienda Web" class="zoom-image">
+                            <img src="img/catweb1.png" alt="Personalizar Tienda Web" class="zoom-image">
+                        </div>
+                    </div>
+
+                    <div class="bento-item">
+                        <span class="badge-premium">Diseño</span>
+                        <div class="bento-content">
+                            <h3>Diseño de catálogos PDF</h3>
+                                <p>Folletos visuales de alta calidad con tu propia paleta de colores.</p>
+                        </div>
+                        <div class="bento-image">
+                            <img src="img/Estudio-PDF.png" alt="Estudio PDF" class="zoom-image">
+                            <img src="img/Estudio-PDF1.png" alt="Estudio PDF" class="zoom-image">
+                        </div>
+                    </div>
+
+                    <div class="bento-item">
+                        <span class="badge-premium">Stock</span>
+                        <div class="bento-content">
+                            <h3>Control de stock y reporte</h3>
+                                <p>Avisos de umbral crítico y reabastecimiento inteligente.</p>
+                        </div>
+                        <div class="bento-image">
+                            <img src="img/stock.png" alt="Control de Stock" class="zoom-image">
+                            <img src="img/stock1.png" alt="Control de Stock" class="zoom-image">
+                        </div>
+                    </div>
+
+                    <div class="bento-item">
+                        <span class="badge-premium">Clientes</span>
+                        <div class="bento-content">
+                            <h3>Gestión de Clientes</h3>
+                                <p>Directorio, historial de compras y control exacto de deudores.</p>
+                        </div>
+                        <div class="bento-image">
+                            <img src="img/cliente.png" alt="Gestión de Clientes" class="zoom-image">                            
+                        </div>
+                    </div>
+
+                    <div class="bento-item">
+                        <span class="badge-premium">Cat-Web</span>
+                        <div class="bento-content">
+                            <h3>Integración con WhatsApp</h3>
+                                <p>Recepción de pedidos por WhatsApp y también directo en la app (Cat-Web).</p>
+                        </div>
+                        <div class="bento-image">
+                            <img src="img/pedidos.png" alt="Pedidos WhatsApp" class="zoom-image">
+                        </div>
+                    </div>
+                    
+                    <div class="bento-item">
+                        <span class="badge-premium">Hub Finanzas</span>
+                        <div class="bento-content">
+                            <h3>Hub de Finanzas</h3>
+                                <p>Control total de caja, flujo de ingresos y rentabilidad en tiempo real.</p>
+                        </div>
+                        <div class="bento-image">
+                            <img src="img/finanzas.png" alt="Módulo Finanzas" class="zoom-image">
+                            <img src="img/caja.png" alt="Módulo Finanzas" class="zoom-image">
+                        </div>
+                    </div>
+
+                    <div class="bento-item">
+                        <span class="badge-premium">Inventario</span>
+                        <div class="bento-content">
+                            <h3>Inventario Inteligente</h3>
+                                <p>Carga rápida de productos con IA y edición masiva de precios al instante.</p>
+                        </div>
+                        <div class="bento-image">
+                            <img src="img/inventario.png" alt="Inventario" class="zoom-image">
+                            <img src="img/producto.png" alt="Inventario" class="zoom-image">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+            SECCIÓN: CARACTERÍSTICAS A FONDO (Acordeón)
+            ========================================== -->
+        <section class="features-accordion-section" id="detalles">
+            <div class="accordion-container">
+                <div class="accordion-header-text">
+                    <h2 class="section-title">Explorá a fondo cada herramienta de Cat-Alogo</h2>
+                    <p class="section-subtitle">Descubre el poder y la profundidad técnica del ecosistema Cat-Alogo diseñado para potenciar tu comercio.</p>
+                </div>
+
+                <div class="accordion-wrapper">
+                    <!-- Item 1: POS -->
+                    <div class="accordion-item">
+                        <button class="accordion-btn" onclick="toggleFeature(this)">
+                            <div class="btn-content">
+                                <span class="accordion-icon">💳</span>
+                                <h3>Punto de Venta (POS) - 🏪</h3>
+                            </div>
+                            <span class="accordion-chevron">▼</span>
+                        </button>
+                        <div class="accordion-panel">
+                            <div class="panel-inner">
+                                <p><strong>Ventas Rápidas:</strong> El módulo de ventas no es un simple anotador, sino una ventana flotante de Punto de Venta (POS) diseñada para cobrar con la máxima agilidad.</p>
+                                <p><strong>Búsqueda Inteligente:</strong> Permite al vendedor buscar productos tecleando su nombre, código SKU, o utilizando la cámara nativa del celular como escáner de códigos de barras sin salir del carrito de compras.</p>
+                                <p><strong>Sistema de lógica inteligente:</strong> diferenciando productos unitarios de aquellos que se venden a granel o por peso (permitiendo ingresar decimales exactos, como 1.250 kg).</p>
+                                <p><strong>Múltiples Métodos de Pago:</strong> Soporta la gestión de ventas a crédito (fiado) ligadas a la cuenta corriente del cliente, y permite dividir una misma compra en dos métodos de pago simultáneos, aplicando recargos o descuentos de forma automática.</p>
+                                <p><strong>Ticket de venta:</strong> Finaliza la operación emitiendo un ticket de venta detallado en formato PDF, listo para ser impreso o enviado al instante por WhatsApp.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item 2: Catálogo Web -->
+                    <div class="accordion-item">
+                        <button class="accordion-btn" onclick="toggleFeature(this)">
+                            <div class="btn-content">
+                                <span class="accordion-icon">🌐</span>
+                                <h3>Catálogo Web sin Comisiones - 📨</h3>
+                            </div>
+                            <span class="accordion-chevron">▼</span>
+                        </button>
+                        <div class="accordion-panel">
+                            <div class="panel-inner">
+                                <p><strong>Enlaces Dinámicos y Únicos:</strong> El sistema genera rutas personalizadas basadas en el identificador o "slug" del vendedor. Al ingresar a ese link, se abre la web unica de ese vendedor.</p>
+                                <p><strong>Diseño Personalizado:</strong> A través de un panel llamado "Gestor de Tienda Online" dentro de la app Android, el comerciante configura su identidad visual. La página web adopta instantáneamente el logotipo del negocio, la imagen de portada (banner) y la paleta de colores principal (color de marca), dejando de ser una web genérica para convertirse en la tienda oficial del usuario.</p>
+                                <p><strong>Selección Inteligente de Inventario:</strong> El catálogo público está estrictamente separado de la base de datos interna de costos y proveedores. Solo se suben a la nube los productos que el vendedor marca explícitamente con el interruptor "Mostrar en Catálogo Online" o "Publicar en catálogo web".</p>
+                                <p><strong>Integración con WhatsApp:</strong> Al confirmar el carrito, el cliente completa un formulario rápido solicitando su Nombre, Teléfono/WhatsApp, modalidad de entrega y forma de pago.</p>
+                                <p><strong>Armado de WhatsApp Inteligente:</strong> Al finalizar, el sistema estructura un mensaje de texto profesional y detallado con el resumen exacto de la orden, abriendo automáticamente WhatsApp para enviarlo directamente al número del vendedor.</p>
+                                <p><strong>Integración Transaccional con el POS:</strong> Desde la app, el vendedor abre el pedido web entrante y cuenta con un botón verde de "Confirmar y Facturar". Al presionarlo, el sistema transforma el pedido online en una venta local oficial, descontando el stock definitivamente de la Bóveda Local y sumando el dinero a las finanzas de la caja diaria.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item 3: PDF -->
+                    <div class="accordion-item">
+                        <button class="accordion-btn" onclick="toggleFeature(this)">
+                            <div class="btn-content">
+                                <span class="accordion-icon">🎨</span>
+                                <h3>Diseño de Catálogos PDF Avanzado - 📄</h3>
+                            </div>
+                            <span class="accordion-chevron">▼</span>
+                        </button>
+                        <div class="accordion-panel">
+                            <div class="panel-inner">
+                                <p><strong>Libertad de Personalización:</strong> Control absoluto sobre los tamaños tipográficos y el espaciado individual de cada elemento de la tarjeta del producto, como el nombre, el precio normal, el precio de oferta y el código SKU.</p>
+                                <p><strong>Estética Corporativa (Branding):</strong> Integra tipografías premium y permite establecer la paleta de colores oficial del negocio con colores independientes para los títulos y descripciones.</p>
+                                <p><strong>Imágenes PNG Optimizadas:</strong> Transforma el catálogo en imágenes independientes, exportando cada hoja como una foto suelta. Este formato es perfecto para actualizar los catálogos nativos de WhatsApp Business o para publicarlo en Historias y Estados de redes sociales.</p>
+                                <p><strong>Encuadre y Estructura (Layout):</strong> Permite configurar la geometría del documento PDF ajustando los márgenes del papel y definiendo cuántas columnas de productos se renderizarán por página.</p>
+                                <p><strong>Organizador de Elementos:</strong> El usuario no está atado a un diseño rígido. La herramienta permite reordenar la ubicación de la información, dándole el poder de mover el bloque del precio para que aparezca por encima del título, o reubicar el código de barras.</p>
+                                <p><strong>Plantillas:</strong> Cuenta con interruptores para habilitar una Carátula de portada (con logotipo y eslogan) y una Hoja de Cierre en la última página, la cual compila de forma automática la información de contacto.</p>
+                                <p><strong>PDF de Alta Calidad y Optimizado:</strong> Formato cerrado de alta resolución. El motor aplica una compresión inteligente a las fotografías para generar un archivo de peso ultrabajo con renderizado rápido.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Item 4: Finanzas -->
+                    <div class="accordion-item">
+                        <button class="accordion-btn" onclick="toggleFeature(this)">
+                            <div class="btn-content">
+                                <span class="accordion-icon">📈</span>
+                                <h3>Finanzas y Reportes (7 Pestañas) - 💵</h3>
+                            </div>
+                            <span class="accordion-chevron">▼</span>
+                        </button>
+                        <div class="accordion-panel">
+                            <div class="panel-inner">
+                                <p><strong>Nivel 1 (Operación POS):</strong> Audita el volumen de ventas totales del turno, la cantidad de transacciones, el ticket promedio y el historial de ventas del día.</p>
+                                <p><strong>Nivel 2 (Flujo de Caja):</strong> Muestra el flujo de ingresos versus egresos operativos (Cash Flow) y calcula el saldo real consolidado del negocio.</p>
+                                <p><strong>Nivel 3 (Gastos Operativos - OPEX):</strong> Analiza y clasifica todas las salidas de dinero por categorías personalizadas mostrando su distribución porcentual mediante gráficos visuales.</p>
+                                <p><strong>Nivel 4 (Proveedores):</strong> Funciona como un gestor de cuentas por pagar, monitoreando el registro de liquidaciones y deudas comerciales.</p>
+                                <p><strong>Nivel 5 (Rentabilidad y Medios de Pago):</strong> Calcula la ganancia neta real basada en los costos de los productos, desglosa el saldo de dinero según el medio de pago recibido y muestra el margen operativo estimado.</p>
+                                <p><strong>Nivel 6 (Analítica y Proyección):</strong> Despliega un panel visual con gráficos que revelan el ranking de los 5 productos más vendidos y los 5 más rentables. Además, calcula proyecciones estimadas de cierre de mes.</p>
+                                <p><strong>Nivel 7 (ERP Pro - P&L):</strong> Presenta el Estado de Resultados o P&L, con cálculos gerenciales avanzados como el EBITDA y el Punto de Equilibrio.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item 5: Inventario y publicidad -->
+                    <div class="accordion-item">
+                        <button class="accordion-btn" onclick="toggleFeature(this)">
+                            <div class="btn-content">
+                                <span class="accordion-icon">📦</span>
+                                <h3>Inventario y publicidad</h3>
+                            </div>
+                            <span class="accordion-chevron">▼</span>
+                        </button>
+                        <div class="accordion-panel">
+                            <div class="panel-inner">
+                                <p><strong>Ficha Comercial Completa:</strong> Formulario exhaustivo que permite cargar: Nombre, Descripción, Categoría y Proveedor. Soporta lectura de Código de Barras (SKU) con la cámara. Permite registrar Precio Normal, Precio de Oferta y Precio de Costo (oculto).</p>
+                                <p><strong>Agrupación por Variantes (Acordeón Inteligente):</strong> Los productos con diferentes talles, colores o modelos no inundan la lista principal; se agrupan automáticamente en una "Carpeta Visual". Al tocarla, se despliega un carrusel para controlar el stock exacto de cada variante.</p>
+                                <p><strong>Borrador de Fondos con IA:</strong> Integración nativa con Inteligencia Artificial. Al tomar una fotografía cruda, la IA recorta y elimina automáticamente todo el fondo de la imagen, dejándola limpia con calidad de estudio.</p>
+                                <p><strong>Creador de Instagram Stories:</strong> Toma la foto limpia del producto y genera automáticamente una pieza gráfica vertical (formato 9:16), ideal para Estados de WhatsApp o Stories de Instagram, aplicando textos promocionales y fondos degradados.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item 6: Gestión de Clientes -->
+                    <div class="accordion-item">
+                        <button class="accordion-btn" onclick="toggleFeature(this)">
+                            <div class="btn-content">
+                                <span class="accordion-icon">🧍‍♀️</span>
+                                <h3>Gestión de Clientes</h3>
+                            </div>
+                            <span class="accordion-chevron">▼</span>
+                        </button>
+                        <div class="accordion-panel">
+                            <div class="panel-inner">
+                                <p><strong>Directorio de Clientes:</strong> Libreta de contactos profesional para registrar clientes (Nombre, Teléfono/WhatsApp, Dirección, y Notas internas).</p>
+                                <p><strong>Venta a Crédito y Pagos Parciales (Fiado):</strong> En el POS, el vendedor puede asignar la venta a un cliente y marcar "Venta a Crédito". La app calcula automáticamente el faltante y lo resta a la cuenta corriente del cliente como "Saldo Deudor".</p>
+                                <p><strong>Protección Financiera:</strong> El sistema envía a la caja registradora del día únicamente el efectivo real que el cliente entregó en ese momento, protegiendo las métricas del negocio.</p>
+                                <p><strong>Filtro y Lista de Morosos:</strong> Pestaña exclusiva de "Deudores" que muestra notificación roja de la deuda. Los clientes se ordenan automáticamente de mayor a menor deuda.</p>
+                                <p><strong>Botón de Cobro (Abonos):</strong> Cuando un deudor abona, la aplicación resta esa cantidad de la deuda histórica sin duplicar ventas originales.</p>
+                                <p><strong>Recordatorios por WhatsApp Automáticos:</strong> La app redacta y abre automáticamente un mensaje en WhatsApp dirigido al cliente deudor recordando el saldo pendiente.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item 7: Control de stock y reporte -->
+                    <div class="accordion-item">
+                        <button class="accordion-btn" onclick="toggleFeature(this)">
+                            <div class="btn-content">
+                                <span class="accordion-icon">🚛</span>
+                                <h3>Control de stock y reporte</h3>
+                            </div>
+                            <span class="accordion-chevron">▼</span>
+                        </button>
+                        <div class="accordion-panel">
+                            <div class="panel-inner">
+                                <p><strong>Directorio de Proveedores:</strong> Base de datos de suplidores. Al crear un producto, se vincula a un proveedor específico, evitando errores y sincronizando el inventario.</p>
+                                <p><strong>Monitor de Stock Crítico:</strong> Indicador visual de alerta de productos agotándose.</p>
+                                <p><strong>Generador de Órdenes (Mensaje de Pedido):</strong> La app detecta productos con stock bajo de un proveedor específico y redacta automáticamente una orden de compra estructurada (texto o PDF) lista para WhatsApp.</p>
+                                <p><strong>Sincronización de Recepción Pendiente:</strong> Los pedidos quedan "En Tránsito". Al recibir la mercadería, se valida y se marca como "Recibido".</p>
+                                <p><strong>Actualización Mágica:</strong> En ese instante, la aplicación asienta el pago (deuda comercial) y suma automáticamente las cantidades al stock físico, normalizando el inventario.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Item 8: Importación Masiva -->
+                    <div class="accordion-item">
+                        <button class="accordion-btn" onclick="toggleFeature(this)">
+                            <div class="btn-content">
+                                <span class="accordion-icon">📄</span>
+                                <h3>Importación Masiva de productos (Excel/CSV)</h3>
+                            </div>
+                            <span class="accordion-chevron">▼</span>
+                        </button>
+                        <div class="accordion-panel">
+                            <div class="panel-inner">
+                                <p><strong>Plantilla Base:</strong> Descarga un archivo .csv (codificado en UTF-8) con las columnas exactas que el sistema requiere.</p>
+                                <p><strong>Completar Datos:</strong> El comerciante pega toda su lista de productos en la plantilla usando Excel o Google Sheets.</p>
+                                <p><strong>Inyección Local Segura:</strong> El motor procesa los datos localmente en el teléfono, filtra errores humanos y vuelca el inventario en la Bóveda Local al instante, sin enviar datos a servidores externos.</p>
+                                <p><strong>Actualización Inteligente (SKU):</strong> El importador usa el Código de Producto (SKU). Si existe, actualiza precio y stock conservando la foto. Si no existe, lo crea como artículo nuevo. Ideal para ediciones masivas de precios en PC.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
+            MODAL DE INICIO DE SESIÓN (LOGIN / REGISTRO)
+            ========================================== -->
+        <div class="auth-modal-overlay" id="auth-modal">
+            <div class="auth-modal-content">
+                <!-- Botón de Cerrar (X) -->
+                <button class="auth-close-btn" onclick="closeLoginModal()">✕</button>
+                
+                <div class="auth-header">
+                    <img src="img/logo-app.png" alt="Cat-Alogo" class="auth-logo">
+                    <h2>Bienvenido a Cat-Alogo</h2>
+                    <p>Gestiona tu comercio de forma inteligente</p>
+                </div>
+
+                <!-- Pestañas (Tabs) de navegación dentro del Modal -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" onclick="switchAuthTab('login')">Ingresar</button>
+                    <button class="auth-tab" onclick="switchAuthTab('register')">Crear Cuenta</button>
+                </div>
+
+                <!-- Formulario -->
+                <form class="auth-form" id="auth-form">
+                    <div class="auth-input-group">
+                        <label for="email">Correo Electrónico</label>
+                        <input type="email" id="email" placeholder="tunombre@negocio.com" required>
+                    </div>
+                    
+                    <div class="auth-input-group">
+                        <label for="password">Contraseña</label>
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
+
+                    <!-- NUEVO CAMPO: Confirmar Contraseña (Oculto por defecto) -->
+                    <div class="auth-input-group" id="confirm-password-group" style="display: none;">
+                        <label for="confirm-password">Confirmar Contraseña</label>
+                        <input type="password" id="confirm-password" placeholder="••••••••">
+                        <span id="password-error" style="color: #ef4444; font-size: 0.8rem; display: none; margin-top: 4px;">Las contraseñas no coinciden.</span>
+                    </div>
+
+                    <!-- Enlace solo visible en Login -->
+                    <div class="auth-forgot-password" id="forgot-password-link">
+                        <a href="#">¿Olvidaste tu contraseña?</a>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary auth-submit-btn" id="auth-submit-btn">
+                        Acceder a mi Panel
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- ==========================================
+        FOOTER INSTITUCIONAL
+        ========================================== -->
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-brand">
+                <div class="logo">
+                    <img src="img/logo-app.png" alt="Logo Cat-Alogo" class="logo-img">
+                    <span class="logo-text">Cat-Alogo</span>
+                </div>
+                <p>Ecosistema comercial con arquitectura Local-First, Inventario, Punto de Venta y Catálogo PDF y Web en sincronización con WhatsApp.</p>
+                <div class="footer-social">
+                    <a href="https://www.instagram.com/soycatalogo.ok/" target="_blank" rel="noopener">Instagram: @soycatalogo.ok</a>
+                    <span class="dot-separator">•</span>
+                    <span>Bóvedas encriptadas - offline</span>
+                </div>
+            </div>
+
+            <div class="footer-links">
+                <div class="link-column">
+                    <h4>Plataforma</h4>
+                    <ul>
+                        <li><a href="#">Punto de Venta (POS)</a></li>
+                        <li><a href="#">Catálogo Web sin Comisión</a></li>
+                        <li><a href="#">Diseño de catálogos PDF</a></li>
+                        <li><a href="#">Importador Express Excel</a></li>
+                    </ul>
+                </div>
+                <div class="link-column">
+                    <h4>Soporte y Legal</h4>
+                    <ul>
+                        <li><a href="#">Comunidad WhatsApp</a></li>
+                        <li><a href="#">Términos de Servicio</a></li>
+                        <li><a href="#">Política de Privacidad</a></li>
+                        <li><a href="#">Preguntas Frecuentes</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer-bottom">
+            <p>&copy; 2026 Cat-Alogo. Tu negocio, en todas partes. Todos los derechos reservados.</p>
+            <div class="footer-badge">🛡️ Arquitectura 100% Soberana Local-First</div>
+        </div>
+    </footer>
+
+    <!-- Enlace al archivo de JavaScript -->
+    <script src="script.js"></script>
+</body>
+</html>
+
