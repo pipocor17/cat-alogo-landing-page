@@ -100,10 +100,10 @@
                             <span class="icon">▶</span> ¡Descargar App Gratis en la Google Play Store!
                         </a>
                         <div class="btn-soon-container">
-                            <a href="#" class="btn btn-outline btn-large disabled" onclick="event.preventDefault();">
-                                💻 ¡Usar Cat-Alogo en la PC!
-                            </a>
-                            <span class="badge-soon">Próximamente</span>
+                            <button type="button" class="btn btn-outline btn-large" id="btn-open-pc-preview">
+                            💻 ¡Usar Cat-Alogo en la PC!
+                        </button>
+                            <span class="badge-soon">¡Software Web: Cat-Alogo!</span>
                         </div>
                     </div>
                     
@@ -552,6 +552,582 @@
 
     <!-- Enlace al archivo de JavaScript -->
     <script src="script.js"></script>
+
+
+    <!-- ==========================================
+         MODAL: VISTA PREVIA INTERACTIVA CAT-ALOGO PC + ZOOM
+         ========================================== -->
+    <style>
+        .pc-prev-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(9, 13, 28, 0.82);
+            backdrop-filter: blur(6px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .pc-prev-overlay.active { display: flex; }
+
+        .pc-prev-card {
+            width: 100%;
+            max-width: 980px;
+            max-height: 92vh;
+            overflow-y: auto;
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 20px;
+            padding: 24px;
+            position: relative;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
+            font-family: inherit;
+        }
+        .pc-prev-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            background: rgba(30, 41, 59, 0.9);
+            color: #e2e8f0;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .pc-prev-close:hover { background: #334155; color: #fff; }
+
+        .pc-prev-head { margin-bottom: 16px; padding-right: 40px; }
+        .pc-prev-badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.16);
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            font-size: 0.74rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 999px;
+            margin-bottom: 8px;
+        }
+        .pc-prev-head h2 { margin: 0 0 6px; font-size: 1.45rem; color: #fff; }
+        .pc-prev-head p { margin: 0; font-size: 0.9rem; color: #94a3b8; }
+
+        .pc-prev-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+        .pc-prev-tab {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: #1e293b;
+            color: #cbd5e1;
+            padding: 8px 13px;
+            border-radius: 12px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .pc-prev-tab:hover { border-color: #6366f1; color: #fff; }
+        .pc-prev-tab.active {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35);
+        }
+
+        .pc-prev-body {
+            display: grid;
+            grid-template-columns: 1.45fr 1fr;
+            gap: 20px;
+            align-items: center;
+            background: rgba(30, 41, 59, 0.55);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            border-radius: 16px;
+            padding: 18px;
+        }
+        .pc-prev-browser {
+            background: #0b1120;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .pc-prev-browser-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 12px;
+            background: #1e293b;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+            font-size: 0.72rem;
+            color: #94a3b8;
+        }
+        .pc-prev-browser-left { display: flex; align-items: center; gap: 6px; }
+        .pc-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        .pc-dot.r { background: #ef4444; }
+        .pc-dot.y { background: #f59e0b; }
+        .pc-dot.g { background: #10b981; }
+
+        .pc-prev-subimgs {
+            display: none;
+            gap: 6px;
+        }
+        .pc-prev-subimgs.visible { display: flex; }
+        .pc-subimg-btn {
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            background: #0f172a;
+            color: #cbd5e1;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 9px;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+        .pc-subimg-btn.active {
+            background: #6366f1;
+            border-color: #6366f1;
+            color: #fff;
+        }
+
+        .pc-prev-img-wrap {
+            position: relative;
+            cursor: zoom-in;
+            background: #0b1120;
+        }
+        .pc-prev-img {
+            width: 100%;
+            height: 310px;
+            object-fit: contain;
+            background: #0b1120;
+            display: block;
+            transition: transform 0.2s ease;
+        }
+        .pc-prev-img-wrap:hover .pc-prev-img { transform: scale(1.015); }
+        .pc-zoom-hint {
+            position: absolute;
+            right: 10px;
+            bottom: 10px;
+            background: rgba(15, 23, 42, 0.86);
+            color: #f8fafc;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 5px 10px;
+            border-radius: 999px;
+            pointer-events: none;
+            backdrop-filter: blur(4px);
+        }
+
+        .pc-prev-info h3 { margin: 0 0 8px; font-size: 1.15rem; color: #fff; }
+        .pc-prev-info p { margin: 0 0 12px; font-size: 0.88rem; color: #cbd5e1; line-height: 1.5; }
+        .pc-prev-points {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .pc-prev-points li {
+            font-size: 0.84rem;
+            color: #e2e8f0;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            line-height: 1.4;
+        }
+
+        .pc-prev-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(148, 163, 184, 0.16);
+        }
+        .pc-prev-sync-note { font-size: 0.8rem; color: #94a3b8; }
+        .pc-prev-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
+        .pc-cta-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.88rem;
+            padding: 11px 18px;
+            border-radius: 12px;
+        }
+        .pc-cta-primary:hover { filter: brightness(1.08); }
+        .pc-cta-secondary {
+            background: transparent;
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.88rem;
+            padding: 11px 18px;
+            border-radius: 12px;
+        }
+        .pc-cta-secondary:hover { background: rgba(148, 163, 184, 0.14); color: #fff; }
+
+        /* --- LIGHTBOX DE ZOOM --- */
+        .pc-zoom-lightbox {
+            position: fixed;
+            inset: 0;
+            z-index: 10050;
+            background: rgba(2, 6, 23, 0.94);
+            backdrop-filter: blur(8px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            cursor: zoom-out;
+        }
+        .pc-zoom-lightbox.active { display: flex; }
+        .pc-zoom-close {
+            position: fixed;
+            top: 18px;
+            right: 20px;
+            width: 42px;
+            height: 42px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: rgba(15, 23, 42, 0.9);
+            color: #fff;
+            font-size: 1.15rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .pc-zoom-close:hover { background: #334155; }
+        .pc-zoom-img {
+            max-width: 94vw;
+            max-height: 84vh;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
+            object-fit: contain;
+            cursor: default;
+        }
+        .pc-zoom-caption {
+            margin-top: 12px;
+            color: #cbd5e1;
+            font-size: 0.86rem;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        @media (max-width: 780px) {
+            .pc-prev-body { grid-template-columns: 1fr; }
+            .pc-prev-img { height: 220px; }
+        }
+    </style>
+
+    <div class="pc-prev-overlay" id="pc-preview-modal" aria-hidden="true">
+        <div class="pc-prev-card" role="dialog" aria-labelledby="pc-prev-title">
+            <button type="button" class="pc-prev-close" id="btn-close-pc-preview" aria-label="Cerrar">✕</button>
+
+            <div class="pc-prev-head">
+                <span class="pc-prev-badge">💻 Versión Web PC • Sin instalar nada</span>
+                <h2 id="pc-prev-title">Recorrido rápido por Cat-Alogo en tu PC</h2>
+                <p>Mirá cómo funciona cada módulo antes de crear tu cuenta. Hacé clic en cualquier captura para ampliarla.</p>
+            </div>
+
+            <div class="pc-prev-tabs" id="pc-prev-tabs"></div>
+
+            <div class="pc-prev-body">
+                <div class="pc-prev-browser">
+                    <div class="pc-prev-browser-bar">
+                        <div class="pc-prev-browser-left">
+                            <span class="pc-dot r"></span>
+                            <span class="pc-dot y"></span>
+                            <span class="pc-dot g"></span>
+                            <span style="margin-left:6px;" id="pc-prev-url">cat-alogo.app / dashboard</span>
+                        </div>
+                        <div class="pc-prev-subimgs" id="pc-prev-subimgs"></div>
+                    </div>
+                    <div class="pc-prev-img-wrap" id="pc-prev-img-wrap" title="Hacé clic para ampliar">
+                        <img id="pc-prev-img" class="pc-prev-img" src="img/preview-dashboard.png" alt="Vista previa Cat-Alogo PC" loading="lazy">
+                        <span class="pc-zoom-hint">🔍 Clic para ampliar</span>
+                    </div>
+                </div>
+
+                <div class="pc-prev-info">
+                    <h3 id="pc-prev-mod-title">Panel de Control Operativo</h3>
+                    <p id="pc-prev-mod-desc"></p>
+                    <ul class="pc-prev-points" id="pc-prev-mod-points"></ul>
+                </div>
+            </div>
+
+            <div class="pc-prev-footer">
+                <span class="pc-prev-sync-note">✨ Incluye 14 días gratis sin tarjeta. Funciona en Chrome, Edge o Brave.</span>
+                <div class="pc-prev-ctas">
+                    <a href="app/dashboard.html" class="pc-cta-secondary">🔓 Ya tengo cuenta, ingresar</a>
+                    <a href="app/dashboard.html?tab=register" class="pc-cta-primary">✨ Crear mi cuenta gratis (14 días)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIGHTBOX DE ZOOM PARA CAPTURAS -->
+    <div class="pc-zoom-lightbox" id="pc-zoom-lightbox" aria-hidden="true">
+        <button type="button" class="pc-zoom-close" id="btn-close-pc-zoom" aria-label="Cerrar zoom">✕</button>
+        <img id="pc-zoom-img" class="pc-zoom-img" src="" alt="Captura ampliada">
+        <div id="pc-zoom-caption" class="pc-zoom-caption"></div>
+    </div>
+
+    <script>
+        (function () {
+            const PC_PREVIEW_TABS = [
+                {
+                    id: 'dashboard',
+                    label: '📊 Dashboard',
+                    url: 'cat-alogo.app / dashboard',
+                    images: [{ src: 'img/preview-dashboard.png', label: 'Panel Principal' }],
+                    title: 'Panel de control en tiempo real',
+                    desc: 'Tené el pulso de tu comercio apenas abrís la pantalla: ventas del turno, stock crítico y sincronización en vivo.',
+                    points: [
+                        'Resumen instantáneo de ventas, caja activa y productos publicados en Cat-Web.',
+                        'Alertas rápidas para detectar faltantes antes de quedarte sin mercadería.',
+                        'Sincronización automática entre tu PC y la App Android.'
+                    ]
+                },
+                {
+                    id: 'pos',
+                    label: '💳 Punto de Venta (POS)',
+                    url: 'cat-alogo.app / pos',
+                    images: [{ src: 'img/preview-pos.png', label: 'Terminal POS' }],
+                    title: 'Punto de Venta ágil para mostrador',
+                    desc: 'Cobrá en segundos desde la computadora con lector de código de barras o búsqueda rápida.',
+                    points: [
+                        'Cobros combinados (efectivo, transferencia, QR, débito o fiado).',
+                        'Apertura, arqueo y cierre de caja por turno.',
+                        'Tickets de venta en PDF listos para imprimir o enviar por WhatsApp.'
+                    ]
+                },
+                {
+                    id: 'inventario',
+                    label: '📦 Inventario',
+                    url: 'cat-alogo.app / inventario',
+                    images: [{ src: 'img/preview-inventario.png', label: 'Inventario' }],
+                    title: 'Gestión completa de productos y precios',
+                    desc: 'Cargá, editá y actualizá miles de artículos con costos ocultos, márgenes y variantes en pocos clics.',
+                    points: [
+                        'Edición masiva de precios, importación desde Excel/CSV y búsqueda por SKU.',
+                        'Control separado de precio de costo, precio normal y precio de oferta.',
+                        'Interruptor rápido para decidir qué productos se publican en tu tienda web.'
+                    ]
+                },
+                {
+                    id: 'stock',
+                    label: '🚛 Control de Stock',
+                    url: 'cat-alogo.app / control-stock',
+                    images: [{ src: 'img/preview-stock.png', label: 'Control de Stock' }],
+                    title: 'Reposición inteligente y proveedores',
+                    desc: 'Detectá productos en umbral crítico y armá pedidos a tus proveedores sin perder tiempo anotando a mano.',
+                    points: [
+                        'Semáforo de stock bajo y agotado filtrado por proveedor.',
+                        'Generación automática de órdenes de compra listas para enviar por WhatsApp.',
+                        'Recepción de mercadería que actualiza stock y deuda comercial en un clic.'
+                    ]
+                },
+                {
+                    id: 'finanzas',
+                    label: '💰 Finanzas',
+                    url: 'cat-alogo.app / finanzas',
+                    images: [
+                        { src: 'img/preview-finanzas1.png', label: 'Vista 1' },
+                        { src: 'img/preview-finanzas2.png', label: 'Vista 2' }
+                    ],
+                    title: 'Finanzas y reportes en 7 niveles',
+                    desc: 'Conocé tu ganancia neta real, tus gastos operativos y la salud financiera de tu negocio sin planillas externas.',
+                    points: [
+                        'Flujo de caja, desglose por medios de pago y control de gastos (OPEX).',
+                        'Ranking de productos más vendidos y más rentables.',
+                        'Estado de resultados (P&L), proyección mensual y punto de equilibrio.'
+                    ]
+                },
+                {
+                    id: 'clientes',
+                    label: '👥 Clientes y Cta. Cte.',
+                    url: 'cat-alogo.app / clientes',
+                    images: [{ src: 'img/preview-clientes.png', label: 'Clientes' }],
+                    title: 'Control exacto de fiados y abonos',
+                    desc: 'Olvidate del cuaderno: controlá cupos, alertas de límite y pagos parciales en un solo lugar.',
+                    points: [
+                        'Registro de abonos en 1 clic ($2.000, $5.000 o saldo total) y ticket 80mm.',
+                        'Semáforo de cupo máximo y bloqueo automático en POS si excede el límite.',
+                        'Plantillas listas para enviar recordatorios de deuda por WhatsApp.'
+                    ]
+                },
+                {
+                    id: 'pdf',
+                    label: '📄 Catálogo PDF',
+                    url: 'cat-alogo.app / diseno-pdf',
+                    images: [{ src: 'img/preview-pdf.png', label: 'Catálogo PDF' }],
+                    title: 'Diseñá catálogos visuales en minutos',
+                    desc: 'Generá listas de precios y catálogos con tu marca para mandar por WhatsApp o imprimir.',
+                    points: [
+                        'Personalizá colores, tipografías, portada y hoja de cierre con tus datos.',
+                        'Elegí qué categorías o productos incluir sin editar precios a mano.',
+                        'Exportación en PDF liviano de alta calidad listo para compartir.'
+                    ]
+                },
+                {
+                    id: 'catweb',
+                    label: '🌐 Cat-Web (Tienda)',
+                    url: 'cat-alogo.app / cat-web',
+                    images: [{ src: 'img/preview-catweb.png', label: 'Cat-Web' }],
+                    title: 'Tu tienda online propia sin comisiones',
+                    desc: 'Publicá tu catálogo en internet y recibí pedidos ordenados directo en tu WhatsApp y en el sistema.',
+                    points: [
+                        'Elegís qué productos publicar y cuáles quedan solo para control interno.',
+                        'Actualizás stock o precios una sola vez y se refleja en tu tienda web.',
+                        'Cero comisiones por venta: el pedido llega directo a vos.'
+                    ]
+                }
+            ];
+
+            const modal = document.getElementById('pc-preview-modal');
+            const openBtn = document.getElementById('btn-open-pc-preview');
+            const closeBtn = document.getElementById('btn-close-pc-preview');
+            const tabsBox = document.getElementById('pc-prev-tabs');
+            const subImgsBox = document.getElementById('pc-prev-subimgs');
+            const imgWrap = document.getElementById('pc-prev-img-wrap');
+            const imgEl = document.getElementById('pc-prev-img');
+            const urlEl = document.getElementById('pc-prev-url');
+            const titleEl = document.getElementById('pc-prev-mod-title');
+            const descEl = document.getElementById('pc-prev-mod-desc');
+            const pointsEl = document.getElementById('pc-prev-mod-points');
+
+            const zoomBox = document.getElementById('pc-zoom-lightbox');
+            const zoomImg = document.getElementById('pc-zoom-img');
+            const zoomCaption = document.getElementById('pc-zoom-caption');
+            const zoomCloseBtn = document.getElementById('btn-close-pc-zoom');
+
+            if (!modal || !openBtn || !tabsBox) return;
+
+            let currentItem = PC_PREVIEW_TABS[0];
+            let currentImgIdx = 0;
+
+            function mostrarImagenActual() {
+                const foto = currentItem.images[currentImgIdx] || currentItem.images[0];
+                imgEl.src = foto.src;
+                imgEl.alt = `${currentItem.title} — ${foto.label}`;
+                if (subImgsBox) {
+                    subImgsBox.querySelectorAll('.pc-subimg-btn').forEach((b, idx) => {
+                        b.classList.toggle('active', idx === currentImgIdx);
+                    });
+                }
+            }
+
+            function renderTab(tabId) {
+                currentItem = PC_PREVIEW_TABS.find(t => t.id === tabId) || PC_PREVIEW_TABS[0];
+                currentImgIdx = 0;
+
+                tabsBox.querySelectorAll('.pc-prev-tab').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tab === currentItem.id);
+                });
+
+                if (subImgsBox) {
+                    if (currentItem.images.length > 1) {
+                        subImgsBox.innerHTML = currentItem.images.map((im, idx) =>
+                            `<button type="button" class="pc-subimg-btn ${idx === 0 ? 'active' : ''}" data-idx="${idx}">${im.label}</button>`
+                        ).join('');
+                        subImgsBox.classList.add('visible');
+                    } else {
+                        subImgsBox.innerHTML = '';
+                        subImgsBox.classList.remove('visible');
+                    }
+                }
+
+                mostrarImagenActual();
+                urlEl.textContent = currentItem.url;
+                titleEl.textContent = currentItem.title;
+                descEl.textContent = currentItem.desc;
+                pointsEl.innerHTML = currentItem.points.map(p => `<li><span>✅</span><span>${p}</span></li>`).join('');
+            }
+
+            tabsBox.innerHTML = PC_PREVIEW_TABS.map(t =>
+                `<button type="button" class="pc-prev-tab" data-tab="${t.id}">${t.label}</button>`
+            ).join('');
+
+            tabsBox.addEventListener('click', (e) => {
+                const btn = e.target.closest('.pc-prev-tab');
+                if (btn) renderTab(btn.dataset.tab);
+            });
+
+            subImgsBox?.addEventListener('click', (e) => {
+                const btn = e.target.closest('.pc-subimg-btn');
+                if (!btn) return;
+                currentImgIdx = Number(btn.dataset.idx) || 0;
+                mostrarImagenActual();
+            });
+
+            function abrirZoom() {
+                if (!zoomBox || !zoomImg) return;
+                const foto = currentItem.images[currentImgIdx] || currentItem.images[0];
+                zoomImg.src = foto.src;
+                zoomImg.alt = currentItem.title;
+                if (zoomCaption) {
+                    zoomCaption.textContent = currentItem.images.length > 1
+                        ? `${currentItem.title} (${foto.label}) — Tocá afuera o presioná Esc para cerrar`
+                        : `${currentItem.title} — Tocá afuera o presioná Esc para cerrar`;
+                }
+                zoomBox.classList.add('active');
+                zoomBox.setAttribute('aria-hidden', 'false');
+            }
+
+            function cerrarZoom() {
+                if (!zoomBox) return;
+                zoomBox.classList.remove('active');
+                zoomBox.setAttribute('aria-hidden', 'true');
+            }
+
+            function abrirModal() {
+                renderTab(PC_PREVIEW_TABS[0].id);
+                modal.classList.add('active');
+                modal.setAttribute('aria-hidden', 'false');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function cerrarModal() {
+                cerrarZoom();
+                modal.classList.remove('active');
+                modal.setAttribute('aria-hidden', 'true');
+                document.body.style.overflow = '';
+            }
+
+            openBtn.addEventListener('click', abrirModal);
+            closeBtn?.addEventListener('click', cerrarModal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) cerrarModal();
+            });
+
+            imgWrap?.addEventListener('click', abrirZoom);
+            zoomCloseBtn?.addEventListener('click', cerrarZoom);
+            zoomBox?.addEventListener('click', (e) => {
+                if (e.target === zoomBox) cerrarZoom();
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key !== 'Escape') return;
+                if (zoomBox?.classList.contains('active')) {
+                    cerrarZoom();
+                } else if (modal.classList.contains('active')) {
+                    cerrarModal();
+                }
+            });
+        })();
+    </script>
+
 </body>
 </html>
 
