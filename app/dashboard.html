@@ -24,6 +24,12 @@
     <link rel="stylesheet" href="css/auth-guard.css">
 
     <style>
+
+    /* Blindaje: el panel permanece oculto hasta que AuthGuard confirme licencia vigente */
+        body:not(.cat-auth-unlocked) .app-container {
+            display: none !important;
+        }
+
         .topbar-right {
             display: flex;
             align-items: center;

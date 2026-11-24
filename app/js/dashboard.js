@@ -3,16 +3,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const pageTitle = document.getElementById('main-title');
     const navLinks = document.querySelectorAll('.nav-link[data-vista]');
     let chartInstance = null;
+    let vistaActualCargada = false;
+    let vistaPendiente = { vista: 'inicio', titulo: 'Panel de Control Operativo' };
+
+    /* ==========================================
+       BLINDAJE DE ACCESO (ANTI-BYPASS OFFLINE)
+       ========================================== */
+    function tieneAccesoAutorizado() {
+        const authApi = window.CatAlogoAuth;
+        if (!authApi || typeof authApi.getState !== 'function') return false;
+        const st = authApi.getState();
+        if (st.modoLocalSinFirebase) return true;
+        if (window.CAT_ALOGO_CLOUD_CONFIG?.exigirLoginConFirebase === false && !st.user) return true;
+        if (!st.uid || !st.user || !st.user.emailVerified) return false;
+        return Boolean(st.subscripcion?.activa) && !st.bloqueado;
+    }
+
+    function vaciarPanelBloqueado() {
+        if (chartInstance) {
+            try { chartInstance.destroy(); } catch { /* ignore */ }
+            chartInstance = null;
+        }
+        if (viewport) viewport.innerHTML = '';
+        vistaActualCargada = false;
+    }
+
+    function mostrarAvisoGuardiaFaltante() {
+        if (document.getElementById('cat-security-missing-screen')) return;
+        const div = document.createElement('div');
+        div.id = 'cat-security-missing-screen';
+        div.style.cssText = 'position:fixed;inset:0;z-index:999999;background:#0f172a;color:#f8fafc;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font-family:Inter,sans-serif;';
+        div.innerHTML = `
+            <div style="max-width:420px;background:#1e293b;border:1px solid #334155;border-radius:16px;padding:28px;">
+                <div style="font-size:2.2rem;margin-bottom:10px;">🛡️</div>
+                <h2 style="margin:0 0 8px;font-size:1.15rem;">No se pudo verificar la seguridad</h2>
+                <p style="margin:0 0 18px;font-size:0.86rem;color:#cbd5e1;line-height:1.45;">
+                    El módulo de autenticación no se cargó correctamente. Recargá la página para continuar.
+                </p>
+                <button type="button" onclick="window.location.reload()" style="background:#047857;color:#fff;border:none;border-radius:10px;padding:10px 18px;font-weight:700;cursor:pointer;">
+                    🔄 Recargar Cat-Alogo
+                </button>
+            </div>
+        `;
+        document.body.appendChild(div);
+    }
 
     /* ==========================================
        MOTOR DE CARGA DE VISTAS (SPA con Fetch)
        ========================================== */
     async function cargarVista(nombreVista, titulo) {
-        try {
-            // Actualiza el título en la barra superior
-            if (titulo) pageTitle.textContent = titulo;
+        if (!tieneAccesoAutorizado()) {
+            vaciarPanelBloqueado();
+            return;
+        }
 
-            // Busca el archivo HTML dentro de app/vistas/
+        vistaPendiente = { vista: nombreVista, titulo: titulo || vistaPendiente.titulo };
+
+        try {
+            if (titulo && pageTitle) pageTitle.textContent = titulo;
+
             const respuesta = await fetch(`vistas/${nombreVista}.html`);
 
             if (!respuesta.ok) {
@@ -20,9 +69,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const html = await respuesta.text();
-            viewport.innerHTML = html;
 
-            // Inicializa la lógica específica según la vista cargada
+            // Re-verificar por si la sesión caducó durante el fetch
+            if (!tieneAccesoAutorizado()) {
+                vaciarPanelBloqueado();
+                return;
+            }
+
+            viewport.innerHTML = html;
+            vistaActualCargada = true;
+
             if (nombreVista === 'inicio' || nombreVista === 'dashboard') {
                 if (typeof inicializarInicio === 'function') {
                     inicializarInicio();
@@ -49,7 +105,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error(`Error cargando la vista "${nombreVista}":`, error);
-            // Pantalla elegante si el módulo todavía no tiene su archivo HTML
             viewport.innerHTML = `
                 <div class="card" style="text-align: center; padding: 4rem 2rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🚧</div>
@@ -68,12 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
     navLinks.forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
+            if (!tieneAccesoAutorizado()) return;
 
-            // Cambia el botón iluminado en el menú
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             link.parentElement.classList.add('active');
 
-            // Lee el nombre de la vista y el título desde el HTML
             const vista = link.getAttribute('data-vista');
             const titulo = link.getAttribute('data-titulo');
 
@@ -88,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const canvas = document.getElementById('revenueChart');
         if (!canvas) return;
 
-        // Si ya existía un gráfico previo, lo destruye antes de dibujar el nuevo
         if (chartInstance) {
             chartInstance.destroy();
         }
@@ -150,11 +203,39 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            window.location.href = '../index.html';
+            if (window.CatAlogoAuth?.cerrarSesion) {
+                window.CatAlogoAuth.cerrarSesion();
+            } else {
+                window.location.href = '../index.html';
+            }
         });
     }
 
-    // Carga la vista inicial por defecto al abrir el panel
-    cargarVista('inicio', 'Panel de Control Operativo');
-});
+    /* ==========================================
+       REACCIÓN EN VIVO A AUTH Y SUSCRIPCIÓN
+       ========================================== */
+    function sincronizarPanelConLicencia() {
+        if (!window.CatAlogoAuth) {
+            vaciarPanelBloqueado();
+            mostrarAvisoGuardiaFaltante();
+            return;
+        }
+        if (tieneAccesoAutorizado()) {
+            if (!vistaActualCargada) {
+                cargarVista(vistaPendiente.vista, vistaPendiente.titulo);
+            }
+        } else {
+            vaciarPanelBloqueado();
+        }
+    }
 
+    window.addEventListener('cat-alogo:suscripcion-actualizada', sincronizarPanelConLicencia);
+    window.addEventListener('cat-alogo:auth-cambiado', sincronizarPanelConLicencia);
+
+    // Arranque seguro: si bloquearon auth-guard.js en DevTools, frena la app
+    if (!window.CatAlogoAuth) {
+        mostrarAvisoGuardiaFaltante();
+    } else if (tieneAccesoAutorizado()) {
+        cargarVista('inicio', 'Panel de Control Operativo');
+    }
+});

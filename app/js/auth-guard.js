@@ -1,7 +1,7 @@
 /* ==========================================================================
    ETAPA 2 + FASES 1, 2 Y 3: LOGIN UNIFICADO, REGISTRO, VERIFICACIÓN DE EMAIL,
    PRUEBA 14 DÍAS EN SERVIDOR, MODAL MEJORAR PLAN (PADDLE USD + MERCADO PAGO ARS),
-   BANNER DE VENCIMIENTO, GUARDIÁN ANTI-F12 Y AISLAMIENTO MULTI-CUENTA
+   BANNER DE VENCIMIENTO, GUARDIÁN ANTI-F12, BLINDAJE OFFLINE Y MULTI-CUENTA
    ========================================================================== */
 (function () {
     const STORAGE_KEY_FB_CFG = 'cat_alogo_firebase_cfg_v1';
@@ -202,6 +202,8 @@
         }
 
         state.cerrandoSesion = true;
+        document.body.classList.remove('cat-auth-unlocked');
+
         if (state.unsubBilling) {
             try { state.unsubBilling(); } catch { /* ignore */ }
             state.unsubBilling = null;
@@ -799,6 +801,15 @@
         if (state.observerDom || typeof MutationObserver === 'undefined') return;
         state.observerDom = new MutationObserver(() => {
             if (state.cerrandoSesion || state.modoLocalSinFirebase) return;
+
+            const exigir = window.CAT_ALOGO_CLOUD_CONFIG?.exigirLoginConFirebase !== false;
+            const accesoPermitido = (!exigir && !state.user)
+                || (Boolean(state.user && state.user.emailVerified && state.subscripcion?.activa) && !state.bloqueado);
+
+            if (!accesoPermitido && document.body.classList.contains('cat-auth-unlocked')) {
+                document.body.classList.remove('cat-auth-unlocked');
+            }
+
             const debeBloquear = state.bloqueado || state.verificandoEmail || state.requiereLogin;
             if (!debeBloquear) return;
 
@@ -1277,7 +1288,7 @@
             ? Math.ceil((expiresAtMs - ahoraMs) / 86400000)
             : 0;
 
-        const marcadoVencido = ['expired', 'vencido', 'blocked', 'bloqueado', 'revoked', 'none'].includes(statusRaw);
+        const marcadoVencido = ['expired', 'vencido', 'blocked', 'bloqueado', 'revoked', 'none'].includes(statusRaw) || d.activePlan === false;
         const vigentePorFecha = expiresAtMs > ahoraMs;
         const vigentePorFlag = (d.activePlan === true || statusRaw === 'active' || statusRaw === 'trial' || statusRaw === 'lifetime') && expiresAtMs === 0;
         const activa = !marcadoVencido && (vigentePorFecha || vigentePorFlag);
@@ -1365,15 +1376,18 @@
 
     function aplicarEstadoSuscripcion(evalSub) {
         state.subscripcion = evalSub;
-        window.dispatchEvent(new CustomEvent('cat-alogo:suscripcion-actualizada', { detail: evalSub }));
-        inyectarPanelCuentaEnAjustesNube();
-        actualizarBannerVencimiento(evalSub);
 
         if (!evalSub.activa) {
+            document.body.classList.remove('cat-auth-unlocked');
             mostrarLockOverlay(evalSub, false);
         } else {
             ocultarLockOverlay();
+            document.body.classList.add('cat-auth-unlocked');
         }
+
+        window.dispatchEvent(new CustomEvent('cat-alogo:suscripcion-actualizada', { detail: evalSub }));
+        inyectarPanelCuentaEnAjustesNube();
+        actualizarBannerVencimiento(evalSub);
 
         if (document.getElementById('cat-auth-plans-overlay')?.classList.contains('active')) {
             actualizarBotonesModalPlanes();
@@ -1797,7 +1811,9 @@
         if (!fbConfig || typeof firebase === 'undefined') {
             state.firebaseListo = false;
             state.modoLocalSinFirebase = true;
+            document.body.classList.add('cat-auth-unlocked');
             console.info('ℹ️ AuthGuard en Modo Local: configura app/js/firebase-config.js para activar Login y Bloqueo en vivo.');
+            window.dispatchEvent(new CustomEvent('cat-alogo:auth-cambiado', { detail: { user: null } }));
             return;
         }
 
@@ -1819,6 +1835,8 @@
 
                 if (!user) {
                     if (state.unsubBilling) { state.unsubBilling(); state.unsubBilling = null; }
+                    state.subscripcion = null;
+                    document.body.classList.toggle('cat-auth-unlocked', !exigir);
                     ocultarLockOverlay();
                     ocultarVerifyOverlay();
                     ocultarWelcomeOverlay();
@@ -1831,9 +1849,12 @@
                 }
 
                 if (!user.emailVerified) {
+                    state.subscripcion = null;
+                    document.body.classList.remove('cat-auth-unlocked');
                     ocultarLoginOverlay();
                     ocultarLockOverlay();
                     mostrarVerifyOverlay(user.email);
+                    window.dispatchEvent(new CustomEvent('cat-alogo:auth-cambiado', { detail: { user, uid: user.uid } }));
                     return;
                 }
 
@@ -1864,7 +1885,7 @@
         }
     });
 
-    window.CatAlogoAuth = {
+    window.CatAlogoAuth = Object.freeze({
         getState: () => ({ ...state }),
         getDb: () => state.db,
         getAuth: () => state.auth,
@@ -1880,5 +1901,5 @@
         refrescarSuscripcion: () => refrescarSuscripcionManual(false),
         abrirLoginPreview: () => mostrarLoginOverlay(state.modoLocalSinFirebase),
         abrirBloqueoPreview: () => mostrarLockOverlay({ plan: 'trial_14', expiresAtMs: Date.now() - 3600000 }, true)
-    };
+    });
 })();
