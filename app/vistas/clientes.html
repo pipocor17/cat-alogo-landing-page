@@ -1,0 +1,562 @@
+<!-- ==========================================
+     MÓDULO: CLIENTES & GESTIÓN DE CUENTAS CORRIENTES
+     ========================================== -->
+<div class="cli-wrap" id="clientes-module-root">
+
+    <!-- CABECERA PRINCIPAL -->
+    <header class="cli-header">
+        <div class="cli-header-left">
+            <div class="cli-eyebrow">
+                <span class="cli-pill-crm">CRM FINANCIERO • CUENTAS CORRIENTES</span>
+                <span class="cli-sync-txt">🛡️ Bóveda Local Sincronizada</span>
+            </div>
+            <h2>Gestión de Cuentas Corrientes • Fiados & Proveedores</h2>
+            <p>Control de deuda de clientes fiados, límites crediticios, alertas de cobranza por WhatsApp y cuentas por pagar a proveedores.</p>
+        </div>
+
+        <div class="cli-header-actions">
+            <button type="button" class="cli-btn cli-btn-light" id="btn-cli-exportar" title="Exportar listado de cuentas corrientes">
+                ⬇️ Exportar (PDF / CSV)
+            </button>
+            <button type="button" class="cli-btn cli-btn-light" id="btn-cli-ir-stock" title="Ir a Control de Stock para crear orden a proveedor">
+                🚛 + Orden de Proveedor
+            </button>
+            <button type="button" class="cli-btn cli-btn-primary" id="btn-cli-nuevo">
+                👤 + Nuevo Cliente / Fiado
+            </button>
+        </div>
+    </header>
+
+    <!-- BARRA DE SUB-PESTAÑAS -->
+    <nav class="cli-subtabs" aria-label="Secciones de cuentas corrientes">
+        <div class="cli-subtabs-left">
+            <button type="button" class="cli-subtab active" data-clitab="clientes">
+                👥 Clientes & Motor de Fiados
+                <span class="cli-subtab-badge badge-red" id="tab-badge-fiados">$0</span>
+            </button>
+            <button type="button" class="cli-subtab" data-clitab="proveedores">
+                🏪 Proveedores & Compras por Pagar
+                <span class="cli-subtab-badge badge-slate" id="tab-badge-provs">$0 a liquidar</span>
+            </button>
+            <button type="button" class="cli-subtab" data-clitab="historial">
+                📑 Historial de Abonos & Pagos Auditados
+                <span class="cli-subtab-badge badge-teal" id="tab-badge-hist">0</span>
+            </button>
+        </div>
+        <span class="cli-live-sync" id="cli-sync-indicator">🔄 Sincronizado con Bóveda Local</span>
+    </nav>
+
+    <!-- 4 TARJETAS KPI -->
+    <section class="cli-kpi-grid">
+        <article class="cli-kpi-card">
+            <div class="cli-kpi-top">
+                <span class="cli-kpi-label">TOTAL EN FIADOS ACTIVOS</span>
+                <span class="cli-kpi-icon ico-red">🧾</span>
+            </div>
+            <div class="cli-kpi-val" id="kpi-cli-total-fiados">$0 ARS</div>
+            <div class="cli-kpi-foot">
+                <span id="kpi-cli-deudores-count">0 clientes con deuda</span>
+                <strong class="text-danger" id="kpi-cli-cupo-uso">0% cupo usado</strong>
+            </div>
+        </article>
+
+        <article class="cli-kpi-card">
+            <div class="cli-kpi-top">
+                <span class="cli-kpi-label">COBRANZAS DE HOY</span>
+                <span class="cli-kpi-icon ico-emerald">💵</span>
+            </div>
+            <div class="cli-kpi-val text-emerald" id="kpi-cli-cobranzas-hoy">+$0 ARS</div>
+            <div class="cli-kpi-foot">
+                <span id="kpi-cli-cobranzas-cant">0 abonos registrados hoy</span>
+                <strong class="text-emerald">Caja al día</strong>
+            </div>
+        </article>
+
+        <article class="cli-kpi-card" id="kpi-card-cli-alerta">
+            <div class="cli-kpi-top">
+                <span class="cli-kpi-label">ALERTA DE LÍMITE CRÉDITO</span>
+                <span class="cli-kpi-icon ico-amber">⚠️</span>
+            </div>
+            <div class="cli-kpi-val" id="kpi-cli-alertas-count">0 Clientes</div>
+            <div class="cli-kpi-foot">
+                <span>&gt;85% cupo utilizado</span>
+                <strong class="text-amber" id="kpi-cli-bloqueados-count">0 bloqueados POS</strong>
+            </div>
+        </article>
+
+        <article class="cli-kpi-card">
+            <div class="cli-kpi-top">
+                <span class="cli-kpi-label">DEUDA PROVEEDORES (CXP)</span>
+                <span class="cli-kpi-icon ico-indigo">🚚</span>
+            </div>
+            <div class="cli-kpi-val" id="kpi-cli-deuda-provs">$0 ARS</div>
+            <div class="cli-kpi-foot">
+                <span id="kpi-cli-facturas-pend">0 facturas pendientes</span>
+                <strong class="text-indigo" id="kpi-cli-provs-pend-tag">Sin vencimientos</strong>
+            </div>
+        </article>
+    </section>
+
+    <!-- ======================================================
+         SUB-VISTA 1: CLIENTES & MOTOR DE FIADOS (MAESTRO-DETALLE)
+         ====================================================== -->
+    <div id="cli-view-clientes" class="cli-tab-view active">
+
+        <!-- BARRA DE BÚSQUEDA (F2), FILTROS Y ORDENAMIENTO -->
+        <section class="cli-card cli-toolbar">
+            <div class="cli-search-wrap">
+                <span class="cli-search-ico">🔍</span>
+                <input type="text" id="cli-search-input" placeholder="Buscar cliente por nombre, DNI, teléfono, cuenta o domicilio...">
+                <span class="cli-kbd">F2</span>
+            </div>
+
+            <div class="cli-filter-chips" id="cli-filter-chips">
+                <!-- Chips dinámicos -->
+            </div>
+
+            <div class="cli-sort-wrap">
+                <label for="cli-sort-select">Ordenar por:</label>
+                <select id="cli-sort-select" class="cli-select">
+                    <option value="saldo_desc">Mayor saldo deudor</option>
+                    <option value="saldo_asc">Menor saldo deudor</option>
+                    <option value="uso_desc">% de cupo usado</option>
+                    <option value="nombre_asc">Nombre (A - Z)</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- GRID MAESTRO-DETALLE -->
+        <section class="cli-master-detail">
+
+            <!-- COLUMNA IZQUIERDA: DIRECTORIO DE CLIENTES -->
+            <aside class="cli-directory-col">
+                <div class="cli-dir-head">
+                    <strong id="cli-dir-title">DIRECTORIO DE CLIENTES (0)</strong>
+                    <span class="cli-dir-sub">Actualizado en vivo</span>
+                </div>
+                <div class="cli-directory-list" id="cli-directory-list">
+                    <!-- Tarjetas de clientes dinámicas -->
+                </div>
+            </aside>
+
+            <!-- COLUMNA DERECHA: FICHA DEL CLIENTE SELECCIONADO -->
+            <div class="cli-detail-col" id="cli-detail-panel">
+                <!-- Se renderiza dinámicamente -->
+            </div>
+
+        </section>
+
+        <!-- BLOQUE INFERIOR: PROVEEDORES & CUENTAS POR PAGAR A LIQUIDAR -->
+        <section class="cli-card cli-prov-preview-section">
+            <div class="cli-prov-sec-head">
+                <div>
+                    <span class="cli-eyebrow-sm">MÓDULO DE COMPRAS & COSTOS • SINCRONIZADO CON CONTROL DE STOCK</span>
+                    <h3>Proveedores & Cuentas por Pagar a Liquidar</h3>
+                </div>
+                <button type="button" class="cli-btn cli-btn-light cli-btn-sm" id="btn-cli-ver-todas-cxp">
+                    📄 Ver Todas las Compras Pendientes
+                </button>
+            </div>
+
+            <div class="cli-prov-debts-grid" id="cli-prov-debts-preview">
+                <!-- Tarjetas de deudas de proveedores en vivo -->
+            </div>
+        </section>
+
+    </div>
+
+    <!-- ======================================================
+         SUB-VISTA 2: PROVEEDORES & COMPRAS POR PAGAR (ETAPA 3)
+         ====================================================== -->
+    <div id="cli-view-proveedores" class="cli-tab-view">
+        <section class="cli-card cli-toolbar">
+            <div class="cli-search-wrap">
+                <span class="cli-search-ico">🔍</span>
+                <input type="text" id="cli-cxp-search" placeholder="Buscar por proveedor, N° orden (OC-...), factura o notas...">
+            </div>
+
+            <div class="cli-filter-chips" id="cli-cxp-filter-chips">
+                <button type="button" class="cli-chip active" data-cxpfilter="pendientes">🔴 Pendientes</button>
+                <button type="button" class="cli-chip" data-cxpfilter="saldadas">✅ Saldadas</button>
+                <button type="button" class="cli-chip" data-cxpfilter="todas">Todas</button>
+            </div>
+        </section>
+
+        <section class="cli-card" style="padding: 1.15rem 1.25rem;">
+            <div class="cli-prov-sec-head" style="margin-bottom: 0.9rem;">
+                <div>
+                    <h3>🏪 Cuentas por Pagar a Proveedores</h3>
+                    <p style="margin:0.2rem 0 0; font-size:0.8rem; color:#64748b;">Facturas y saldos generados desde Control de Stock. Cada pago sincroniza el estado del pedido al instante.</p>
+                </div>
+                <span class="cli-subtab-badge badge-red" id="cli-cxp-summary-badge">$0 pendiente</span>
+            </div>
+            <div class="cli-prov-debts-grid" id="cli-prov-debts-full">
+                <!-- Se renderiza en vivo desde cat_alogo_cuentas_pagar_v1 -->
+            </div>
+        </section>
+    </div>
+
+    <!-- ======================================================
+         SUB-VISTA 3: HISTORIAL AUDITADO DE ABONOS Y PAGOS
+         ====================================================== -->
+    <div id="cli-view-historial" class="cli-tab-view">
+        <section class="cli-hist-summary-grid">
+            <article class="cli-hist-stat">
+                <span>INGRESOS POR COBRANZAS (CLIENTES)</span>
+                <strong class="text-emerald" id="hist-stat-ingresos">+$0 ARS</strong>
+            </article>
+            <article class="cli-hist-stat">
+                <span>EGRESOS A PROVEEDORES (CXP)</span>
+                <strong class="text-danger" id="hist-stat-egresos">-$0 ARS</strong>
+            </article>
+            <article class="cli-hist-stat">
+                <span>BALANCE NETO FILTRADO</span>
+                <strong id="hist-stat-neto">$0 ARS</strong>
+            </article>
+        </section>
+
+        <section class="cli-card cli-toolbar">
+            <div class="cli-search-wrap">
+                <span class="cli-search-ico">🔍</span>
+                <input type="text" id="cli-hist-search" placeholder="Buscar por cliente, proveedor, orden, cuenta, concepto o comprobante...">
+            </div>
+
+            <select id="cli-hist-tipo" class="cli-select" title="Filtrar por tipo de movimiento">
+                <option value="todos">Todos los movimientos</option>
+                <option value="cobro_cliente">🟢 Solo Cobros a Clientes</option>
+                <option value="pago_proveedor">🔴 Solo Pagos a Proveedores</option>
+            </select>
+
+            <select id="cli-hist-medio" class="cli-select" title="Filtrar por medio de pago">
+                <option value="todos">Todos los medios</option>
+                <option value="Efectivo">💵 Efectivo</option>
+                <option value="Transferencia">🏦 Transferencia</option>
+                <option value="QR / Débito">📱 QR / Débito</option>
+                <option value="Mercado Pago">📱 Mercado Pago</option>
+                <option value="Tarjeta de Débito">💳 Tarjeta de Débito</option>
+                <option value="Tarjeta de Crédito">💳 Tarjeta de Crédito</option>
+                <option value="Cheque">🧾 Cheque</option>
+            </select>
+
+            <select id="cli-hist-periodo" class="cli-select" title="Filtrar por fecha">
+                <option value="todos">Cualquier fecha</option>
+                <option value="hoy">Hoy</option>
+                <option value="7d">Últimos 7 días</option>
+                <option value="30d">Últimos 30 días</option>
+            </select>
+        </section>
+
+        <section class="cli-card" style="overflow: hidden;">
+            <div class="cli-prov-sec-head" style="padding: 0.9rem 1.15rem; border-bottom: 1px solid #e2e8f0;">
+                <h3 style="margin:0; font-size:0.95rem;">📑 Libro Auditado de Abonos y Pagos</h3>
+                <span style="font-size:0.76rem; color:#64748b; font-weight:600;" id="cli-hist-count-lbl">0 registros</span>
+            </div>
+            <div style="overflow-x:auto;">
+                <table class="cli-movs-table cli-hist-table">
+                    <thead>
+                        <tr>
+                            <th>FECHA / HORA</th>
+                            <th>TIPO</th>
+                            <th>ENTIDAD (CLIENTE / PROVEEDOR)</th>
+                            <th>CONCEPTO / COMPROBANTE</th>
+                            <th>MEDIO DE PAGO</th>
+                            <th style="text-align:right;">MONTO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cli-hist-tbody">
+                        <!-- Filas dinámicas -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="cli-hist-load-more-wrap" style="padding: 0.75rem 1.15rem; background:#f8fafc; border-top:1px solid #e2e8f0; display:none; justify-content:center;">
+                <button type="button" class="cli-btn cli-btn-light cli-btn-sm" id="btn-cli-hist-mas">⬇️ Cargar más movimientos</button>
+            </div>
+        </section>
+    </div>
+
+</div>
+
+<!-- MODAL ETAPA 2A: CREAR / EDITAR CLIENTE -->
+<div class="cli-modal-overlay" id="modal-cli-ficha" aria-hidden="true">
+    <div class="cli-modal-box" role="dialog" aria-labelledby="modal-cli-ficha-title">
+        <header class="cli-modal-header">
+            <div>
+                <h3 id="modal-cli-ficha-title">👤 Nuevo Cliente / Cuenta Corriente</h3>
+                <p id="modal-cli-ficha-sub">Configura los datos de contacto y el límite crediticio para fiados.</p>
+            </div>
+            <button type="button" class="cli-modal-close" id="btn-cerrar-modal-cli">✕</button>
+        </header>
+
+        <form id="form-cli-ficha" class="cli-modal-body">
+            <div class="cli-form-row-2">
+                <div class="cli-field">
+                    <label for="cli-inp-nombre">Nombre y Apellido / Razón Social *</label>
+                    <input type="text" id="cli-inp-nombre" class="cli-input" placeholder="Ej: Mariana Gómez" required>
+                </div>
+                <div class="cli-field">
+                    <label for="cli-inp-dni">DNI / CUIT</label>
+                    <input type="text" id="cli-inp-dni" class="cli-input" placeholder="Ej: 34.892.102">
+                </div>
+            </div>
+
+            <div class="cli-form-row-2">
+                <div class="cli-field">
+                    <label for="cli-inp-telefono">Teléfono / WhatsApp</label>
+                    <input type="text" id="cli-inp-telefono" class="cli-input" placeholder="Ej: +54 9 351 4829-1029">
+                </div>
+                <div class="cli-field">
+                    <label for="cli-inp-domicilio">Domicilio</label>
+                    <input type="text" id="cli-inp-domicilio" class="cli-input" placeholder="Ej: Av. Rivadavia 4821">
+                </div>
+            </div>
+
+            <div class="cli-form-row-2">
+                <div class="cli-field">
+                    <label for="cli-inp-cupo">Cupo Máximo de Crédito ($ ARS)</label>
+                    <input type="number" id="cli-inp-cupo" class="cli-input" min="0" step="100" value="20000" required>
+                </div>
+                <div class="cli-field">
+                    <label for="cli-inp-cuenta">N° de Cuenta</label>
+                    <input type="text" id="cli-inp-cuenta" class="cli-input" placeholder="Ej: AC096">
+                </div>
+            </div>
+
+            <div class="cli-field" id="cli-field-saldo-inicial">
+                <label for="cli-inp-saldo-inicial">Saldo Deudor Inicial de Apertura ($ ARS — Opcional)</label>
+                <input type="number" id="cli-inp-saldo-inicial" class="cli-input" min="0" step="0.01" value="0">
+                <small style="font-size:0.71rem; color:#64748b;">Si el cliente ya tiene una deuda previa en cuaderno, cárgala aquí para arrancar sincronizado.</small>
+            </div>
+
+            <div class="cli-switches-row">
+                <label class="cli-switch-pill">
+                    <input type="checkbox" id="cli-inp-vip">
+                    <span>⭐ Marcar como Cliente VIP</span>
+                </label>
+                <label class="cli-switch-pill">
+                    <input type="checkbox" id="cli-inp-bloqueado">
+                    <span>🔒 Bloquear fiado en POS</span>
+                </label>
+            </div>
+
+            <footer class="cli-modal-footer cli-modal-footer-split">
+                <div id="cli-delete-zone">
+                    <!-- Botón eliminar o aviso de bloqueo por deuda -->
+                </div>
+                <div style="display:flex; gap:0.5rem;">
+                    <button type="button" class="cli-btn cli-btn-light" id="btn-cancelar-modal-cli">Cancelar</button>
+                    <button type="submit" class="cli-btn cli-btn-primary" id="btn-guardar-cli">💾 Guardar Cliente</button>
+                </div>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 2B: CARGAR FIADO / CONSUMO MANUAL -->
+<div class="cli-modal-overlay" id="modal-cli-fiado" aria-hidden="true">
+    <div class="cli-modal-box cli-modal-sm" role="dialog" aria-labelledby="modal-fiado-title">
+        <header class="cli-modal-header">
+            <div>
+                <h3 id="modal-fiado-title">➕ Cargar Fiado Manual</h3>
+                <p id="modal-fiado-sub">Cliente</p>
+            </div>
+            <button type="button" class="cli-modal-close" id="btn-cerrar-modal-fiado">✕</button>
+        </header>
+
+        <form id="form-cli-fiado" class="cli-modal-body">
+            <div class="cli-fiado-resumen">
+                <div>
+                    <span>Saldo Actual</span>
+                    <strong id="fiado-saldo-actual">$0</strong>
+                </div>
+                <div>
+                    <span>Cupo Máximo</span>
+                    <strong id="fiado-cupo-max">$0</strong>
+                </div>
+            </div>
+
+            <div class="cli-field">
+                <label for="fiado-monto">Monto del Fiado ($ ARS) *</label>
+                <input type="number" id="fiado-monto" class="cli-input" min="0.01" step="0.01" value="" placeholder="0.00" required>
+            </div>
+
+            <div class="cli-field">
+                <label for="fiado-concepto">Concepto / Detalle *</label>
+                <input type="text" id="fiado-concepto" class="cli-input" placeholder="Ej: Compra mercadería almacén, Ticket #045..." required>
+            </div>
+
+            <div class="cli-fiado-preview" id="fiado-preview-box">
+                <div>
+                    <span>Nuevo Saldo Resultante</span>
+                    <small id="fiado-preview-warn">Dentro del límite de crédito asignado.</small>
+                </div>
+                <strong id="fiado-nuevo-saldo">$0</strong>
+            </div>
+
+            <footer class="cli-modal-footer">
+                <button type="button" class="cli-btn cli-btn-light" id="btn-cancelar-modal-fiado">Cancelar</button>
+                <button type="submit" class="cli-btn cli-btn-primary">✅ Registrar Fiado</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 2C: EDICIÓN RÁPIDA DE CUPO Y BLOQUEO POS -->
+<div class="cli-modal-overlay" id="modal-cli-cupo" aria-hidden="true">
+    <div class="cli-modal-box cli-modal-sm" role="dialog" aria-labelledby="modal-cupo-title">
+        <header class="cli-modal-header">
+            <div>
+                <h3 id="modal-cupo-title">🎚️ Ajustar Cupo de Crédito</h3>
+                <p id="modal-cupo-sub">Cliente</p>
+            </div>
+            <button type="button" class="cli-modal-close" id="btn-cerrar-modal-cupo">✕</button>
+        </header>
+
+        <form id="form-cli-cupo" class="cli-modal-body">
+            <div class="cli-field">
+                <label for="cupo-rapido-val">Nuevo Cupo Máximo ($ ARS)</label>
+                <input type="number" id="cupo-rapido-val" class="cli-input" min="0" step="100" required>
+            </div>
+
+            <label class="cli-switch-pill" style="width:100%;">
+                <input type="checkbox" id="cupo-rapido-bloqueo">
+                <span>🔒 Bloquear fiado en POS manualmente</span>
+            </label>
+
+            <footer class="cli-modal-footer">
+                <button type="button" class="cli-btn cli-btn-light" id="btn-cancelar-modal-cupo">Cancelar</button>
+                <button type="submit" class="cli-btn cli-btn-primary">💾 Aplicar Cupo</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 3: LIQUIDAR / ABONAR DEUDA A PROVEEDOR -->
+<div class="cli-modal-overlay" id="modal-cli-liquidar-cxp" aria-hidden="true">
+    <div class="cli-modal-box" role="dialog" aria-labelledby="modal-cxp-title">
+        <header class="cli-modal-header">
+            <div>
+                <h3 id="modal-cxp-title">💳 Liquidar Deuda a Proveedor</h3>
+                <p id="modal-cxp-sub">Orden • Proveedor</p>
+            </div>
+            <button type="button" class="cli-modal-close" id="btn-cerrar-modal-cxp">✕</button>
+        </header>
+
+        <form id="form-cli-liquidar-cxp" class="cli-modal-body">
+            <div class="cli-cxp-alias-bar" id="cxp-alias-bar" style="display: none;">
+                <span>🏦 Alias / CBU del proveedor:</span>
+                <strong id="cxp-alias-val">—</strong>
+            </div>
+
+            <div class="cli-fiado-resumen">
+                <div>
+                    <span>Total Original (Merc. + Envío)</span>
+                    <strong id="cxp-total-orig">$0 ARS</strong>
+                </div>
+                <div>
+                    <span>Saldo Pendiente Actual</span>
+                    <strong class="text-danger" id="cxp-deuda-actual">$0 ARS</strong>
+                </div>
+            </div>
+
+            <div class="cli-field">
+                <label for="cxp-monto-pagar">Monto a Pagar Ahora ($ ARS) *</label>
+                <div class="cli-abono-row">
+                    <input type="number" id="cxp-monto-pagar" class="cli-input" min="0.01" step="0.01" required style="flex:1; font-weight:700;">
+                    <button type="button" class="cli-quick-amt-btn" id="btn-cxp-mitad">50%</button>
+                    <button type="button" class="cli-quick-amt-btn" id="btn-cxp-total">Saldar 100%</button>
+                </div>
+            </div>
+
+            <div class="cli-form-row-2">
+                <div class="cli-field">
+                    <label for="cxp-medio-pago">Medio de Pago</label>
+                    <select id="cxp-medio-pago" class="cli-input">
+                        <option value="Efectivo">💵 Efectivo (Caja)</option>
+                        <option value="Transferencia">🏦 Transferencia Bancaria</option>
+                        <option value="Mercado Pago">📱 Mercado Pago</option>
+                        <option value="Tarjeta de Débito">💳 Tarjeta de Débito</option>
+                        <option value="Cheque">🧾 Cheque</option>
+                    </select>
+                </div>
+                <div class="cli-field">
+                    <label for="cxp-nota-pago">Comprobante / Nota (Opcional)</label>
+                    <input type="text" id="cxp-nota-pago" class="cli-input" placeholder="Ej: Transf. #4821, saldo final...">
+                </div>
+            </div>
+
+            <div class="cli-fiado-preview" id="cxp-preview-box">
+                <div>
+                    <span>Deuda Restante tras este pago</span>
+                    <small id="cxp-preview-hint">El pedido pasará a Saldado en Control de Stock.</small>
+                </div>
+                <strong id="cxp-deuda-restante">$0 ARS</strong>
+            </div>
+
+            <div id="cxp-pagos-previos-box" class="cli-cxp-prev-list" style="display: none;">
+                <!-- Entregas anteriores de esta factura -->
+            </div>
+
+            <footer class="cli-modal-footer">
+                <button type="button" class="cli-btn cli-btn-light" id="btn-cancelar-modal-cxp">Cancelar</button>
+                <button type="submit" class="cli-btn cli-btn-primary">✅ Confirmar Pago a Proveedor</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 4: EXPORTACIÓN MASIVA PDF / CSV -->
+<div class="cli-modal-overlay" id="modal-cli-exportar" aria-hidden="true">
+    <div class="cli-modal-box" role="dialog" aria-labelledby="modal-exp-title">
+        <header class="cli-modal-header">
+            <div>
+                <h3 id="modal-exp-title">⬇️ Exportar Cuentas Corrientes y Reportes</h3>
+                <p>Descarga listados de deudores en PDF o planillas CSV compatibles con Excel.</p>
+            </div>
+            <button type="button" class="cli-modal-close" id="btn-cerrar-modal-exp">✕</button>
+        </header>
+
+        <div class="cli-modal-body">
+            <div class="cli-export-card">
+                <div class="cli-export-card-head">
+                    <strong>👥 Listado de Clientes y Deudores</strong>
+                    <span class="cli-subtab-badge badge-teal" id="exp-cli-count-badge">0 clientes</span>
+                </div>
+                <p>Incluye cuenta, nombre, DNI, teléfono, cupo asignado, saldo actual, disponible y estado.</p>
+
+                <div class="cli-field">
+                    <label for="exp-cli-filtro">Qué clientes incluir</label>
+                    <select id="exp-cli-filtro" class="cli-input">
+                        <option value="deuda">Solo clientes con deuda activa</option>
+                        <option value="todos">Todos los clientes registrados</option>
+                        <option value="excedido">Solo clientes con límite excedido</option>
+                    </select>
+                </div>
+
+                <div class="cli-export-btns-row">
+                    <button type="button" class="cli-btn cli-btn-primary" id="btn-exp-cli-pdf" style="flex:1;">
+                        📄 Descargar Reporte PDF (A4)
+                    </button>
+                    <button type="button" class="cli-btn cli-btn-light" id="btn-exp-cli-csv" style="flex:1;">
+                        📊 Descargar Planilla CSV
+                    </button>
+                </div>
+            </div>
+
+            <div class="cli-export-card">
+                <div class="cli-export-card-head">
+                    <strong>📑 Libro Auditado de Abonos y Pagos</strong>
+                    <span class="cli-subtab-badge badge-slate" id="exp-hist-count-badge">0 registros</span>
+                </div>
+                <p>Exporta todo el historial unificado de cobranzas a clientes y pagos realizados a proveedores.</p>
+                <button type="button" class="cli-btn cli-btn-light" id="btn-exp-hist-csv" style="width:100%;">
+                    📊 Exportar Libro Auditado (CSV para Excel)
+                </button>
+            </div>
+
+            <footer class="cli-modal-footer">
+                <button type="button" class="cli-btn cli-btn-light" id="btn-cancelar-modal-exp">Cerrar</button>
+            </footer>
+        </div>
+    </div>
+</div>
+

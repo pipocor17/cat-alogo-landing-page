@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat-Alogo | Panel de Control</title>
+    
+    <link rel="icon" href="../img/favicon.png" type="image/png" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/inventario.css">
+    <link rel="stylesheet" href="css/diseno-pdf.css">
+    <link rel="stylesheet" href="css/modal-producto.css">
+    <link rel="stylesheet" href="css/control-stock.css">
+    <link rel="stylesheet" href="css/clientes.css">
+    <link rel="stylesheet" href="css/pos.css">
+    <link rel="stylesheet" href="css/finanzas.css">
+    <link rel="stylesheet" href="css/inicio.css">
+    <link rel="stylesheet" href="css/importar-masivo.css">
+    <link rel="stylesheet" href="css/medios-pago.css">
+    <link rel="stylesheet" href="css/cat-web.css">
+    <link rel="stylesheet" href="css/ajustes.css">
+    <link rel="stylesheet" href="css/auth-guard.css">
+
+    <style>
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .topbar-plan-widget {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: nowrap;
+        }
+        .topbar-plan-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 13px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            white-space: nowrap;
+            border: 1px solid #93c5fd;
+            background: #eff6ff;
+            color: #1d4ed8;
+            line-height: 1.2;
+        }
+        .topbar-plan-pill.st-active {
+            border-color: #6ee7b7;
+            background: #ecfdf5;
+            color: #047857;
+        }
+        .topbar-plan-pill.st-warn {
+            border-color: #fcd34d;
+            background: #fffbeb;
+            color: #b45309;
+        }
+        .topbar-plan-pill.st-expired {
+            border-color: #fca5a5;
+            background: #fef2f2;
+            color: #b91c1c;
+        }
+        .topbar-plan-pill.st-local {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+            color: #475569;
+        }
+        .topbar-upgrade-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border-radius: 10px;
+            border: none;
+            background: #047857;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(4, 120, 87, 0.22);
+            transition: background 0.15s ease, transform 0.12s ease;
+        }
+        .topbar-upgrade-btn:hover {
+            background: #065f46;
+            transform: translateY(-1px);
+        }
+        .topbar-upgrade-btn:active {
+            transform: translateY(0);
+        }
+        @media (max-width: 1120px) {
+            .topbar-plan-pill {
+                display: none;
+            }
+        }
+    </style>
+
+    <!-- Librería Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- BARRA LATERAL (Sidebar fija) -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="../img/logo-app.png" alt="Logo Cat-Alogo" class="sidebar-logo">
+                <h2 class="sidebar-title">Cat-Alogo</h2>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item active">
+                        <a href="#" class="nav-link" data-vista="inicio" data-titulo="Panel de Control Operativo">
+                            <span class="nav-icon">🏠</span>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-vista="inventario" data-titulo="Inventario y Productos">
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-text">Inventario</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-vista="control-stock" data-titulo="Control de Stock y Proveedores">
+                            <span class="nav-icon">🚛</span>
+                            <span class="nav-text">Control de Stock</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-vista="pos" data-titulo="Terminal Punto de Venta (POS)">
+                            <span class="nav-icon">💳</span>
+                            <span class="nav-text">Punto de Venta  - 💵</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-vista="finanzas" data-titulo="Hub Financiero (7 Niveles)">
+                            <span class="nav-icon">📈</span>
+                            <span class="nav-text">Finanzas</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-vista="clientes" data-titulo="Clientes y Cuenta Corriente">
+                            <span class="nav-icon">🧍‍♂️</span>
+                            <span class="nav-text">Clientes</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-vista="diseno-pdf" data-titulo="Estudio de Diseño PDF">
+                            <span class="nav-icon">🎨</span>
+                            <span class="nav-text">Catálogo PDF</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-vista="cat-web" data-titulo="Gestor de Tienda Online (Cat-Web)">
+                            <span class="nav-icon">🌐</span>
+                            <span class="nav-text">Cat-Web</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#" class="nav-link" data-vista="ajustes" data-titulo="Configuración y Bóveda Local">
+                            <span class="nav-icon">⚙️</span>
+                            <span class="nav-text">Ajustes</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <a href="#" class="nav-link logout-btn" id="btn-logout">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Cerrar Sesión</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- ÁREA DE TRABAJO PRINCIPAL -->
+        <main class="main-content">
+            
+            <!-- Cabecera Superior Fija -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <h1 class="page-title" id="main-title">Panel de Control Operativo</h1>
+                    <span class="badge-local">🛡️ Bóveda Local Encriptada</span>
+                </div>
+                
+                <div class="topbar-right">
+                    <!-- Indicador de Plan + Botón Mejorar Plan -->
+                    <div class="topbar-plan-widget" id="topbar-plan-widget">
+                        <span class="topbar-plan-pill st-local" id="topbar-plan-pill">Verificando plan…</span>
+                        <button type="button" class="topbar-upgrade-btn" id="btn-topbar-upgrade">
+                            ⭐ Mejorar Plan
+                        </button>
+                    </div>
+
+                    <div class="user-profile">
+                        <div class="user-info">
+                            <span class="user-name">Carlos Mendoza</span>
+                            <span class="user-role">Administrador</span>
+                        </div>
+                        <div class="user-avatar">CM</div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- CONTENEDOR DINÁMICO: Aquí se inyectan los archivos de /vistas/ -->
+            <div id="app-viewport" class="dashboard-content"></div>
+
+        </main>
+    </div>
+
+    <div id="modals-container"></div>
+
+    <script src="js/boveda-idb.js"></script>
+
+    <!-- Firebase SDK Compat v10 (Auth + Firestore + Storage) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth-guard.js"></script>
+
+    <script src="js/categorias.js"></script>
+    <script src="js/modal-producto.js"></script>
+    <!-- Motor de exportación PDF y ZIP (Etapa 4) -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="js/importar-masivo.js"></script>
+    <script src="js/diseno-pdf.js"></script>
+    <script src="js/inventario.js?v=2"></script>
+    <script src="js/control-stock.js"></script>
+    <script src="js/clientes.js"></script>
+    <script src="js/medios-pago.js"></script>
+    <script src="js/pos.js"></script>
+    <script src="js/finanzas.js"></script>
+    <script src="js/inicio.js"></script>
+    
+    <script src="js/cat-web.js"></script>
+    <script src="js/ajustes.js"></script>
+    <script src="js/ticket-engine.js"></script>
+    <script src="js/importar-app-json.js"></script>
+    <script src="js/sync-privada.js"></script>
+    <script src="js/catweb-mirror.js"></script>
+    <script src="js/dashboard.js"></script>
+
+    <!-- Sincronización en vivo del indicador de Plan y botón Mejorar Plan en la barra superior -->
+    <script>
+        (function () {
+            function actualizarWidgetPlanTopbar(sub) {
+                const pill = document.getElementById('topbar-plan-pill');
+                const btn = document.getElementById('btn-topbar-upgrade');
+                if (!pill || !btn) return;
+
+                const authState = window.CatAlogoAuth?.getState?.();
+                const evalSub = sub || authState?.subscripcion;
+
+                pill.classList.remove('st-active', 'st-warn', 'st-expired', 'st-local');
+
+                if (authState?.modoLocalSinFirebase) {
+                    pill.classList.add('st-local');
+                    pill.textContent = 'Modo Local';
+                    btn.textContent = '⭐ Mejorar Plan';
+                    return;
+                }
+
+                if (!evalSub) {
+                    pill.classList.add('st-local');
+                    pill.textContent = 'Verificando plan…';
+                    return;
+                }
+
+                const planRaw = String(evalSub.plan || '').toLowerCase();
+                const esTrial = planRaw.includes('trial') || planRaw.includes('prueba') || planRaw === 'gratis' || planRaw === 'sin_plan' || planRaw === '';
+
+                if (!evalSub.activa) {
+                    pill.classList.add('st-expired');
+                    pill.textContent = 'Plan vencido • 0 días';
+                    btn.textContent = '⭐ Activar Plan';
+                    return;
+                }
+
+                const dias = Number(evalSub.diasRestantes) || 0;
+                const diasTxt = dias === 1 ? '1 día restante' : `${dias} día(s) restantes`;
+                pill.textContent = `${evalSub.planLabel || 'Plan Activo'} • ${diasTxt}`;
+
+                if (dias <= 5) {
+                    pill.classList.add('st-warn');
+                } else if (!esTrial) {
+                    pill.classList.add('st-active');
+                }
+                // Si es trial con > 5 días, mantiene el estilo azul por defecto
+
+                btn.textContent = esTrial ? '⭐ Mejorar Plan' : '⭐ Renovar Plan';
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                document.getElementById('btn-topbar-upgrade')?.addEventListener('click', () => {
+                    window.CatAlogoAuth?.abrirModalPlanes?.('anual');
+                });
+                actualizarWidgetPlanTopbar();
+            });
+
+            window.addEventListener('cat-alogo:suscripcion-actualizada', (e) => {
+                actualizarWidgetPlanTopbar(e.detail);
+            });
+
+            window.addEventListener('cat-alogo:auth-cambiado', () => {
+                actualizarWidgetPlanTopbar();
+            });
+        })();
+    </script>
+</body>
+</html>
+

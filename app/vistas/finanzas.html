@@ -1,0 +1,1087 @@
+<!-- ==========================================
+     MÓDULO: HUB FINANCIERO DE 7 NIVELES & ERP
+     ========================================== -->
+<div class="fin-wrap" id="finanzas-module-root">
+
+    <!-- CABECERA PRINCIPAL -->
+    <header class="fin-header">
+        <div class="fin-header-left">
+            <div class="fin-eyebrow">
+                <span class="fin-pill-live">● Auditoría en Tiempo Real</span>
+                <span class="fin-eyebrow-meta">🛡️ Local-First CMV Engine • Sincronizado con POS, Stock y Clientes</span>
+            </div>
+            <h2>Hub Financiero de 7 Niveles &amp; Auditoría de Caja</h2>
+            <p>Conciliación instantánea de flujo de caja, control de márgenes reales con motor Fricción Cero y estado de resultados gerencial.</p>
+        </div>
+
+        <div class="fin-header-actions">
+            <button type="button" class="fin-btn fin-btn-emerald-soft" id="btn-fin-nuevo-ingreso" title="Registrar ingreso manual o extraordinario">
+                ➕ Ingreso
+            </button>
+            <button type="button" class="fin-btn fin-btn-danger-soft" id="btn-fin-nuevo-gasto" title="Registrar gasto operativo OPEX">
+                ➖ Gasto OPEX
+            </button>
+            <button type="button" class="fin-btn fin-btn-purple-soft" id="btn-fin-herramientas" title="Actualización masiva de precios y respaldo .catbak">
+                ⚙️ Mayorista / .catbak
+            </button>
+            <button type="button" class="fin-btn fin-btn-blue-soft" id="btn-fin-reporte-pdf" title="Generar reporte contable inteligente en PDF">
+                📄 Reporte PDF
+            </button>
+            <button type="button" class="fin-btn fin-btn-primary" id="btn-fin-arqueo-cierre" title="Abrir arqueo y cierre de turno">
+                🔒 Turno &amp; Arqueo
+            </button>
+        </div>
+    </header>
+
+    <!-- BARRA DE CONTROL TEMPORAL + MOTOR FRICCIÓN CERO + DÓLAR USD -->
+    <section class="fin-card fin-control-bar">
+        <div class="fin-period-tabs" id="fin-period-tabs">
+            <button type="button" class="fin-ptab active" data-periodo="turno">Turno</button>
+            <button type="button" class="fin-ptab" data-periodo="hoy">Hoy</button>
+            <button type="button" class="fin-ptab" data-periodo="semana">Esta Semana</button>
+            <button type="button" class="fin-ptab" data-periodo="mes">Mes en Curso</button>
+            <button type="button" class="fin-ptab" data-periodo="anio">Año en Curso</button>
+            <button type="button" class="fin-ptab" data-periodo="custom">Personalizado…</button>
+        </div>
+
+<!-- SELECTOR DE TURNO HISTÓRICO + GESTOR DE TURNOS -->
+        <div class="fin-inline-filter" id="fin-turno-picker-wrap">
+            <label for="fin-select-turno">Auditar:</label>
+            <select id="fin-select-turno" class="fin-select-sm">
+                <!-- Se completa con turno activo + turnos cerrados no archivados -->
+            </select>
+            <button type="button" class="fin-btn fin-btn-light fin-btn-xs" id="btn-fin-gestionar-turnos" title="Administrar, bloquear, archivar o limitar la lista de turnos">
+                ⚙️ Gestionar
+            </button>
+        </div>
+
+        <!-- RANGO PERSONALIZADO DESDE -> HASTA -->
+        <div class="fin-inline-filter" id="fin-custom-dates-wrap" style="display: none;">
+            <label for="fin-date-desde">Desde:</label>
+            <input type="date" id="fin-date-desde" class="fin-date-input">
+            <label for="fin-date-hasta">Hasta:</label>
+            <input type="date" id="fin-date-hasta" class="fin-date-input">
+        </div>
+
+        <!-- CONFIGURACIÓN RÁPIDA: MARGEN GLOBAL Y DÓLAR USD -->
+        <div class="fin-right-configs">
+            <button type="button" class="fin-cfg-chip" id="btn-fin-config-motor" title="Configurar Margen Global Estimado y Cotización Dólar">
+                ⚙️ Margen Global: <strong id="fin-lbl-margen-global">30%</strong>
+                <span class="fin-sep">|</span>
+                USD: <strong id="fin-lbl-dolar">$1.150</strong>
+            </button>
+
+            <label class="fin-usd-switch" title="Mostrar equivalencia en Dólares Estadounidenses (USD)">
+                <input type="checkbox" id="fin-chk-mostrar-usd">
+                <span>Ver en USD</span>
+            </label>
+        </div>
+    </section>
+
+    <!-- ESCALERA FINANCIERA INTERACTIVA DE 7 NIVELES -->
+    <section class="fin-card fin-ladder-card">
+        <div class="fin-ladder-head">
+            <strong>📈 Escalera Financiera de 7 Niveles • <span id="fin-periodo-activo-lbl">Turno Actual</span></strong>
+            <span class="fin-integrity-pill" id="fin-integrity-lbl">Integridad Contable 100% OK</span>
+        </div>
+
+        <div class="fin-ladder-grid" id="fin-ladder-grid">
+            <button type="button" class="fin-step-card active" data-nivel="1">
+                <span class="fin-step-num">NIVEL 1</span>
+                <strong class="fin-step-name">Ventas &amp; POS</strong>
+                <span class="fin-step-val" id="lad-n1-val">$0</span>
+                <small id="lad-n1-sub">0 tickets</small>
+            </button>
+
+            <button type="button" class="fin-step-card" data-nivel="2">
+                <span class="fin-step-num">NIVEL 2</span>
+                <strong class="fin-step-name">Cash Flow</strong>
+                <span class="fin-step-val" id="lad-n2-val">$0</span>
+                <small id="lad-n2-sub">Flujo neto</small>
+            </button>
+
+            <button type="button" class="fin-step-card" data-nivel="3">
+                <span class="fin-step-num">NIVEL 3</span>
+                <strong class="fin-step-name">OPEX / Gastos</strong>
+                <span class="fin-step-val text-danger" id="lad-n3-val">$0</span>
+                <small id="lad-n3-sub">0 gastos</small>
+            </button>
+
+            <button type="button" class="fin-step-card" data-nivel="4">
+                <span class="fin-step-num">NIVEL 4</span>
+                <strong class="fin-step-name">Proveedores</strong>
+                <span class="fin-step-val text-indigo" id="lad-n4-val">$0</span>
+                <small id="lad-n4-sub">Por liquidar</small>
+            </button>
+
+            <button type="button" class="fin-step-card" data-nivel="5">
+                <span class="fin-step-num">NIVEL 5</span>
+                <strong class="fin-step-name">Margen CMV</strong>
+                <span class="fin-step-val" id="lad-n5-val">$0</span>
+                <small id="lad-n5-sub">0% Bruto</small>
+            </button>
+
+            <button type="button" class="fin-step-card" data-nivel="6">
+                <span class="fin-step-num">NIVEL 6</span>
+                <strong class="fin-step-name">Proyecciones</strong>
+                <span class="fin-step-val" id="lad-n6-val">Top 5</span>
+                <small id="lad-n6-sub">Ranking SKU</small>
+            </button>
+
+            <button type="button" class="fin-step-card is-pro" data-nivel="7">
+                <span class="fin-step-num">NIVEL 7 ERP</span>
+                <strong class="fin-step-name">EBITDA &amp; P&amp;L</strong>
+                <span class="fin-step-val" id="lad-n7-val">$0</span>
+                <small id="lad-n7-sub">0% Neto</small>
+            </button>
+        </div>
+    </section>
+
+    <!-- 4 TARJETAS KPI PRINCIPALES (NIVELES 1, 2, 5 Y 7) -->
+    <section class="fin-kpi-grid">
+        <!-- KPI 1: OPERACIÓN POS -->
+        <article class="fin-kpi-card">
+            <div class="fin-kpi-top">
+                <span class="fin-kpi-lbl">NIVEL 1 • OPERACIÓN POS</span>
+                <span class="fin-kpi-ico ico-slate">🧾</span>
+            </div>
+            <div class="fin-kpi-val" id="kpi-fin-ventas">$0</div>
+            <div class="fin-kpi-usd" id="kpi-fin-ventas-usd" style="display:none;">≈ US$ 0</div>
+            <div class="fin-kpi-mid">
+                <span id="kpi-fin-tx">0 Transacciones</span>
+                <strong id="kpi-fin-ticket-prom">Ticket Prom: $0</strong>
+            </div>
+            <div class="fin-kpi-bar-split" id="kpi-fin-medios-bar">
+                <span class="bar-efvo" style="width: 100%;"></span>
+            </div>
+            <div class="fin-kpi-foot" id="kpi-fin-medios-foot">
+                <span>Efvo: $0</span>
+                <span>Dig/Tarj: $0</span>
+                <span>Fiado: $0</span>
+            </div>
+        </article>
+
+        <!-- KPI 2: FLUJO DE CAJA -->
+        <article class="fin-kpi-card">
+            <div class="fin-kpi-top">
+                <span class="fin-kpi-lbl">NIVEL 2 • FLUJO DE CAJA</span>
+                <span class="fin-status-pill ok" id="kpi-fin-cf-pill">Superávit</span>
+            </div>
+            <div class="fin-kpi-val text-emerald" id="kpi-fin-cashflow">+$0</div>
+            <div class="fin-kpi-usd" id="kpi-fin-cashflow-usd" style="display:none;">≈ US$ 0</div>
+            <div class="fin-kpi-mid">
+                <span>Ingresos: <strong id="kpi-fin-ingresos">$0</strong></span>
+                <span>Egresos: <strong class="text-danger" id="kpi-fin-egresos">$0</strong></span>
+            </div>
+            <div class="fin-kpi-foot">
+                <span id="kpi-fin-cf-nota">Cobros reales menos salidas</span>
+                <strong class="text-emerald" id="kpi-fin-cf-ratio">100%</strong>
+            </div>
+        </article>
+
+        <!-- KPI 3: MARGEN REAL Y CMV (FRICCIÓN CERO) -->
+        <article class="fin-kpi-card">
+            <div class="fin-kpi-top">
+                <span class="fin-kpi-lbl">NIVEL 5 • MARGEN REAL &amp; CMV</span>
+                <span class="fin-kpi-ico ico-emerald">📊</span>
+            </div>
+            <div class="fin-kpi-val">
+                <span id="kpi-fin-margen-pct">0%</span>
+                <small class="fin-kpi-val-sub" id="kpi-fin-margen-ars">($0)</small>
+            </div>
+            <div class="fin-kpi-usd" id="kpi-fin-margen-usd" style="display:none;">≈ US$ 0</div>
+            <div class="fin-kpi-mid">
+                <span>CMV Total: <strong id="kpi-fin-cmv">$0</strong></span>
+                <span id="kpi-fin-regla-tag">Motor Fricción Cero</span>
+            </div>
+            <div class="fin-kpi-bar-split">
+                <span class="bar-exact" id="bar-cmv-exact" style="width: 100%;"></span>
+                <span class="bar-est" id="bar-cmv-est" style="width: 0%;"></span>
+            </div>
+            <div class="fin-kpi-foot">
+                <span id="kpi-fin-cmv-exact-lbl">100% Costo Exacto SKU</span>
+                <span id="kpi-fin-cmv-est-lbl">0% Regla Global</span>
+            </div>
+        </article>
+
+        <!-- KPI 4: UTILIDAD NETA Y EBITDA -->
+        <article class="fin-kpi-card fin-kpi-pro">
+            <div class="fin-kpi-top">
+                <span class="fin-kpi-lbl">NIVEL 7 • UTILIDAD NETA &amp; EBITDA</span>
+                <span class="fin-kpi-ico ico-teal">📈</span>
+            </div>
+            <div class="fin-kpi-val text-emerald" id="kpi-fin-ebitda">$0</div>
+            <div class="fin-kpi-usd" id="kpi-fin-ebitda-usd" style="display:none;">≈ US$ 0</div>
+            <div class="fin-kpi-mid">
+                <span id="kpi-fin-ebitda-pct">EBITDA: 0%</span>
+                <strong id="kpi-fin-breakeven-tag">Break-Even: —</strong>
+            </div>
+            <div class="fin-kpi-foot">
+                <span id="kpi-fin-breakeven-sub">Utilidad Bruta menos OPEX</span>
+            </div>
+        </article>
+    </section>
+
+    <!-- BLOQUE OPERATIVO NIVELES 1, 2 Y 5: SALDO NETO POR MEDIO + BALANCE + TICKETS -->
+    <section class="fin-stage1-grid">
+        <!-- NIVEL 5: SALDO NETO REAL POR MEDIO DE PAGO (INGRESOS - EGRESOS) -->
+        <article class="fin-card fin-panel-pad">
+            <div class="fin-panel-head">
+                <div>
+                    <h4>💳 Saldo Neto por Medio de Pago (Nivel 5)</h4>
+                    <span>Ingresos menos egresos reales en cada billetera o cuenta</span>
+                </div>
+                <span class="fin-soft-pill" id="fin-medios-total-badge">$0</span>
+            </div>
+            <div class="fin-medios-list" id="fin-medios-list">
+                <!-- Filas dinámicas con I / E / Neto -->
+            </div>
+        </article>
+
+        <!-- NIVEL 1 & 2: BALANCE PROPORCIONAL + HISTORIAL DE VENTAS Y TICKETS -->
+        <article class="fin-card fin-panel-pad">
+            <div class="fin-panel-head">
+                <div>
+                    <h4>🧾 Historial de Ventas &amp; Movimientos (Nivel 1 &amp; 2)</h4>
+                    <span>Abre el ticket de cualquier venta POS o Cat-Web y audita estados de pago</span>
+                </div>
+                <span class="fin-soft-pill" id="fin-ops-count-badge">0 movimientos</span>
+            </div>
+
+            <!-- BARRA PROPORCIONAL INGRESOS VS EGRESOS (NIVEL 2) -->
+            <div class="fin-balance-strip">
+                <div class="fin-bal-labels">
+                    <span class="text-emerald" id="fin-bal-ing-lbl">Ingresos (0%)</span>
+                    <span class="text-danger" id="fin-bal-egr-lbl">Egresos (0%)</span>
+                </div>
+                <div class="fin-bal-track">
+                    <div class="fin-bal-in" id="fin-bal-bar-in" style="width: 50%;"></div>
+                    <div class="fin-bal-out" id="fin-bal-bar-out" style="width: 50%;"></div>
+                </div>
+            </div>
+
+            <!-- FILTRO RÁPIDO POR CANAL / TIPO -->
+            <div class="fin-ops-filter-bar" id="fin-ops-filter-bar">
+                <button type="button" class="fin-opchip active" data-opfilter="todos">Todos</button>
+                <button type="button" class="fin-opchip" data-opfilter="pos">🏪 Ventas POS</button>
+                <button type="button" class="fin-opchip" data-opfilter="web">🌐 Ventas Cat-Web</button>
+                <button type="button" class="fin-opchip" data-opfilter="egresos">💸 Solo Egresos</button>
+            </div>
+
+            <div style="overflow-x:auto; max-height: 315px; overflow-y: auto;">
+                <table class="fin-table">
+                    <thead>
+                        <tr>
+                            <th>FECHA / HORA</th>
+                            <th>ORIGEN / ESTADO</th>
+                            <th>CONCEPTO / TICKET</th>
+                            <th>MEDIO</th>
+                            <th style="text-align:right;">MONTO (ARS)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fin-ops-tbody">
+                        <!-- Filas dinámicas con botón Ticket y estados -->
+                    </tbody>
+                </table>
+            </div>
+        </article>
+    </section>
+
+<!-- ======================================================
+         ETAPA 2: NIVELES 3 & 4 (OPEX + PROVEEDORES) Y ARQUEO EN VIVO
+         ====================================================== -->
+    <section class="fin-stage2-grid" id="fin-sec-n34">
+
+        <!-- COLUMNA IZQUIERDA: AUDITORÍA OPEX (NIVEL 3) + PROVEEDORES (NIVEL 4) -->
+        <div class="fin-stage2-left">
+
+            <!-- NIVEL 3: GASTOS OPERATIVOS (OPEX) -->
+            <article class="fin-card fin-panel-pad" id="fin-card-nivel-3">
+                <div class="fin-panel-head">
+                    <div>
+                        <h4>📉 Nivel 3: Auditoría de Gastos Operativos (OPEX)</h4>
+                        <span>Distribución de salidas por categoría y peso sobre las ventas del período</span>
+                    </div>
+                    <button type="button" class="fin-btn fin-btn-danger-soft fin-btn-xs" id="btn-fin-opex-rapido">
+                        ➕ Registrar Gasto Rápido
+                    </button>
+                </div>
+
+                <!-- CATEGORÍA MAYORITARIA OPEX -->
+                <div class="fin-opex-top-cat" id="fin-opex-top-cat" style="display: none;">
+                    <span>🔥 Categoría Mayoritaria de Gasto:</span>
+                    <strong id="fin-opex-top-cat-val">—</strong>
+                </div>
+
+                <!-- PLANTILLAS RÁPIDAS DE GASTOS FIJOS RECURRENTES -->
+                <div class="fin-templates-strip">
+                    <span class="fin-tpl-lbl">⚡ Gastos fijos rápidos:</span>
+                    <button type="button" class="fin-tpl-chip" data-tpl-cat="Alquiler y Expensas" data-tpl-txt="Alquiler mensual del local">🏠 Alquiler</button>
+                    <button type="button" class="fin-tpl-chip" data-tpl-cat="Servicios (Luz / Gas / Internet)" data-tpl-txt="Factura de electricidad">💡 Luz</button>
+                    <button type="button" class="fin-tpl-chip" data-tpl-cat="Servicios (Luz / Gas / Internet)" data-tpl-txt="Servicio de Internet / Telefonía">🌐 Internet</button>
+                    <button type="button" class="fin-tpl-chip" data-tpl-cat="Impuestos y Tasas" data-tpl-txt="Monotributo / Ingresos Brutos">🏛️ Monotributo</button>
+                    <button type="button" class="fin-tpl-chip" data-tpl-cat="Salarios y Personal" data-tpl-txt="Sueldos / Adelanto personal">👥 Sueldos</button>
+                    <button type="button" class="fin-tpl-chip" data-tpl-cat="Insumos y Empaques" data-tpl-txt="Bolsas, rollos térmicos e insumos">📦 Insumos</button>
+                </div>
+
+                <div class="fin-opex-layout">
+                    <!-- GRÁFICO CIRCULAR OPEX -->
+                    <div class="fin-opex-chart-box">
+                        <canvas id="fin-opex-chart"></canvas>
+                        <div class="fin-opex-chart-center">
+                            <small>TOTAL OPEX</small>
+                            <strong id="fin-opex-chart-total">$0</strong>
+                        </div>
+                    </div>
+
+                    <!-- DESGLOSE POR CATEGORÍAS -->
+                    <div class="fin-opex-bars-list" id="fin-opex-bars-list">
+                        <!-- Barras dinámicas por categoría -->
+                    </div>
+                </div>
+
+                <!-- ÚLTIMOS GASTOS MANUALES REGISTRADOS (CON ELIMINACIÓN) -->
+                <div class="fin-opex-recent-wrap" id="fin-opex-recent-wrap" style="display: none;">
+                    <div class="fin-opex-recent-head">
+                        <span>Últimos gastos / ingresos manuales del período</span>
+                        <span id="fin-opex-recent-count">0 registros</span>
+                    </div>
+                    <div class="fin-opex-recent-list" id="fin-opex-recent-list">
+                        <!-- Filas dinámicas -->
+                    </div>
+                </div>
+            </article>
+
+            <!-- NIVEL 4: PROVEEDORES & CUENTAS POR PAGAR -->
+            <article class="fin-card fin-panel-pad" id="fin-card-nivel-4">
+                <div class="fin-panel-head">
+                    <div>
+                        <h4>🚚 Nivel 4: Proveedores &amp; Cuentas por Pagar</h4>
+                        <span>Deudas por recepción de mercadería y fletes sincronizadas con Control de Stock</span>
+                    </div>
+                    <span class="fin-soft-pill" id="fin-n4-pend-badge">$0 pendiente</span>
+                </div>
+
+                <!-- RESUMEN DUAL PROVEEDORES: PAGOS (MERCADERÍA / FLETE) VS DEUDA -->
+                <div class="fin-n4-summary-grid">
+                    <div class="fin-n4-stat-card">
+                        <span class="fin-n4-stat-lbl">PAGOS A PROVEEDORES (PERÍODO)</span>
+                        <strong class="text-indigo" id="fin-n4-pagos-total">$0</strong>
+                        <div class="fin-n4-stat-sub">
+                            <span>Mercadería: <strong id="fin-n4-pagos-merc">$0</strong></span>
+                            <span>Flete/Envío: <strong id="fin-n4-pagos-flete">$0</strong></span>
+                        </div>
+                    </div>
+                    <div class="fin-n4-stat-card">
+                        <span class="fin-n4-stat-lbl">DEUDA A PROVEEDORES (PENDIENTE)</span>
+                        <strong class="text-danger" id="fin-n4-deuda-total">$0</strong>
+                        <div class="fin-n4-stat-sub">
+                            <span id="fin-n4-deuda-sub">0 facturas pendientes de liquidación</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="fin-cxp-list" id="fin-cxp-list">
+                    <!-- Tarjetas de facturas pendientes dinámicas -->
+                </div>
+            </article>
+
+        </div>
+
+        <!-- COLUMNA DERECHA: ARQUEO CIEGO & AUDITORÍA DE CAJA -->
+        <aside class="fin-stage2-right">
+            <article class="fin-card fin-arqueo-card" id="fin-card-arqueo">
+                <div class="fin-arqueo-head">
+                    <div>
+                        <h4>🔐 Arqueo Ciego &amp; Auditoría de Caja</h4>
+                        <span id="fin-arq-turno-sub">Sin turno abierto</span>
+                    </div>
+                    <span class="fin-status-pill ok" id="fin-arq-estado-pill">Abierta</span>
+                </div>
+
+                <!-- ESTADO CUANDO LA CAJA ESTÁ CERRADA -->
+                <div id="fin-arq-closed-box" class="fin-arq-closed-box" style="display: none;">
+                    <div style="font-size: 1.8rem;">🔒</div>
+                    <strong>No hay un turno de caja abierto</strong>
+                    <p>Abre un turno con el fondo inicial para auditar la gaveta en tiempo real y habilitar ventas en el POS.</p>
+                    <button type="button" class="fin-btn fin-btn-primary" id="btn-fin-abrir-turno-card" style="width: 100%;">
+                        🔓 Abrir Nuevo Turno de Caja
+                    </button>
+                </div>
+
+                <!-- ESTADO CUANDO LA CAJA ESTÁ ABIERTA -->
+                <div id="fin-arq-open-box" class="fin-arq-open-box">
+                    <label class="fin-ciego-toggle">
+                        <input type="checkbox" id="fin-chk-arq-ciego">
+                        <span>🙈 Modo Conteo Ciego (ocultar teórico)</span>
+                    </label>
+
+                    <div class="fin-arq-flows" id="fin-arq-flows-wrap">
+                        <div class="fin-arq-flow-row">
+                            <span>Fondo Inicial en Efectivo (Apertura)</span>
+                            <strong id="fin-arq-fondo">$0</strong>
+                        </div>
+                        <div class="fin-arq-flow-row text-emerald">
+                            <span>+ Cobros Efectivo POS (Turno)</span>
+                            <strong id="fin-arq-pos-efvo">+$0</strong>
+                        </div>
+                        <div class="fin-arq-flow-row text-emerald">
+                            <span>+ Abonos Efectivo de Clientes (Turno)</span>
+                            <strong id="fin-arq-cli-efvo">+$0</strong>
+                        </div>
+                        <div class="fin-arq-flow-row text-danger">
+                            <span>− Retiros / Gastos Efectivo (Turno)</span>
+                            <strong id="fin-arq-salidas">-$0</strong>
+                        </div>
+                    </div>
+
+                    <div class="fin-arq-teorico-bar">
+                        <span>(=) Efectivo Teórico en Gaveta:</span>
+                        <strong id="fin-arq-teorico">$0</strong>
+                    </div>
+
+                    <div class="fin-arq-conteo-box">
+                        <div class="fin-arq-conteo-top">
+                            <label for="fin-arq-conteo-inp">💵 Conteo Físico Real ($ ARS)</label>
+                            <button type="button" class="fin-link-btn" id="btn-fin-arq-igualar">Igualar teórico</button>
+                        </div>
+
+                        <input type="number" id="fin-arq-conteo-inp" class="fin-input fin-arq-big-inp" min="0" step="10" value="0">
+
+                        <div class="fin-quick-bills">
+                            <button type="button" class="fin-bill-chip" data-add="20000">+$20k</button>
+                            <button type="button" class="fin-bill-chip" data-add="10000">+$10k</button>
+                            <button type="button" class="fin-bill-chip" data-add="2000">+$2k</button>
+                            <button type="button" class="fin-bill-chip" data-add="1000">+$1k</button>
+                            <button type="button" class="fin-bill-chip" data-add="500">+$500</button>
+                            <button type="button" class="fin-bill-chip fin-bill-clear" id="btn-fin-arq-reset">Cero</button>
+                        </div>
+
+                        <div class="fin-arq-diff-strip ok" id="fin-arq-diff-strip">
+                            <span id="fin-arq-diff-lbl">✅ Cuadre Perfecto</span>
+                            <strong id="fin-arq-diff-val">$0</strong>
+                        </div>
+                    </div>
+
+                    <div class="fin-arq-cta-stack">
+                        <button type="button" class="fin-btn fin-btn-primary" id="btn-fin-cerrar-turno-z" style="width: 100%;">
+                            🔒 Cerrar Turno (Corte Z) y Guardar Arqueo
+                        </button>
+                        <button type="button" class="fin-btn fin-btn-light" id="btn-fin-balance-80mm" style="width: 100%;">
+                            🖨️ Descargar Balance Térmico 80mm
+                        </button>
+                    </div>
+                </div>
+            </article>
+        </aside>
+
+    </section>
+
+    <!-- ======================================================
+         ETAPA 3A: NIVEL 6 — ANALÍTICA PREDICTIVA, GRÁFICOS Y RANKINGS
+         ====================================================== -->
+    <section class="fin-card fin-panel-pad" id="fin-card-nivel-6">
+        <div class="fin-panel-head">
+            <div>
+                <h4>🚀 Nivel 6: Analítica Predictiva, Proyecciones &amp; Rankings de Rentabilidad</h4>
+                <span>Evolución de ventas vs. egresos operativos, participación por categoría y Top 5 de productos</span>
+            </div>
+            <div class="fin-n6-badges">
+                <span class="fin-proy-pill" id="fin-n6-proyeccion-pill">Proyección Mensual: $0</span>
+                <span class="fin-trend-pill" id="fin-n6-trend-pill">0% vs período ant.</span>
+            </div>
+        </div>
+
+        <!-- RUNWAY DE CAJA & INSIGHTS AUTOMÁTICOS DE RENDIMIENTO -->
+        <div class="fin-n6-insights-grid">
+            <div class="fin-runway-card">
+                <span class="fin-n4-stat-lbl">RUNWAY / COBERTURA DE CAJA</span>
+                <strong class="fin-runway-val" id="fin-n6-runway-val">—</strong>
+                <small id="fin-n6-runway-sub">Sostenibilidad de la caja actual frente a tus gastos OPEX</small>
+            </div>
+            <div class="fin-insights-box">
+                <span class="fin-n4-stat-lbl">🧠 INSIGHTS DE RENDIMIENTO FINANCIERO</span>
+                <div class="fin-insights-list" id="fin-n6-insights-list">
+                    <!-- Diagnósticos automáticos -->
+                </div>
+            </div>
+        </div>
+
+        <!-- GRÁFICOS COMPARATIVOS (CHART.JS) -->
+        <div class="fin-n6-charts-grid">
+            <div class="fin-chart-panel">
+                <div class="fin-chart-head">
+                    <strong>📈 Evolución Ventas Netas vs. Gastos OPEX</strong>
+                    <span id="fin-evo-sub">Serie temporal del período</span>
+                </div>
+                <div class="fin-chart-canvas-wrap">
+                    <canvas id="fin-evolucion-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="fin-chart-panel">
+                <div class="fin-chart-head">
+                    <strong>🏷️ Ventas por Categoría de Producto</strong>
+                    <span id="fin-cat-sub">0 categorías</span>
+                </div>
+                <div class="fin-chart-canvas-wrap fin-chart-cat-wrap">
+                    <canvas id="fin-categorias-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- RANKINGS: TOP 5 MÁS RENTABLES Y TOP 5 MÁS VENDIDOS -->
+        <div class="fin-rankings-wrap">
+            <div class="fin-rank-tabs">
+                <button type="button" class="fin-rtab active" data-rtab="rentables">💎 Top 5 Más Rentables (Ganancia Bruta)</button>
+                <button type="button" class="fin-rtab" data-rtab="vendidos">🔥 Top 5 Más Vendidos (Facturación)</button>
+            </div>
+
+            <div class="fin-rank-list" id="fin-n6-ranking-list">
+                <!-- Filas dinámicas del ranking -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         ETAPA 3B: NIVEL 7 — ESTADO DE RESULTADOS (P&L) & BREAK-EVEN
+         ====================================================== -->
+    <section class="fin-card fin-panel-pad fin-pnl-card" id="fin-card-nivel-7">
+        <div class="fin-panel-head">
+            <div>
+                <h4>🏛️ Nivel 7: Estado de Resultados Ejecutivo (P&amp;L Consolidado)</h4>
+                <span>Estructura contable formal para toma de decisiones, gobernanza de margen y punto de equilibrio</span>
+            </div>
+            <span class="fin-integrity-pill" id="fin-n7-cobertura-pill">Cobertura OPEX: —</span>
+        </div>
+
+        <!-- BARRA VISUAL DE PUNTO DE EQUILIBRIO (BREAK-EVEN) -->
+        <div class="fin-breakeven-box" id="fin-breakeven-box">
+            <div class="fin-be-top">
+                <div>
+                    <strong>⚖️ Punto de Equilibrio (Break-Even) del Período</strong>
+                    <small id="fin-be-desc">Ventas mínimas necesarias para cubrir el 100% de tus gastos operativos.</small>
+                </div>
+                <div class="fin-be-nums">
+                    <span id="fin-be-pct-lbl">0%</span>
+                    <strong id="fin-be-meta-lbl">Meta: $0</strong>
+                </div>
+            </div>
+            <div class="fin-be-track">
+                <div class="fin-be-fill" id="fin-be-fill" style="width: 0%;"></div>
+            </div>
+            <div class="fin-be-foot">
+                <span id="fin-be-actual-lbl">Ventas Netas actuales: $0</span>
+                <strong id="fin-be-estado-lbl">Sin gastos fijos cargados</strong>
+            </div>
+        </div>
+
+        <!-- TABLA FORMAL P&L -->
+        <div style="overflow-x:auto;">
+            <table class="fin-pnl-table">
+                <thead>
+                    <tr>
+                        <th>CONCEPTO FINANCIERO</th>
+                        <th style="text-align:right;">MONTO (ARS)</th>
+                        <th style="text-align:right;">% SOBRE VENTAS</th>
+                        <th style="text-align:right;">COMPORTAMIENTO / ESTADO</th>
+                    </tr>
+                </thead>
+                <tbody id="fin-pnl-tbody">
+                    <!-- Filas contables dinámicas -->
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+<!-- MODAL ETAPA 1: CONFIGURACIÓN DEL MOTOR FRICCIÓN CERO Y DÓLAR -->
+<div class="fin-modal-overlay" id="modal-fin-config" aria-hidden="true">
+    <div class="fin-modal-box fin-modal-sm" role="dialog" aria-labelledby="modal-fin-cfg-title">
+        <header class="fin-modal-header">
+            <div>
+                <h3 id="modal-fin-cfg-title">⚙️ Motor Financiero &amp; Dólar Hoy</h3>
+                <p>Configura el margen de respaldo (Fricción Cero) y la cotización de referencia.</p>
+            </div>
+            <button type="button" class="fin-modal-close" id="btn-cerrar-modal-fin-cfg">✕</button>
+        </header>
+
+        <form id="form-fin-config" class="fin-modal-body">
+            <div class="fin-field">
+                <label for="fin-cfg-margen">Margen Global Estimado de Respaldo (%)</label>
+                <input type="number" id="fin-cfg-margen" class="fin-input" min="1" max="95" step="0.5" value="30" required>
+                <small style="font-size:0.71rem; color:#64748b;">Si un producto vendido no tiene "Precio de Costo" cargado, el motor calcula su CMV usando este porcentaje de margen bruto.</small>
+            </div>
+
+            <div class="fin-field">
+                <label for="fin-cfg-dolar">Cotización Dólar Hoy ($ ARS por 1 USD)</label>
+                <input type="number" id="fin-cfg-dolar" class="fin-input" min="1" step="1" value="1150" required>
+                <small style="font-size:0.71rem; color:#64748b;">Usado cuando activas el switch "Ver en USD" para medir tu facturación y ganancia en moneda dura.</small>
+            </div>
+
+            <footer class="fin-modal-footer">
+                <button type="button" class="fin-btn fin-btn-light" id="btn-cancelar-modal-fin-cfg">Cancelar</button>
+                <button type="submit" class="fin-btn fin-btn-primary">💾 Guardar Parámetros</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 2A: REGISTRAR GASTO OPEX O INGRESO MANUAL -->
+<div class="fin-modal-overlay" id="modal-fin-mov" aria-hidden="true">
+    <div class="fin-modal-box" role="dialog" aria-labelledby="modal-fin-mov-title">
+        <header class="fin-modal-header">
+            <div>
+                <h3 id="modal-fin-mov-title">➖ Registrar Gasto Operativo (OPEX)</h3>
+                <p id="modal-fin-mov-sub">Clasifica las salidas o ingresos extraordinarios para mantener tu flujo de caja exacto.</p>
+            </div>
+            <button type="button" class="fin-modal-close" id="btn-cerrar-modal-fin-mov">✕</button>
+        </header>
+
+        <form id="form-fin-mov" class="fin-modal-body">
+            <!-- SWITCH TIPO: GASTO VS INGRESO -->
+            <div class="fin-mov-type-tabs">
+                <button type="button" class="fin-mtype-btn active" data-mtype="gasto">🔴 Gasto Operativo (OPEX)</button>
+                <button type="button" class="fin-mtype-btn" data-mtype="ingreso">🟢 Ingreso Manual / Extra</button>
+            </div>
+
+            <div class="fin-form-row-2">
+                <div class="fin-field">
+                    <label for="fin-mov-monto">Monto ($ ARS) *</label>
+                    <input type="number" id="fin-mov-monto" class="fin-input" min="0.01" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="fin-field">
+                    <label for="fin-mov-medio">Medio de Pago / Cuenta</label>
+                    <select id="fin-mov-medio" class="fin-input">
+                        <option value="Efectivo">💵 Efectivo (Caja)</option>
+                        <option value="Transferencia">🏦 Transferencia Bancaria</option>
+                        <option value="Mercado Pago">📱 Mercado Pago / QR</option>
+                        <option value="Tarjeta de Débito">💳 Tarjeta de Débito</option>
+                        <option value="Tarjeta de Crédito">💳 Tarjeta de Crédito</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="fin-form-row-2">
+                <div class="fin-field">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <label for="fin-mov-categoria">Categoría *</label>
+                        <button type="button" class="fin-link-btn" id="btn-fin-nueva-cat-opex">+ Nueva categoría</button>
+                    </div>
+                    <select id="fin-mov-categoria" class="fin-input" required>
+                        <!-- Opciones dinámicas -->
+                    </select>
+                </div>
+                <div class="fin-field">
+                    <label for="fin-mov-fecha">Fecha de Imputación</label>
+                    <input type="date" id="fin-mov-fecha" class="fin-input" required>
+                </div>
+            </div>
+
+            <div class="fin-field">
+                <label for="fin-mov-concepto">Concepto / Descripción *</label>
+                <input type="text" id="fin-mov-concepto" class="fin-input" placeholder="Ej: Alquiler mes de noviembre, boleta de luz, aporte de capital..." required>
+            </div>
+
+            <footer class="fin-modal-footer">
+                <button type="button" class="fin-btn fin-btn-light" id="btn-cancelar-modal-fin-mov">Cancelar</button>
+                <button type="submit" class="fin-btn fin-btn-primary" id="btn-guardar-fin-mov">✅ Guardar Movimiento</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 2B: LIQUIDAR / ABONAR PROVEEDOR DESDE FINANZAS -->
+<div class="fin-modal-overlay" id="modal-fin-cxp" aria-hidden="true">
+    <div class="fin-modal-box fin-modal-sm" role="dialog" aria-labelledby="modal-fin-cxp-title">
+        <header class="fin-modal-header">
+            <div>
+                <h3 id="modal-fin-cxp-title">💳 Liquidar Deuda a Proveedor</h3>
+                <p id="modal-fin-cxp-sub">Orden • Proveedor</p>
+            </div>
+            <button type="button" class="fin-modal-close" id="btn-cerrar-modal-fin-cxp">✕</button>
+        </header>
+
+        <form id="form-fin-cxp" class="fin-modal-body">
+            <div class="fin-cxp-alias-bar" id="fin-cxp-alias-bar" style="display: none;">
+                <span>🏦 Alias / CBU:</span>
+                <strong id="fin-cxp-alias-val">—</strong>
+            </div>
+
+            <div class="fin-arq-teorico-bar" style="margin:0;">
+                <span>Saldo pendiente actual:</span>
+                <strong class="text-danger" id="fin-cxp-deuda-actual">$0 ARS</strong>
+            </div>
+
+            <div class="fin-field">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label for="fin-cxp-monto">Monto a Pagar Ahora ($ ARS) *</label>
+                    <button type="button" class="fin-link-btn" id="btn-fin-cxp-saldar-100">Saldar 100%</button>
+                </div>
+                <input type="number" id="fin-cxp-monto" class="fin-input" min="0.01" step="0.01" required>
+            </div>
+
+            <div class="fin-form-row-2">
+                <div class="fin-field">
+                    <label for="fin-cxp-medio">Medio de Pago</label>
+                    <select id="fin-cxp-medio" class="fin-input">
+                        <option value="Transferencia">🏦 Transferencia</option>
+                        <option value="Efectivo">💵 Efectivo (Caja)</option>
+                        <option value="Mercado Pago">📱 Mercado Pago</option>
+                        <option value="Tarjeta de Débito">💳 Tarjeta de Débito</option>
+                        <option value="Cheque">🧾 Cheque</option>
+                    </select>
+                </div>
+                <div class="fin-field">
+                    <label for="fin-cxp-nota">Nota / Comprobante</label>
+                    <input type="text" id="fin-cxp-nota" class="fin-input" placeholder="Ej: Transf. #8921">
+                </div>
+            </div>
+
+            <footer class="fin-modal-footer">
+                <button type="button" class="fin-btn fin-btn-light" id="btn-cancelar-modal-fin-cxp">Cancelar</button>
+                <button type="submit" class="fin-btn fin-btn-primary">✅ Confirmar Pago</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 2C: APERTURA RÁPIDA DE TURNO DESDE FINANZAS -->
+<div class="fin-modal-overlay" id="modal-fin-abrir-turno" aria-hidden="true">
+    <div class="fin-modal-box fin-modal-sm" role="dialog" aria-labelledby="modal-fin-apt-title">
+        <header class="fin-modal-header">
+            <div>
+                <h3 id="modal-fin-apt-title">🔓 Abrir Turno de Caja</h3>
+                <p>Habilita una nueva sesión sincronizada con el Terminal POS.</p>
+            </div>
+            <button type="button" class="fin-modal-close" id="btn-cerrar-modal-fin-apt">✕</button>
+        </header>
+
+        <form id="form-fin-abrir-turno" class="fin-modal-body">
+            <div class="fin-field">
+                <label for="fin-apt-nombre">Caja / Turno</label>
+                <select id="fin-apt-nombre" class="fin-input">
+                    <option value="Caja #01 • Turno Mañana">Caja #01 • Turno Mañana</option>
+                    <option value="Caja #01 • Turno Tarde">Caja #01 • Turno Tarde</option>
+                    <option value="Caja #01 • Turno Completo">Caja #01 • Turno Completo</option>
+                </select>
+            </div>
+            <div class="fin-field">
+                <label for="fin-apt-operador">Operador / Cajero *</label>
+                <input type="text" id="fin-apt-operador" class="fin-input" value="Carlos Mendoza" required>
+            </div>
+            <div class="fin-field">
+                <label for="fin-apt-fondo">Fondo Inicial en Gaveta ($ ARS) *</label>
+                <input type="number" id="fin-apt-fondo" class="fin-input" min="0" step="100" value="20000" required>
+            </div>
+            <footer class="fin-modal-footer">
+                <button type="button" class="fin-btn fin-btn-light" id="btn-cancelar-modal-fin-apt">Cancelar</button>
+                <button type="submit" class="fin-btn fin-btn-primary">✅ Abrir Turno</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 4: CENTRO DE REPORTES INTELIGENTES EN PDF -->
+<div class="fin-modal-overlay" id="modal-fin-reportes-pdf" aria-hidden="true">
+    <div class="fin-modal-box fin-modal-lg" role="dialog" aria-labelledby="modal-fin-pdf-title">
+        <header class="fin-modal-header">
+            <div>
+                <h3 id="modal-fin-pdf-title">📄 Centro de Reportes Contables en PDF</h3>
+                <p>Genera documentos profesionales con el membrete de tu negocio adaptados al período seleccionado.</p>
+            </div>
+            <button type="button" class="fin-modal-close" id="btn-cerrar-modal-fin-pdf">✕</button>
+        </header>
+
+        <div class="fin-modal-body">
+            <!-- OPCIONES DE PERÍODO PARA LOS REPORTES -->
+            <div class="fin-pdf-context-bar">
+                <div>
+                    <small>PERÍODO ACTIVO EN PANTALLA</small>
+                    <strong id="fin-pdf-periodo-actual">—</strong>
+                </div>
+                <div class="fin-pdf-opts">
+                    <label for="fin-pdf-mes-sel">Mes P&amp;L:</label>
+                    <input type="month" id="fin-pdf-mes-sel" class="fin-date-input">
+                    <label for="fin-pdf-anio-sel">Año:</label>
+                    <select id="fin-pdf-anio-sel" class="fin-select-sm"></select>
+                </div>
+            </div>
+
+            <!-- 4 MODELOS DE REPORTES INTELIGENTES -->
+            <div class="fin-pdf-cards-grid">
+                <article class="fin-pdf-card">
+                    <div class="fin-pdf-card-top">
+                        <span class="fin-pdf-badge b-emerald">MODELO HÍBRIDO</span>
+                        <span class="fin-pdf-ico">🧾</span>
+                    </div>
+                    <h4>1. Reporte Diario / Turno</h4>
+                    <p>Resultado económico (CMV y Margen), control físico de caja/arqueo, medios de pago, Top 5 productos y auditoría cronológica línea por línea.</p>
+                    <button type="button" class="fin-btn fin-btn-primary" id="btn-gen-pdf-diario" style="width:100%;">
+                        ⬇️ Descargar Reporte Híbrido
+                    </button>
+                </article>
+
+                <article class="fin-pdf-card">
+                    <div class="fin-pdf-card-top">
+                        <span class="fin-pdf-badge b-blue">EJECUTIVO</span>
+                        <span class="fin-pdf-ico">📅</span>
+                    </div>
+                    <h4>2. Resumen Semanal (7 Días)</h4>
+                    <p>Visión gerencial consolidada día por día (Lunes a Domingo): Ventas Netas, CMV, Margen $, Margen %, Gastos OPEX y Resultado Neto semanal.</p>
+                    <button type="button" class="fin-btn fin-btn-blue-soft" id="btn-gen-pdf-semanal" style="width:100%;">
+                        ⬇️ Descargar Resumen Semanal
+                    </button>
+                </article>
+
+                <article class="fin-pdf-card">
+                    <div class="fin-pdf-card-top">
+                        <span class="fin-pdf-badge b-indigo">P&amp;L FORMAL</span>
+                        <span class="fin-pdf-ico">🏛️</span>
+                    </div>
+                    <h4>3. Estado de Resultados Mensual</h4>
+                    <p>Estructura P&amp;L completa con desglose OPEX, EBITDA, Utilidad Neta, Ventas por Categoría e indicadores clave (Punto de Equilibrio y Ticket Promedio).</p>
+                    <button type="button" class="fin-btn fin-btn-purple-soft" id="btn-gen-pdf-mensual" style="width:100%;">
+                        ⬇️ Descargar P&amp;L Mensual
+                    </button>
+                </article>
+
+                <article class="fin-pdf-card">
+                    <div class="fin-pdf-card-top">
+                        <span class="fin-pdf-badge b-amber">EJERCICIO ANUAL</span>
+                        <span class="fin-pdf-ico">📈</span>
+                    </div>
+                    <h4>4. Evolución Anual (Mes a Mes)</h4>
+                    <p>Comparativa de Enero a Diciembre con Ventas Netas, CMV, Margen Bruto, OPEX, Resultado Operativo, Crecimiento % y acumulado del año.</p>
+                    <button type="button" class="fin-btn fin-btn-light" id="btn-gen-pdf-anual" style="width:100%;">
+                        ⬇️ Descargar Evolución Anual
+                    </button>
+                </article>
+            </div>
+
+            <footer class="fin-modal-footer">
+                <button type="button" class="fin-btn fin-btn-light" id="btn-cancelar-modal-fin-pdf">Cerrar</button>
+            </footer>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 5: HERRAMIENTAS MAYORISTAS (PRECIOS POR INFLACIÓN + RESPALDO .CATBAK) -->
+<div class="fin-modal-overlay" id="modal-fin-herramientas" aria-hidden="true">
+    <div class="fin-modal-box fin-modal-lg" role="dialog" aria-labelledby="modal-fin-herr-title">
+        <header class="fin-modal-header">
+            <div>
+                <h3 id="modal-fin-herr-title">⚙️ Herramientas Mayoristas &amp; Bóveda Local (.catbak)</h3>
+                <p>Protege tus márgenes frente a la inflación y resguarda toda tu base de datos para Google Drive.</p>
+            </div>
+            <button type="button" class="fin-modal-close" id="btn-cerrar-modal-fin-herr">✕</button>
+        </header>
+
+        <div class="fin-modal-body">
+            <!-- PESTAÑAS INTERNAS -->
+            <div class="fin-herr-tabs">
+                <button type="button" class="fin-htab active" data-htab="precios">🏷️ Actualizador Masivo &amp; Redondeo</button>
+                <button type="button" class="fin-htab" data-htab="backup">☁️ Respaldo y Restauración (.catbak)</button>
+            </div>
+
+            <!-- ==========================================
+                 TAB 1: ACTUALIZADOR MASIVO DE PRECIOS
+                 ========================================== -->
+            <div id="fin-herr-view-precios" class="fin-herr-view active">
+                <!-- BARRA DESHACER (SOLO VISIBLE SI HAY UN LOTE RECIENTE) -->
+                <div class="fin-undo-banner" id="fin-precios-undo-banner" style="display: none;">
+                    <div>
+                        <strong>↩️ Último lote guardado en respaldo de seguridad</strong>
+                        <span id="fin-precios-undo-meta">—</span>
+                    </div>
+                    <button type="button" class="fin-btn fin-btn-danger-soft fin-btn-xs" id="btn-fin-deshacer-lote">
+                        ↩️ Deshacer Último Lote
+                    </button>
+                </div>
+
+                <div class="fin-form-row-2">
+                    <div class="fin-field">
+                        <label for="fin-lote-cat">Alcance (Categoría a actualizar)</label>
+                        <select id="fin-lote-cat" class="fin-input">
+                            <option value="todas">Todo el catálogo completo</option>
+                        </select>
+                    </div>
+                    <div class="fin-field">
+                        <label for="fin-lote-redondeo">Regla de Redondeo Estético</label>
+                        <select id="fin-lote-redondeo" class="fin-input">
+                            <option value="entero">Sin decimales (Número entero)</option>
+                            <option value="mult100">Múltiplo de $100 (Ej: $4.500)</option>
+                            <option value="mult50">Múltiplo de $50 (Ej: $4.550)</option>
+                            <option value="mult10">Múltiplo de $10 (Ej: $4.520)</option>
+                            <option value="mult5">Múltiplo de $5 (Ej: $4.525)</option>
+                            <option value="99">Terminación comercial .99</option>
+                            <option value="90">Terminación comercial .90</option>
+                            <option value="none">Exacto (hasta 2 decimales)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="fin-form-row-2">
+                    <div class="fin-field">
+                        <label for="fin-lote-modo">Tipo de Ajuste</label>
+                        <select id="fin-lote-modo" class="fin-input">
+                            <option value="pct">Porcentual (% — Ej: +15 o -10)</option>
+                            <option value="fijo">Monto Fijo ($ ARS — Ej: +500 o -200)</option>
+                            <option value="solo_redondeo">Solo aplicar Redondeo Estético (0%)</option>
+                        </select>
+                    </div>
+                    <div class="fin-field" id="fin-lote-valor-wrap">
+                        <label for="fin-lote-valor" id="fin-lote-valor-lbl">Porcentaje de ajuste (%)</label>
+                        <input type="number" id="fin-lote-valor" class="fin-input" step="0.5" value="10" placeholder="Ej: 15 o -5">
+                    </div>
+                </div>
+
+                <div class="fin-lote-checks">
+                    <label class="fin-lote-chk">
+                        <input type="checkbox" id="fin-lote-chk-costo" checked>
+                        <span>Ajustar también <strong>Precio de Costo</strong> (mantiene margen)</span>
+                    </label>
+                    <label class="fin-lote-chk">
+                        <input type="checkbox" id="fin-lote-chk-oferta" checked>
+                        <span>Ajustar <strong>Precio Oferta</strong> y <strong>Variantes</strong></span>
+                    </label>
+                </div>
+
+                <!-- VISTA PREVIA EN VIVO: ANTES -> DESPUÉS -->
+                <div class="fin-preview-box">
+                    <div class="fin-preview-head">
+                        <strong>👁️ Vista Previa en Vivo (Antes → Después)</strong>
+                        <span class="fin-soft-pill" id="fin-lote-count-pill">0 productos alcanzados</span>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="fin-table">
+                            <thead>
+                                <tr>
+                                    <th>PRODUCTO / CATEGORÍA</th>
+                                    <th style="text-align:right;">ACTUAL</th>
+                                    <th style="text-align:center;">→</th>
+                                    <th style="text-align:right;">NUEVO PRECIO</th>
+                                    <th style="text-align:right;">DIFERENCIA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fin-lote-preview-tbody">
+                                <!-- Filas dinámicas -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <footer class="fin-modal-footer">
+                    <button type="button" class="fin-btn fin-btn-light" id="btn-cancelar-modal-fin-herr">Cerrar</button>
+                    <button type="button" class="fin-btn fin-btn-primary" id="btn-fin-aplicar-lote">
+                        ✅ Aplicar Actualización Masiva
+                    </button>
+                </footer>
+            </div>
+
+            <!-- ==========================================
+                 TAB 2: RESPALDO Y RESTAURACIÓN .CATBAK
+                 ========================================== -->
+            <div id="fin-herr-view-backup" class="fin-herr-view">
+                <div class="fin-bak-stats" id="fin-bak-stats">
+                    <!-- Resumen dinámico de la Bóveda Local -->
+                </div>
+
+                <div class="fin-bak-grid">
+                    <article class="fin-bak-card">
+                        <div class="fin-bak-card-top">
+                            <span class="fin-pdf-badge b-emerald">EXPORTAR BÓVEDA</span>
+                            <span>☁️</span>
+                        </div>
+                        <h4>Descargar Copia de Seguridad (.catbak)</h4>
+                        <p>Empaqueta productos, stock, proveedores, clientes, ventas POS, turnos y finanzas en un único archivo listo para subir a tu Google Drive personal.</p>
+                        <button type="button" class="fin-btn fin-btn-primary" id="btn-fin-exportar-catbak" style="width:100%;">
+                            ⬇️ Exportar Respaldo .catbak
+                        </button>
+                    </article>
+
+                    <article class="fin-bak-card is-restore">
+                        <div class="fin-bak-card-top">
+                            <span class="fin-pdf-badge b-amber">RESTAURAR BÓVEDA</span>
+                            <span>♻️</span>
+                        </div>
+                        <h4>Restaurar desde Archivo (.catbak)</h4>
+                        <p>Recupera tu sistema completo en otra PC o vuelve a un punto anterior. Se validará el formato antes de sobrescribir los datos locales.</p>
+                        <input type="file" id="fin-inp-restaurar-catbak" accept=".catbak,.json" style="display:none;">
+                        <button type="button" class="fin-btn fin-btn-light" id="btn-fin-restaurar-catbak" style="width:100%;">
+                            📂 Seleccionar Archivo .catbak
+                        </button>
+                    </article>
+                </div>
+
+                <div class="fin-bak-note">
+                    🛡️ <strong>Privacidad Local-First:</strong> tus archivos <code>.catbak</code> se generan 100% en tu navegador sin pasar por servidores de terceros. Guárdalos periódicamente en una carpeta privada de tu Google Drive.
+                </div>
+
+                <footer class="fin-modal-footer">
+                    <button type="button" class="fin-btn fin-btn-light" id="btn-cerrar-modal-fin-bak">Cerrar</button>
+                </footer>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ADMINISTRADOR DE TURNOS (AUDITAR, CANDADO, ARCHIVO Y LÍMITE) -->
+<div class="fin-modal-overlay" id="modal-fin-gestor-turnos" aria-hidden="true">
+    <div class="fin-modal-box fin-modal-lg" role="dialog" aria-labelledby="modal-fin-gt-title">
+        <header class="fin-modal-header">
+            <div>
+                <h3 id="modal-fin-gt-title">🗂️ Administrador de Turnos de Caja</h3>
+                <p>Controla cuántos turnos ver en "Auditar", protégelos con candado, archívalos o elimina los que no necesites.</p>
+            </div>
+            <button type="button" class="fin-modal-close" id="btn-cerrar-modal-fin-gt">✕</button>
+        </header>
+
+        <div class="fin-modal-body">
+            <!-- CONFIGURACIÓN DE LÍMITE EN EL DESPLEGABLE AUDITAR -->
+            <div class="fin-gt-limit-bar">
+                <div>
+                    <strong>📋 Turnos visibles en el desplegable "Auditar"</strong>
+                    <small>El turno abierto siempre aparece primero; el límite aplica a los turnos cerrados recientes.</small>
+                </div>
+                <div class="fin-gt-limit-controls">
+                    <select id="fin-gt-limit-select" class="fin-select-sm">
+                        <option value="5">Últimos 5</option>
+                        <option value="10">Últimos 10</option>
+                        <option value="20">Últimos 20</option>
+                        <option value="50">Últimos 50</option>
+                        <option value="0">Mostrar todos</option>
+                        <option value="custom">Personalizado…</option>
+                    </select>
+                    <input type="number" id="fin-gt-limit-custom" class="fin-input fin-gt-custom-inp" min="1" max="500" placeholder="Cant." style="display:none;">
+                    <button type="button" class="fin-btn fin-btn-primary fin-btn-xs" id="btn-fin-gt-guardar-limite">Aplicar</button>
+                </div>
+            </div>
+
+            <!-- PESTAÑAS + BUSCADOR -->
+            <div class="fin-gt-toolbar">
+                <div class="fin-gt-tabs">
+                    <button type="button" class="fin-gttab active" data-gttab="visibles">
+                        📋 En Lista (<span id="fin-gt-cnt-visibles">0</span>)
+                    </button>
+                    <button type="button" class="fin-gttab" data-gttab="archivados">
+                        📦 Archivados / Almacenados (<span id="fin-gt-cnt-archivados">0</span>)
+                    </button>
+                </div>
+                <input type="text" id="fin-gt-search" class="fin-input fin-gt-search" placeholder="🔍 Buscar #turno, cajero o fecha...">
+            </div>
+
+            <!-- LISTADO DE TURNOS -->
+            <div class="fin-gt-list" id="fin-gt-list">
+                <!-- Tarjetas dinámicas de turnos -->
+            </div>
+
+            <footer class="fin-modal-footer">
+                <span class="fin-gt-foot-hint">🔒 Los turnos con candado no pueden eliminarse hasta desbloquearlos.</span>
+                <button type="button" class="fin-btn fin-btn-light" id="btn-cerrar-modal-fin-gt-foot">Cerrar</button>
+            </footer>
+        </div>
+    </div>
+</div>
+

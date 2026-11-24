@@ -1,0 +1,20 @@
+# Dependencias pesadas (nunca se suben a GitHub)
+node_modules/
+functions/node_modules/
+
+# Logs y caché temporal de Firebase
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+
+# Variables de entorno o claves locales (si existieran)
+.env
+.env.local
+functions/.env
+*.pem
+*.key
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db

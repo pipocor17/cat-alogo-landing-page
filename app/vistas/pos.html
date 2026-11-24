@@ -1,0 +1,886 @@
+<!-- ==========================================
+     MÓDULO: TERMINAL PUNTO DE VENTA (POS)
+     ========================================== -->
+<div class="pos-wrap" id="pos-module-root">
+
+    <!-- BARRA SUPERIOR DE ESTADO DE CAJA Y ACCIONES RÁPIDAS -->
+    <header class="pos-topbar">
+        <div class="pos-caja-status">
+            <div class="pos-caja-pill" id="pos-caja-pill">
+                <span class="pos-dot" id="pos-caja-dot">●</span>
+                <div>
+                    <small>ESTADO DE CAJA</small>
+                    <strong id="pos-turno-label">Caja Cerrada • Abrir Turno</strong>
+                </div>
+            </div>
+
+            <div class="pos-operador-pill">
+                <span>👤</span>
+                <strong id="pos-operador-label">Sin operador</strong>
+                <span class="pos-role-badge" id="pos-fondo-label">Fondo: $0</span>
+            </div>
+        </div>
+
+        <div class="pos-topbar-right">
+            <div class="pos-search-box">
+                <span>🔍</span>
+                <input type="text" id="pos-search-input" placeholder="Buscar por nombre, SKU o escanear código de barras + Enter...">
+                <span class="pos-scanner-pill" id="pos-scanner-pill" title="Lector de código de barras USB listo en cualquier parte de la pantalla">🔫 USB</span>
+                <span class="pos-kbd">F2</span>
+            </div>
+
+            <button type="button" class="pos-btn pos-btn-amber" id="btn-pos-tickets-espera" title="Ver o retomar ventas pausadas en espera">
+                ⏸️ En Espera <span class="pos-count-pill" id="pos-espera-count">0</span>
+            </button>
+            <button type="button" class="pos-btn pos-btn-indigo" id="btn-pos-corte-x" title="Ver Reporte Intermedio del Turno (Corte X)">
+                📊 Corte y Cierre
+            </button>
+            <button type="button" class="pos-btn pos-btn-blue" id="btn-pos-arqueo" title="Abrir Arqueo de Caja y Conteo Ciego (F9)">
+                💵 Arqueo Rápido <span class="pos-kbd-light">F9</span>
+            </button>
+            <button type="button" class="mp-trigger-btn" data-abrir-medios-pago title="Configurar medios de pago, recargos, descuentos y Alias/CBU">
+                💳 Medios y Recargos
+            </button>
+        </div>
+    </header>
+
+    <!-- AVISO SI LA CAJA ESTÁ CERRADA -->
+    <div class="pos-closed-banner" id="pos-closed-banner" style="display: none;">
+        <div>
+            <strong>🔒 No hay un turno de caja abierto</strong>
+            <span>Abre un turno con el fondo inicial de gaveta para comenzar a registrar ventas y movimientos.</span>
+        </div>
+        <button type="button" class="pos-btn pos-btn-primary" id="btn-pos-abrir-turno-banner">
+            🔓 Abrir Turno de Caja
+        </button>
+    </div>
+
+    <!-- ESPACIO PRINCIPAL DIVIDIDO: CATÁLOGO (IZQ) + TICKET Y COBRO (DER) -->
+    <div class="pos-workspace">
+
+        <!-- COLUMNA IZQUIERDA: FILTROS + CATÁLOGO POS + PAGINACIÓN + COMANDOS -->
+        <section class="pos-catalog-col">
+
+            <!-- SELECTOR DUAL DE CATEGORÍAS (DESPLEGABLE CON BUSCADOR A-Z / BOTONES) -->
+            <div class="pos-cats-shell">
+                <div class="pos-cats-top-row">
+                    <!-- Modo Desplegable con Buscador -->
+                    <div class="pos-cat-dropdown-wrap" id="pos-cats-dropdown-wrap" style="display: none;">
+                        <button type="button" class="pos-cat-dropdown-btn" id="pos-cat-dropdown-btn" aria-expanded="false">
+                            <span id="pos-cat-dropdown-label">📂 Todas las categorías</span>
+                            <span class="pos-cat-caret">▼</span>
+                        </button>
+                        <div class="pos-cat-dropdown-menu" id="pos-cat-dropdown-menu">
+                            <div class="pos-cat-dropdown-search-wrap">
+                                <input type="text" id="pos-cat-dropdown-search" class="pos-cat-dropdown-search" placeholder="🔍 Buscar categoría (A-Z)...">
+                            </div>
+                            <div class="pos-cat-dropdown-list" id="pos-cat-dropdown-list">
+                                <!-- Opciones dinámicas ordenadas A-Z -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pos-cats-mode-switch" role="group" aria-label="Formato de categorías">
+                        <button type="button" class="pos-cat-mode-btn" id="btn-pos-cat-mode-dropdown" data-cat-mode="dropdown" title="Ver categorías en desplegable con buscador (ahorra espacio)">
+                            📋 Desplegable
+                        </button>
+                        <button type="button" class="pos-cat-mode-btn active" id="btn-pos-cat-mode-chips" data-cat-mode="chips" title="Ver categorías como botones">
+                            🏷️ Botones
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Modo Botones / Chips -->
+                <div class="pos-cats-bar" id="pos-cats-bar">
+                    <!-- Chips de categorías dinámicos -->
+                </div>
+            </div>
+
+            <!-- CABECERA DEL CATÁLOGO + ORDENAMIENTO + VISTAS + ANCLADOS -->
+            <div class="pos-catalog-head">
+                <div class="pos-catalog-title-group">
+                    <strong>CATÁLOGO FRECUENTE &amp; BALANZA DIGITAL</strong>
+                    <span id="pos-catalog-count">0 productos disponibles</span>
+                </div>
+
+                <div class="pos-catalog-toolbar">
+                    <button type="button" class="pos-pin-filter-btn" id="btn-pos-only-pinned" title="Mostrar solo productos anclados arriba">
+                        📌 Anclados (<span id="pos-pinned-count">0</span>)
+                    </button>
+
+                    <select id="pos-sort-select" class="pos-sort-select" title="Ordenar catálogo">
+                        <option value="frecuente">🔥 Venta frecuente</option>
+                        <option value="nombre_asc">🔤 Productos A → Z</option>
+                        <option value="nombre_desc">🔤 Productos Z → A</option>
+                        <option value="cat_asc">📂 Categoría A → Z</option>
+                        <option value="cat_desc">📂 Categoría Z → A</option>
+                        <option value="precio_desc">💲 Mayor precio</option>
+                        <option value="precio_asc">💲 Menor precio</option>
+                        <option value="ofertas">🏷️ Ofertas primero</option>
+                        <option value="balanza">⚖️ Balanza primero</option>
+                        <option value="stock_asc">📦 Menor stock</option>
+                    </select>
+
+                    <div class="pos-view-switch" id="pos-view-switcher" role="group" aria-label="Vista de productos">
+                        <button type="button" class="pos-view-btn active" data-pos-view="grid" title="Vista Recuadros (con foto)">▦</button>
+                        <button type="button" class="pos-view-btn" data-pos-view="list" title="Vista Lista compacta">☰</button>
+                        <button type="button" class="pos-view-btn" data-pos-view="compact" title="Cuadrícula Rápida (sin foto, máxima densidad)">⚡</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ÁREA CON SCROLL INTERNO DE PRODUCTOS -->
+            <div class="pos-catalog-scroll-area" id="pos-catalog-scroll-area">
+                <div class="pos-products-grid" id="pos-products-grid">
+                    <!-- Tarjetas de productos generadas dinámicamente -->
+                </div>
+            </div>
+
+            <!-- BARRA DE PAGINACIÓN DEL CATÁLOGO -->
+            <div class="pos-pagination-bar" id="pos-pagination-bar">
+                <div class="pos-pag-left">
+                    <label for="pos-page-size-select">Mostrar:</label>
+                    <select id="pos-page-size-select" class="pos-pag-select">
+                        <option value="18" selected>18 / pág</option>
+                        <option value="30">30 / pág</option>
+                        <option value="60">60 / pág</option>
+                    </select>
+                </div>
+                <div class="pos-pag-controls">
+                    <button type="button" class="pos-pag-btn" id="btn-pos-page-prev">« Anterior</button>
+                    <span class="pos-pag-info" id="pos-page-info">Página 1 de 1</span>
+                    <button type="button" class="pos-pag-btn" id="btn-pos-page-next">Siguiente »</button>
+                </div>
+            </div>
+
+            <!-- BARRA INFERIOR DE COMANDOS FRECUENTES (SIEMPRE VISIBLE) -->
+            <footer class="pos-commands-bar">
+                <span class="pos-cmd-label">⌨️ COMANDOS FRECUENTES:</span>
+                <div class="pos-cmd-btns">
+                    <button type="button" class="pos-cmd-btn cmd-indigo" id="btn-pos-cmd-desc">
+                        <span class="pos-kbd-sm">F4</span> Descuento %
+                    </button>
+                    <button type="button" class="pos-cmd-btn cmd-amber" id="btn-pos-cmd-pausar">
+                        ⏸️ Pausar Ticket
+                    </button>
+                    <button type="button" class="pos-cmd-btn cmd-blue" id="btn-pos-cmd-reimprimir">
+                        <span class="pos-kbd-sm">F6</span> Reimprimir Último
+                    </button>
+                    <button type="button" class="pos-cmd-btn cmd-purple" id="btn-pos-cmd-retiro">
+                        <span class="pos-kbd-sm">F8</span> Retirar Dinero
+                    </button>
+                    <button type="button" class="pos-cmd-btn cmd-danger" id="btn-pos-cmd-cancelar">
+                        🗑️ Cancelar Orden
+                    </button>
+                </div>
+            </footer>
+        </section>
+
+        <!-- COLUMNA DERECHA: CLIENTE + TICKET ACTIVO + COBRO MIXTO -->
+        <aside class="pos-ticket-col">
+            <div class="pos-ticket-card">
+
+                <!-- CLIENTE ASIGNADO Y CONTROL DE CUPO -->
+                <div class="pos-client-box" id="pos-client-box">
+                    <div class="pos-client-strip-top">
+                        <div class="pos-client-strip-left">
+                            <span class="pos-client-ico" id="pos-client-avatar">👤</span>
+                            <div style="min-width: 0;">
+                                <small>CLIENTE ASIGNADO</small>
+                                <strong id="pos-cliente-nombre-lbl">Consumidor Final</strong>
+                                <span class="pos-client-sub" id="pos-cliente-sub-lbl">Venta al contado sin cuenta corriente</span>
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:0.3rem; flex-shrink:0;">
+                            <button type="button" class="pos-btn pos-btn-light pos-btn-xs" id="btn-pos-elegir-cliente">
+                                Elegir
+                            </button>
+                            <button type="button" class="pos-btn pos-btn-light pos-btn-xs" id="btn-pos-quitar-cliente" style="display:none;" title="Volver a Consumidor Final">
+                                ✕
+                            </button>
+                        </div>
+                    </div>
+
+                    <label class="pos-fiado-toggle" id="pos-fiado-toggle-wrap" style="display:none;">
+                        <input type="checkbox" id="pos-chk-fiado">
+                        <span id="pos-fiado-toggle-txt">Habilitar Venta a Crédito / Fiado para esta orden</span>
+                    </label>
+                </div>
+
+                <!-- CABECERA DEL TICKET ACTIVO -->
+                <div class="pos-ticket-head">
+                    <strong id="pos-ticket-title">TICKET ACTIVO (0 ÍTEMS)</strong>
+                    <button type="button" class="pos-link-danger" id="btn-pos-vaciar-ticket">Vaciar</button>
+                </div>
+
+                <!-- LISTA DE ÍTEMS EN EL TICKET -->
+                <div class="pos-ticket-items" id="pos-ticket-items">
+                    <!-- Filas dinámicas del carrito -->
+                </div>
+
+                <!-- SUBTOTALES, DESCUENTO, RECARGO Y TOTAL -->
+                <div class="pos-ticket-totals">
+                    <div class="pos-tot-row">
+                        <span>Subtotal Bruto</span>
+                        <strong id="pos-val-subtotal">$0</strong>
+                    </div>
+                    <div class="pos-tot-row" id="pos-row-descuento" style="display: none;">
+                        <span id="pos-lbl-descuento">Descuento (0%)</span>
+                        <strong class="text-emerald" id="pos-val-descuento">-$0</strong>
+                    </div>
+                    <div class="pos-tot-row" id="pos-row-recargo" style="display: none;">
+                        <div class="pos-tot-row" id="pos-row-desc-medio" style="display: none;">
+                            <span id="pos-lbl-desc-medio">Descuento por Medio de Pago</span>
+                            <strong class="text-emerald" id="pos-val-desc-medio">-$0</strong>
+                        </div>
+                        <span id="pos-lbl-recargo">Recargo Tarjeta Crédito (10%)</span>
+                        <strong class="text-amber" id="pos-val-recargo">+$0</strong>
+                    </div>
+                    <div class="pos-tot-main">
+                        <div>
+                            <strong>TOTAL A COBRAR</strong>
+                            <small>Impuestos y recargos incluidos</small>
+                        </div>
+                        <span id="pos-val-total">$0</span>
+                    </div>
+                </div>
+
+                <!-- MOTOR DE COBRO MIXTO (PAGOS DIVIDIDOS) -->
+                <div class="pos-pago-section" id="pos-pago-section">
+                    <div class="pos-pago-head">
+                        <strong>💳 Cobro Mixto (Pagos Divididos)</strong>
+                        <span class="pos-cuadre-pill ok" id="pos-pago-status-pill">CUADRADO</span>
+                    </div>
+
+                    <!-- MÉTODO 1 -->
+                    <div class="pos-metodo-card">
+                        <div class="pos-metodo-top">
+                            <select id="pos-m1-tipo" class="pos-select-sm">
+                                <option value="Efectivo">💵 Efectivo</option>
+                                <option value="Tarjeta Débito">💳 Tarjeta Débito</option>
+                                <option value="Tarjeta Crédito">💳 Tarjeta Crédito</option>
+                                <option value="QR / Transferencia">📱 QR / Transferencia</option>
+                                <option value="Cuenta Corriente">📒 Cuenta Corriente (Fiado)</option>
+                            </select>
+                            <button type="button" class="pos-link-teal" id="btn-pos-m1-total">Totalizar Aquí</button>
+                        </div>
+
+                        <div class="pos-metodo-inputs">
+                            <div class="pos-mini-field">
+                                <label for="pos-m1-monto">Monto a Imputar ($)</label>
+                                <input type="number" id="pos-m1-monto" class="pos-input-sm" min="0" step="0.01" value="0">
+                            </div>
+
+                            <div class="pos-mini-field" id="pos-m1-efvo-wrap">
+                                <label for="pos-m1-paga-con">Paga Con (Vuelto)</label>
+                                <input type="number" id="pos-m1-paga-con" class="pos-input-sm" min="0" step="0.01" value="0">
+                            </div>
+
+                            <div class="pos-mini-field" id="pos-m1-cred-wrap" style="display: none;">
+                                <label for="pos-m1-recargo-pct">Recargo Crédito (%)</label>
+                                <input type="number" id="pos-m1-recargo-pct" class="pos-input-sm" min="0" max="100" step="0.5" value="10">
+                            </div>
+                        </div>
+
+                        <div class="pos-vuelto-bar" id="pos-m1-vuelto-bar">
+                            <span>Vuelto en Efectivo:</span>
+                            <strong id="pos-m1-vuelto-val">$0</strong>
+                        </div>
+                    </div>
+
+                    <!-- ACTIVADOR DE 2° MEDIO DE PAGO -->
+                    <label class="pos-split-toggle">
+                        <input type="checkbox" id="pos-chk-pago-dividido">
+                        <span>➕ Dividir cobro en 2 medios de pago</span>
+                    </label>
+
+                    <!-- MÉTODO 2 (OCULTO POR DEFECTO) -->
+                    <div class="pos-metodo-card pos-metodo-2" id="pos-m2-box" style="display: none;">
+                        <div class="pos-metodo-top">
+                            <select id="pos-m2-tipo" class="pos-select-sm">
+                                <option value="Tarjeta Débito">💳 Tarjeta Débito</option>
+                                <option value="Tarjeta Crédito">💳 Tarjeta Crédito</option>
+                                <option value="QR / Transferencia">📱 QR / Transferencia</option>
+                                <option value="Efectivo">💵 Efectivo</option>
+                                <option value="Cuenta Corriente">📒 Cuenta Corriente (Fiado)</option>
+                            </select>
+                            <button type="button" class="pos-link-teal" id="btn-pos-m2-resto">Completar Resto</button>
+                        </div>
+
+                        <div class="pos-metodo-inputs">
+                            <div class="pos-mini-field">
+                                <label for="pos-m2-monto">Monto 2° Medio ($)</label>
+                                <input type="number" id="pos-m2-monto" class="pos-input-sm" min="0" step="0.01" value="0">
+                            </div>
+
+                            <div class="pos-mini-field" id="pos-m2-efvo-wrap" style="display: none;">
+                                <label for="pos-m2-paga-con">Paga Con ($)</label>
+                                <input type="number" id="pos-m2-paga-con" class="pos-input-sm" min="0" step="0.01" value="0">
+                            </div>
+
+                            <div class="pos-mini-field" id="pos-m2-cred-wrap" style="display: none;">
+                                <label for="pos-m2-recargo-pct">Recargo Crédito (%)</label>
+                                <input type="number" id="pos-m2-recargo-pct" class="pos-input-sm" min="0" max="100" step="0.5" value="10">
+                            </div>
+
+                            <div class="pos-mini-field" id="pos-m2-ref-wrap">
+                                <label for="pos-m2-ref">Comprobante / Lote</label>
+                                <input type="text" id="pos-m2-ref" class="pos-input-sm" placeholder="Opcional">
+                            </div>
+                        </div>
+
+                        <div class="pos-vuelto-bar" id="pos-m2-vuelto-bar" style="display: none;">
+                            <span>Vuelto en Efectivo:</span>
+                            <strong id="pos-m2-vuelto-val">$0</strong>
+                        </div>
+                    </div>
+
+                    <!-- RESUMEN DE COBERTURA -->
+                    <div class="pos-cover-strip">
+                        <div>
+                            <span>Total Compra</span>
+                            <strong id="pos-sum-total">$0</strong>
+                        </div>
+                        <div>
+                            <span>Cubierto</span>
+                            <strong class="text-emerald" id="pos-sum-cubierto">$0</strong>
+                        </div>
+                        <div>
+                            <span>Saldo Pendiente</span>
+                            <strong id="pos-sum-pendiente">$0</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SWITCH DE EXCEPCIÓN RÁPIDA (SOLO PARA ESTE TICKET) -->
+                <label class="pos-regla-auto-bar" title="Desmarca para omitir recargos o descuentos automáticos solo en esta venta">
+                    <input type="checkbox" id="pos-chk-regla-auto" checked>
+                    <span>⚡ Aplicar recargos / descuentos automáticos por medio</span>
+                    <span class="pos-regla-hint" id="pos-regla-auto-hint"></span>
+                </label>
+
+                <!-- DATOS BANCARIOS EN PANTALLA -->
+                <div class="pos-alias-box" id="pos-datos-transferencia-box" style="display: none;">
+                    <div class="pos-alias-info">
+                        <strong id="pos-alias-txt">🏦 Alias: —</strong>
+                        <small id="pos-alias-sub">—</small>
+                    </div>
+                    <button type="button" class="pos-btn pos-btn-light pos-btn-xs" id="btn-pos-copiar-alias">
+                        📋 Copiar Alias
+                    </button>
+                </div>
+
+                <!-- BOTÓN PRINCIPAL DE CONFIRMACIÓN Y SALIDAS -->
+                <div class="pos-ticket-cta-wrap">
+                    <button type="button" class="pos-btn pos-btn-primary pos-btn-cobrar" id="btn-pos-ir-cobro" disabled>
+                        ✅ Confirmar Venta y Emitir Ticket
+                    </button>
+                    <div class="pos-post-sale-row">
+                        <button type="button" class="pos-btn pos-btn-light pos-btn-xs" id="btn-pos-print-last" style="flex:1;">
+                            🧾 Ticket (80mm)
+                        </button>
+                        <button type="button" class="pos-btn pos-btn-light pos-btn-xs" id="btn-pos-wa-last" style="flex:1;">
+                            💬 WhatsApp Último
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+</div>
+
+<!-- MODAL ETAPA 1A: APERTURA DE TURNO DE CAJA -->
+<div class="pos-modal-overlay" id="modal-pos-apertura" aria-hidden="true">
+    <div class="pos-modal-box pos-modal-sm" role="dialog" aria-labelledby="modal-pos-ap-title">
+        <header class="pos-modal-header">
+            <div>
+                <h3 id="modal-pos-ap-title">🔓 Apertura de Turno de Caja</h3>
+                <p>Registra el operador y el efectivo inicial en gaveta para iniciar las ventas.</p>
+            </div>
+            <button type="button" class="pos-modal-close" id="btn-cerrar-modal-apertura">✕</button>
+        </header>
+
+        <form id="form-pos-apertura" class="pos-modal-body">
+            <div class="pos-field">
+                <label for="pos-ap-turno">Nombre del Turno / Caja</label>
+                <select id="pos-ap-turno" class="pos-input">
+                    <option value="Caja #01 • Turno Mañana">Caja #01 • Turno Mañana</option>
+                    <option value="Caja #01 • Turno Tarde">Caja #01 • Turno Tarde</option>
+                    <option value="Caja #01 • Turno Completo">Caja #01 • Turno Completo</option>
+                    <option value="Caja #02 • Auxiliar">Caja #02 • Auxiliar</option>
+                </select>
+            </div>
+
+            <div class="pos-field">
+                <label for="pos-ap-operador">Operador / Cajero *</label>
+                <input type="text" id="pos-ap-operador" class="pos-input" value="Carlos Mendoza" required>
+            </div>
+
+            <div class="pos-field">
+                <label for="pos-ap-fondo">Fondo Inicial en Gaveta ($ ARS) *</label>
+                <input type="number" id="pos-ap-fondo" class="pos-input" min="0" step="100" value="20000" required>
+            </div>
+
+            <footer class="pos-modal-footer">
+                <button type="button" class="pos-btn pos-btn-light" id="btn-cancelar-modal-apertura">Cancelar</button>
+                <button type="submit" class="pos-btn pos-btn-primary">✅ Abrir Caja y Vender</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 1B: VENTAS PAUSADAS EN ESPERA -->
+<div class="pos-modal-overlay" id="modal-pos-espera" aria-hidden="true">
+    <div class="pos-modal-box pos-modal-md" role="dialog" aria-labelledby="modal-pos-esp-title">
+        <header class="pos-modal-header">
+            <div>
+                <h3 id="modal-pos-esp-title">⏸️ Tickets Pausados en Espera</h3>
+                <p>Retoma una venta pausada sin volver a cargar los productos.</p>
+            </div>
+            <button type="button" class="pos-modal-close" id="btn-cerrar-modal-espera">✕</button>
+        </header>
+
+        <div class="pos-modal-body" id="pos-espera-list">
+            <!-- Lista dinámica de tickets en espera -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 2: SELECCIONAR CLIENTE PARA EL TICKET -->
+<div class="pos-modal-overlay" id="modal-pos-cliente" aria-hidden="true">
+    <div class="pos-modal-box pos-modal-md" role="dialog" aria-labelledby="modal-pos-cli-title">
+        <header class="pos-modal-header">
+            <div>
+                <h3 id="modal-pos-cli-title">👤 Asignar Cliente al Ticket</h3>
+                <p>Selecciona un cliente de tu agenda para asociar la venta o habilitar fiado en cuenta corriente.</p>
+            </div>
+            <button type="button" class="pos-modal-close" id="btn-cerrar-modal-pos-cli">✕</button>
+        </header>
+
+        <div class="pos-modal-body">
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                <input type="text" id="pos-cli-search" class="pos-input" placeholder="🔍 Buscar por nombre, DNI, cuenta o teléfono...">
+                <button type="button" class="pos-btn pos-btn-light pos-btn-xs" id="btn-pos-cli-cf" style="padding:0.52rem 0.75rem;">
+                    Consumidor Final
+                </button>
+            </div>
+
+            <div class="pos-cli-picker-list" id="pos-cli-picker-list">
+                <!-- Clientes dinámicos desde cat_alogo_clientes_v1 -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PANEL LATERAL ETAPA 3A: ARQUEO DE CAJA & CONTEO CIEGO (F9) -->
+<div class="pos-drawer-overlay" id="drawer-pos-arqueo" aria-hidden="true">
+    <aside class="pos-drawer-panel" role="dialog" aria-labelledby="pos-arq-title">
+        <header class="pos-drawer-header">
+            <div class="pos-drawer-title-wrap">
+                <span class="pos-drawer-ico">💵</span>
+                <div>
+                    <h3 id="pos-arq-title">Arqueo de Caja &amp; Conteo Ciego</h3>
+                    <p id="pos-arq-sub">Caja #01 • Turno Activo</p>
+                </div>
+            </div>
+            <button type="button" class="pos-modal-close" id="btn-cerrar-drawer-arqueo">✕</button>
+        </header>
+
+        <div class="pos-drawer-body">
+            <div class="pos-ciego-bar">
+                <label class="pos-ciego-switch">
+                    <input type="checkbox" id="pos-chk-modo-ciego">
+                    <span>🙈 Activar Modo Conteo Ciego (ocultar teórico)</span>
+                </label>
+                <button type="button" class="pos-link-teal" id="btn-pos-arq-ir-retiro">💸 + Retiro (F8)</button>
+            </div>
+
+            <section class="pos-arq-card">
+                <span class="pos-arq-section-lbl">RESUMEN DE FLUJOS DEL SISTEMA</span>
+                <div class="pos-arq-flow-list" id="pos-arq-flow-list">
+                    <div class="pos-arq-flow-row">
+                        <span>Fondo Inicial de Apertura</span>
+                        <strong id="arq-val-fondo">$0</strong>
+                    </div>
+                    <div class="pos-arq-flow-row">
+                        <span class="text-emerald">+ Ventas Efectivo Acumuladas</span>
+                        <strong class="text-emerald" id="arq-val-ventas-efvo">+$0</strong>
+                    </div>
+                    <div class="pos-arq-flow-row">
+                        <span class="text-danger">− Retiros / Gastos de Caja</span>
+                        <strong class="text-danger" id="arq-val-retiros">-$0</strong>
+                    </div>
+                </div>
+
+                <div class="pos-arq-teorico-row" id="pos-arq-teorico-box">
+                    <div>
+                        <strong>EFECTIVO TEÓRICO ESPERADO</strong>
+                        <small>Fondo + Entradas Efvo. − Salidas</small>
+                    </div>
+                    <span id="arq-val-teorico">$0</span>
+                </div>
+            </section>
+
+            <section class="pos-arq-card">
+                <span class="pos-arq-section-lbl">CURVA DE FLUJO EN EFECTIVO DEL TURNO</span>
+                <div class="pos-arq-chart-wrap">
+                    <canvas id="pos-arqueo-chart"></canvas>
+                </div>
+            </section>
+
+            <section class="pos-arq-card">
+                <div class="pos-arq-billetes-head">
+                    <span class="pos-arq-section-lbl" style="margin:0;">CONTEO FÍSICO EN GAVETA</span>
+                    <button type="button" class="pos-link-danger" id="btn-pos-arq-limpiar">Limpiar</button>
+                </div>
+
+                <div class="pos-billetes-grid" id="pos-billetes-grid">
+                    <div class="pos-billete-field">
+                        <label for="bill-20000">Billetes de $20.000</label>
+                        <input type="number" id="bill-20000" class="pos-input-sm pos-bill-inp" data-denom="20000" min="0" step="1" value="0">
+                    </div>
+                    <div class="pos-billete-field">
+                        <label for="bill-10000">Billetes de $10.000</label>
+                        <input type="number" id="bill-10000" class="pos-input-sm pos-bill-inp" data-denom="10000" min="0" step="1" value="0">
+                    </div>
+                    <div class="pos-billete-field">
+                        <label for="bill-2000">Billetes de $2.000</label>
+                        <input type="number" id="bill-2000" class="pos-input-sm pos-bill-inp" data-denom="2000" min="0" step="1" value="0">
+                    </div>
+                    <div class="pos-billete-field">
+                        <label for="bill-1000">Billetes de $1.000</label>
+                        <input type="number" id="bill-1000" class="pos-input-sm pos-bill-inp" data-denom="1000" min="0" step="1" value="0">
+                    </div>
+                    <div class="pos-billete-field">
+                        <label for="bill-500">Billetes de $500</label>
+                        <input type="number" id="bill-500" class="pos-input-sm pos-bill-inp" data-denom="500" min="0" step="1" value="0">
+                    </div>
+                    <div class="pos-billete-field">
+                        <label for="bill-200">Billetes de $200</label>
+                        <input type="number" id="bill-200" class="pos-input-sm pos-bill-inp" data-denom="200" min="0" step="1" value="0">
+                    </div>
+                    <div class="pos-billete-field">
+                        <label for="bill-100">Billetes de $100</label>
+                        <input type="number" id="bill-100" class="pos-input-sm pos-bill-inp" data-denom="100" min="0" step="1" value="0">
+                    </div>
+                    <div class="pos-billete-field">
+                        <label for="bill-monedas">Monedas / Otros ($)</label>
+                        <input type="number" id="bill-monedas" class="pos-input-sm pos-bill-monedas" min="0" step="1" value="0">
+                    </div>
+                </div>
+
+                <div class="pos-arq-declarado-box">
+                    <span>Total Físico Declarado por Cajero</span>
+                    <strong id="arq-val-declarado">$0</strong>
+                </div>
+
+                <div class="pos-arq-diff-bar ok" id="pos-arq-diff-bar">
+                    <span id="arq-diff-label">✅ Caja Cuadrada Exacta</span>
+                    <strong id="arq-diff-val">$0</strong>
+                </div>
+            </section>
+        </div>
+
+        <footer class="pos-drawer-footer">
+            <button type="button" class="pos-btn pos-btn-light" id="btn-pos-arq-cerrar-foot">Cerrar</button>
+            <button type="button" class="pos-btn pos-btn-primary" id="btn-pos-arq-guardar" style="flex:1;">
+                💾 Guardar Arqueo en Turno
+            </button>
+        </footer>
+    </aside>
+</div>
+
+<!-- MODAL ETAPA 3B: RETIRO / GASTO DE GAVETA (F8) -->
+<div class="pos-modal-overlay" id="modal-pos-retiro" aria-hidden="true">
+    <div class="pos-modal-box pos-modal-md" role="dialog" aria-labelledby="modal-pos-ret-title">
+        <header class="pos-modal-header">
+            <div>
+                <h3 id="modal-pos-ret-title">💸 Retiro de Efectivo / Gasto de Caja</h3>
+                <p>Descuenta efectivo físico de la gaveta del turno activo (custodia o gastos menores).</p>
+            </div>
+            <button type="button" class="pos-modal-close" id="btn-cerrar-modal-retiro">✕</button>
+        </header>
+
+        <div class="pos-modal-body">
+            <div class="pos-ret-disp-bar">
+                <span>Efectivo teórico actual en gaveta:</span>
+                <strong id="pos-ret-teorico-disp">$0 ARS</strong>
+            </div>
+
+            <form id="form-pos-retiro" class="pos-ret-form">
+                <div class="pos-metodo-inputs">
+                    <div class="pos-field">
+                        <label for="pos-ret-tipo">Tipo de Salida</label>
+                        <select id="pos-ret-tipo" class="pos-input">
+                            <option value="Retiro a Caja Fuerte">🔐 Retiro a Caja Fuerte (Custodia)</option>
+                            <option value="Gasto Menor">🧾 Gasto Menor de Caja Chica</option>
+                            <option value="Pago a Proveedor">🚚 Pago a Proveedor (Efectivo)</option>
+                        </select>
+                    </div>
+                    <div class="pos-field">
+                        <label for="pos-ret-monto">Monto a Retirar ($ ARS) *</label>
+                        <input type="number" id="pos-ret-monto" class="pos-input" min="1" step="0.01" placeholder="0.00" required>
+                    </div>
+                </div>
+
+                <div class="pos-field">
+                    <label for="pos-ret-motivo">Concepto / Motivo *</label>
+                    <input type="text" id="pos-ret-motivo" class="pos-input" placeholder="Ej: Retiro parcial por seguridad, artículos de limpieza, hielo..." required>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+                    <button type="button" class="pos-btn pos-btn-light" id="btn-cancelar-modal-retiro">Cerrar</button>
+                    <button type="submit" class="pos-btn pos-btn-primary">✅ Registrar Salida de Efectivo</button>
+                </div>
+            </form>
+
+            <div class="pos-ret-hist-box">
+                <strong id="pos-ret-hist-title">Movimientos de salida en este turno (0)</strong>
+                <div class="pos-ret-hist-list" id="pos-ret-hist-list">
+                    <!-- Lista dinámica de retiros del turno -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 4: REPORTE INTERMEDIO (CORTE X), CIERRE Z E HISTORIAL DE TURNOS -->
+<div class="pos-modal-overlay" id="modal-pos-corte-x" aria-hidden="true">
+    <div class="pos-modal-box pos-modal-cortex" role="dialog" aria-labelledby="pos-cx-title">
+        <header class="pos-cx-header">
+            <div>
+                <div class="pos-cx-badges">
+                    <span class="pos-cx-pill-live" id="pos-cx-estado-pill">● TURNO EN CURSO (ACTIVO)</span>
+                    <span class="pos-cx-meta-pill" id="pos-cx-operador-pill">👤 Operador: —</span>
+                    <span class="pos-cx-meta-pill" id="pos-cx-apertura-pill">🕒 Apertura: —</span>
+                    <span class="pos-cx-meta-pill" id="pos-cx-fondo-pill">💵 Fondo inicial: $0</span>
+                </div>
+                <h3 id="pos-cx-title">Reporte Intermedio de Ventas • Corte X</h3>
+                <p>Auditoría en tiempo real de transacciones, saldo en gaveta física, medios de pago y margen comercial del turno.</p>
+            </div>
+
+            <div class="pos-cx-head-actions">
+                <button type="button" class="pos-btn pos-btn-light pos-btn-xs" id="btn-cx-toggle-hist">
+                    📜 Historial Turnos
+                </button>
+                <button type="button" class="pos-btn pos-btn-blue pos-btn-xs" id="btn-cx-imprimir-80mm">
+                    🖨️ Corte X (80mm)
+                </button>
+                <button type="button" class="pos-btn pos-btn-amber pos-btn-xs" id="btn-cx-retiro">
+                    💸 Retiro Parcial
+                </button>
+                <button type="button" class="pos-btn pos-btn-danger-solid pos-btn-xs" id="btn-cx-cerrar-z">
+                    🔒 Cerrar Turno (Corte Z)
+                </button>
+                <button type="button" class="pos-btn pos-btn-primary pos-btn-xs" id="btn-cerrar-modal-cortex">
+                    ← Volver al POS
+                </button>
+            </div>
+        </header>
+
+        <div class="pos-cx-body" id="pos-cx-main-view">
+            <section class="pos-cx-kpi-grid">
+                <article class="pos-cx-kpi">
+                    <span class="pos-cx-kpi-lbl">RECAUDACIÓN NETA TURNO</span>
+                    <strong class="pos-cx-kpi-val" id="cx-kpi-recaudacion">$0</strong>
+                    <div class="pos-cx-kpi-foot">
+                        <span id="cx-kpi-tickets">0 tickets emitidos</span>
+                        <span class="text-emerald">Ventas activas</span>
+                    </div>
+                </article>
+
+                <article class="pos-cx-kpi">
+                    <span class="pos-cx-kpi-lbl">EFECTIVO ESTIMADO EN GAVETA</span>
+                    <strong class="pos-cx-kpi-val text-emerald" id="cx-kpi-efectivo">$0</strong>
+                    <div class="pos-cx-kpi-foot">
+                        <span id="cx-kpi-efvo-formula">Fondo + Efvo − Retiros</span>
+                        <button type="button" class="pos-link-teal" id="btn-cx-ir-arqueo">Arqueo Ciego →</button>
+                    </div>
+                </article>
+
+                <article class="pos-cx-kpi">
+                    <span class="pos-cx-kpi-lbl">TICKET PROMEDIO (AOV)</span>
+                    <strong class="pos-cx-kpi-val" id="cx-kpi-promedio">$0</strong>
+                    <div class="pos-cx-kpi-foot">
+                        <span id="cx-kpi-unidades">0 ítems vendidos</span>
+                        <span id="cx-kpi-items-por-ticket">0 art./ticket</span>
+                    </div>
+                </article>
+
+                <article class="pos-cx-kpi">
+                    <span class="pos-cx-kpi-lbl">MARGEN BRUTO ESTIMADO</span>
+                    <strong class="pos-cx-kpi-val" id="cx-kpi-margen">0%</strong>
+                    <div class="pos-cx-kpi-foot">
+                        <span>Ganancia bruta:</span>
+                        <strong class="text-emerald" id="cx-kpi-ganancia">+$0</strong>
+                    </div>
+                </article>
+            </section>
+
+            <section class="pos-cx-grid">
+                <div class="pos-cx-left">
+                    <article class="pos-cx-card">
+                        <div class="pos-cx-card-head">
+                            <div>
+                                <h4>Desglose por Medios de Pago &amp; Conciliación Parcial</h4>
+                                <span>Registros sincronizados en tiempo real con la caja del turno</span>
+                            </div>
+                            <span class="pos-cx-soft-pill" id="cx-medios-count">0 métodos</span>
+                        </div>
+
+                        <div class="pos-cx-medios-list" id="cx-medios-list"></div>
+
+                        <div class="pos-cx-concil-box">
+                            <div class="pos-cx-concil-row bold">
+                                <span>SUBTOTAL DE FACTURACIÓN NETA</span>
+                                <strong id="cx-concil-facturacion">$0</strong>
+                            </div>
+                            <div class="pos-cx-concil-row text-danger">
+                                <span>− Retiros / Gastos de Caja Chica</span>
+                                <strong id="cx-concil-retiros">-$0</strong>
+                            </div>
+                            <div class="pos-cx-concil-row text-emerald">
+                                <span>+ Fondo Fijo Inicial Asignado (Gaveta)</span>
+                                <strong id="cx-concil-fondo">+$0</strong>
+                            </div>
+                            <div class="pos-cx-concil-total">
+                                <span>TOTAL EFECTIVO ESPERADO FÍSICO EN GAVETA</span>
+                                <strong id="cx-concil-efvo-final">$0 ARS</strong>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="pos-cx-card">
+                        <div class="pos-cx-card-head">
+                            <div>
+                                <h4>Productos Más Vendidos del Turno <span class="pos-cx-soft-pill">Top 5 En Vivo</span></h4>
+                                <span>Descuento sincronizado con Inventario y Control de Stock</span>
+                            </div>
+                        </div>
+
+                        <div style="overflow-x:auto;">
+                            <table class="pos-cx-table">
+                                <thead>
+                                    <tr>
+                                        <th>PRODUCTO / SKU</th>
+                                        <th>UNIDADES / PESO</th>
+                                        <th>PRECIO PROM.</th>
+                                        <th style="text-align:right;">SUBTOTAL TURNO</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cx-top-productos-tbody"></tbody>
+                            </table>
+                        </div>
+                    </article>
+                </div>
+
+                <aside class="pos-cx-right">
+                    <article class="pos-cx-card">
+                        <div class="pos-cx-card-head">
+                            <h4>Simulador de Corte X (80mm)</h4>
+                            <span class="pos-cx-soft-pill">Térmica 80mm</span>
+                        </div>
+                        <pre class="pos-cx-thermal-pre" id="cx-thermal-preview"></pre>
+                        <button type="button" class="pos-btn pos-btn-light" id="btn-cx-pdf-sim" style="width:100%;">
+                            🖨️ Descargar Copia Térmica 80mm (PDF)
+                        </button>
+                    </article>
+
+                    <article class="pos-cx-card">
+                        <div class="pos-cx-card-head">
+                            <h4>Seguridad de Gaveta &amp; Próximos Pasos</h4>
+                            <div class="pos-cx-umbral-inline" title="Límite de efectivo en gaveta antes de alertar retiro de custodia">
+                                <label for="cx-umbral-gaveta">Límite $:</label>
+                                <input type="number" id="cx-umbral-gaveta" min="0" step="5000" value="75000">
+                            </div>
+                        </div>
+
+                        <div class="pos-cx-alert-box" id="cx-gaveta-alert-box">
+                            <div class="pos-cx-alert-top">
+                                <strong id="cx-gaveta-alert-title">✅ Capacidad de Gaveta Segura</strong>
+                                <span class="pos-cx-alert-badge" id="cx-gaveta-alert-badge">Normal</span>
+                            </div>
+                            <p id="cx-gaveta-alert-msg">El efectivo en gaveta se encuentra dentro del umbral de seguridad configurado.</p>
+                            <button type="button" class="pos-btn pos-btn-amber" id="btn-cx-retiro-custodia" style="width:100%; display:none;">
+                                🔐 Realizar Retiro de Custodia
+                            </button>
+                        </div>
+                    </article>
+                </aside>
+            </section>
+        </div>
+
+        <div class="pos-cx-body" id="pos-cx-hist-view" style="display: none;">
+            <article class="pos-cx-card">
+                <div class="pos-cx-card-head">
+                    <div>
+                        <h4>📜 Historial de Turnos Cerrados (Cortes Z)</h4>
+                        <span>Auditoría inmutable de cierres de caja anteriores</span>
+                    </div>
+                    <button type="button" class="pos-btn pos-btn-light pos-btn-xs" id="btn-cx-volver-activo">
+                        ← Volver al Corte X Activo
+                    </button>
+                </div>
+                <div id="cx-turnos-cerrados-list" class="pos-cx-hist-list"></div>
+            </article>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 5: AUDITORÍA DE TICKETS TÉRMICOS (80MM / 58MM) E HISTORIAL (F6) -->
+<div class="pos-modal-overlay" id="modal-pos-auditoria-tickets" aria-hidden="true">
+    <div class="pos-modal-box pos-modal-cortex" role="dialog" aria-labelledby="pos-aud-title">
+        <header class="pos-cx-header">
+            <div>
+                <div class="pos-cx-badges">
+                    <span class="pos-cx-pill-live">🧾 MOTOR TÉRMICO 80MM / 58MM</span>
+                    <span class="pos-cx-meta-pill" id="pos-aud-count-pill">0 tickets registrados</span>
+                </div>
+                <h3 id="pos-aud-title">Auditoría de Tickets Térmicos e Historial de Ventas</h3>
+                <p>Busca, reimprime, envía por WhatsApp o anula tickets emitidos con devolución automática de stock.</p>
+            </div>
+
+            <div class="pos-cx-head-actions">
+                <button type="button" class="pos-btn pos-btn-primary pos-btn-xs" id="btn-cerrar-modal-auditoria">
+                    ← Volver al POS
+                </button>
+            </div>
+        </header>
+
+        <div class="pos-aud-grid">
+            <aside class="pos-aud-sidebar">
+                <div class="pos-aud-filters">
+                    <input type="text" id="pos-aud-search" class="pos-input" placeholder="🔍 N° ticket, cliente, producto, SKU...">
+                    <div class="pos-aud-tabs">
+                        <button type="button" class="pos-aud-tab active" data-audtab="turno">Turno Activo</button>
+                        <button type="button" class="pos-aud-tab" data-audtab="todas">Todas</button>
+                        <button type="button" class="pos-aud-tab" data-audtab="anuladas">Anuladas</button>
+                    </div>
+                </div>
+                <div class="pos-aud-list" id="pos-aud-list"></div>
+            </aside>
+
+            <section class="pos-aud-preview-col">
+                <div class="pos-aud-width-bar">
+                    <span class="pos-arq-section-lbl" style="margin:0;">ANCHO DE CABEZAL TÉRMICO:</span>
+                    <div class="pos-aud-width-btns">
+                        <button type="button" class="pos-aud-wbtn active" data-width="80">80 mm (Estándar)</button>
+                        <button type="button" class="pos-aud-wbtn" data-width="58">58 mm (Compacto)</button>
+                    </div>
+                </div>
+
+                <div class="pos-aud-stage" id="pos-aud-stage">
+                    <div class="pos-thermal-paper w-80" id="pos-thermal-paper">
+                        <div class="pos-thermal-void-stamp" id="pos-thermal-void-stamp" style="display:none;">ANULADO</div>
+                        <pre id="pos-aud-thermal-pre"></pre>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="pos-aud-actions-col" id="pos-aud-actions-col"></aside>
+        </div>
+    </div>
+</div>
+

@@ -1,0 +1,73 @@
+<div class="prod-modal-overlay" id="modal-editar-variante" aria-hidden="true">
+    <div class="prod-modal-dialog var-modal-dialog" role="dialog" aria-labelledby="modal-var-title">
+        
+        <header class="prod-modal-header">
+            <div>
+                <h2 id="modal-var-title">Editar Variante</h2>
+                <p class="prod-modal-sub" id="modal-var-parent">Producto principal</p>
+            </div>
+            <button type="button" class="prod-modal-close" id="btn-cerrar-modal-var" aria-label="Cerrar">✕</button>
+        </header>
+
+        <form id="form-editar-variante" class="prod-modal-body">
+            <div class="var-form-stack">
+
+                <!-- NOMBRE / TALLE Y CÓDIGO SKU -->
+                <div class="field-row-2">
+                    <div class="field-group">
+                        <label for="var-edit-nombre">Nombre / Talle <span class="req">*</span></label>
+                        <input type="text" id="var-edit-nombre" placeholder="Ej: XXL, Rojo, 42" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="var-edit-sku">Código SKU <span class="req">*</span></label>
+                        <input type="text" id="var-edit-sku" placeholder="PRD-88464-S" required>
+                    </div>
+                </div>
+
+                <!-- PRECIO INDIVIDUAL Y STOCK -->
+                <div class="field-row-2">
+                    <div class="field-group">
+                        <label for="var-edit-precio">Precio de esta Variante ($) <span class="req">*</span></label>
+                        <input type="number" id="var-edit-precio" step="0.01" min="0" required>
+                    </div>
+                    <div class="field-group">
+                        <label for="var-edit-stock">Stock Disponible</label>
+                        <input type="number" id="var-edit-stock" step="1" min="0" required>
+                    </div>
+                </div>
+
+                <!-- SELECTOR DE BOLITA DE COLOR -->
+                <div class="form-section card-soft">
+                    <label class="section-kicker">COLOR IDENTIFICADOR (BOLITA)</label>
+                    <div class="var-color-picker-row">
+                        <div class="var-color-input-wrap">
+                            <input type="color" id="var-edit-color" value="#1e3a8a" title="Elegir color personalizado">
+                            <span id="var-color-hex">#1E3A8A</span>
+                        </div>
+                        <div class="var-color-swatches" id="var-color-swatches">
+                            <button type="button" class="swatch-btn" data-color="#1e3a8a" style="background:#1e3a8a;" title="Azul Marino"></button>
+                            <button type="button" class="swatch-btn" data-color="#0f766e" style="background:#0f766e;" title="Verde Esmeralda"></button>
+                            <button type="button" class="swatch-btn" data-color="#d97706" style="background:#d97706;" title="Ámbar"></button>
+                            <button type="button" class="swatch-btn" data-color="#6366f1" style="background:#6366f1;" title="Índigo"></button>
+                            <button type="button" class="swatch-btn" data-color="#dc2626" style="background:#dc2626;" title="Rojo"></button>
+                            <button type="button" class="swatch-btn" data-color="#111827" style="background:#111827;" title="Negro"></button>
+                            <button type="button" class="swatch-btn" data-color="#d6cbb9" style="background:#d6cbb9;" title="Beige"></button>
+                            <button type="button" class="swatch-btn" data-color="#ec4899" style="background:#ec4899;" title="Rosa"></button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </form>
+
+        <footer class="prod-modal-footer">
+            <button type="button" class="mini-btn btn-danger-soft" id="btn-eliminar-variante">🗑️ Eliminar variante</button>
+            <div class="footer-btns">
+                <button type="button" class="inv-btn inv-btn-light" id="btn-cancelar-modal-var">Cancelar</button>
+                <button type="submit" form="form-editar-variante" class="inv-btn btn-save-primary">💾 Guardar Variante</button>
+            </div>
+        </footer>
+
+    </div>
+</div>
+

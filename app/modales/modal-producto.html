@@ -1,0 +1,265 @@
+<div class="prod-modal-overlay" id="modal-nuevo-producto" aria-hidden="true">
+    <div class="prod-modal-dialog" role="dialog" aria-labelledby="modal-prod-title">
+        
+        <!-- CABECERA FIJA -->
+        <header class="prod-modal-header">
+            <div>
+                <h2 id="modal-prod-title">Crear Nuevo Producto</h2>
+                <p class="prod-modal-sub">Los datos de costo, stock y umbral se sincronizan con Bóveda Local, POS y Control de Stock.</p>
+            </div>
+            <button type="button" class="prod-modal-close" id="btn-cerrar-modal-prod" aria-label="Cerrar">✕</button>
+        </header>
+
+        <!-- CUERPO DEL FORMULARIO (2 COLUMNAS EN PC) -->
+        <form id="form-nuevo-producto" class="prod-modal-body">
+            <div class="prod-modal-grid">
+
+                <!-- COLUMNA IZQUIERDA: MEDICIÓN, IDENTIDAD Y 5 FOTOS -->
+                <div class="prod-col">
+
+                    <!-- FAMILIA DE MEDICIÓN (COBRO) -->
+                    <div class="form-section">
+                        <label class="section-kicker">FAMILIA DE MEDICIÓN (COBRO)</label>
+                        <div class="family-grid" id="family-selector">
+                            <button type="button" class="family-card active" data-family="unidad">
+                                <span class="fam-icon">📦</span>
+                                <span>Unidad / Pack</span>
+                            </button>
+                            <button type="button" class="family-card" data-family="peso">
+                                <span class="fam-icon">⚖️</span>
+                                <span>Peso / Granel</span>
+                            </button>
+                            <button type="button" class="family-card" data-family="longitud">
+                                <span class="fam-icon">📏</span>
+                                <span>Long. / Superf.</span>
+                            </button>
+                            <button type="button" class="family-card" data-family="variantes">
+                                <span class="fam-icon">👕</span>
+                                <span>Variantes / Talles</span>
+                            </button>
+                        </div>
+
+                        <!-- CAJA CONDICIONAL: TALLES / VARIANTES -->
+                        <div class="variants-alert-box" id="box-variantes" style="display: none;">
+                            <label for="prod-variantes">INGRESA TALLES / VARIANTES</label>
+                            <input type="text" id="prod-variantes" placeholder="Ej: S, M, L o 39, 40, 41 (separados por coma)">
+                            <div class="variants-preview-chips" id="variantes-chips"></div>
+                            <small>El sistema creará una sub-ficha vinculada para cada variante automáticamente.</small>
+                        </div>
+                    </div>
+
+                    <!-- IDENTIFICACIÓN DEL PRODUCTO -->
+                    <div class="form-section">
+                        <div class="field-group">
+                            <label for="prod-nombre">Nombre del Producto <span class="req">*</span></label>
+                            <input type="text" id="prod-nombre" placeholder="Ej: Remera Básica Algodón Peinado" required>
+                        </div>
+
+                        <div class="field-row-2">
+                            <div class="field-group">
+                                <label for="prod-sku">Código del Producto (SKU)</label>
+                                <div class="input-with-actions">
+                                    <input type="text" id="prod-sku" value="PRD-12362" placeholder="PRD-00000">
+                                    <button type="button" class="icon-addon" id="btn-gen-sku" title="Generar SKU aleatorio">🎲</button>
+                                    <button type="button" class="icon-addon btn-scan" id="btn-scan-sku" title="Escanear código de barras">📷</button>
+                                </div>
+                            </div>
+
+                            <div class="field-group">
+                                <label for="prod-categoria">Categoría (elige o escribe una nueva)</label>
+                                <div class="input-with-actions">
+                                    <select id="prod-categoria">
+                                        <option value="General">General</option>
+                                    </select>
+                                    <button type="button" class="icon-addon" id="btn-abrir-gestor-cat-modal" title="Administrar categorías">🏷️</button>
+                                </div>
+
+                                <!-- Mini barra oculta para crear una categoría nueva al instante -->
+                                <div class="quick-cat-box" id="box-nueva-cat-rapida" style="display: none;">
+                                    <input type="text" id="input-cat-rapida" placeholder="Nombre de la nueva categoría...">
+                                    <button type="button" class="quick-cat-btn save" id="btn-guardar-cat-rapida" title="Crear categoría">✓</button>
+                                    <button type="button" class="quick-cat-btn cancel" id="btn-cancelar-cat-rapida" title="Cancelar">✕</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="field-group">
+                            <label for="prod-descripcion">Descripción Corta (Catálogo Web y PDF)</label>
+                            <textarea id="prod-descripcion" rows="2" placeholder="Breve descripción comercial, materiales o detalles destacados..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- GALERÍA MULTIMEDIA (HASTA 5 IMÁGENES EN WEB) -->
+                    <div class="form-section">
+                        <div class="gallery-header">
+                            <label class="section-kicker" style="margin:0;">GALERÍA DE IMÁGENES DEL PRODUCTO</label>
+                            <span class="img-counter-badge" id="img-counter">0 / 5 fotos</span>
+                        </div>
+
+                        <div class="img-source-tabs">
+                            <button type="button" class="img-tab active" data-img-mode="archivo">📁 Subir / Pegar (Ctrl+V)</button>
+                            <button type="button" class="img-tab" data-img-mode="url">🌐 URL Web</button>
+                        </div>
+
+                        <div class="img-mode-panel active" id="panel-img-archivo">
+                            <label class="dropzone-box" id="dropzone-imagenes" for="input-file-imagenes">
+                                <span class="dropzone-icon">🖼️</span>
+                                <strong>Haz clic, arrastra fotos o pega con Ctrl + V</strong>
+                                <small>Se optimizan y guardan en tu Bóveda Local (100% compatible con PDF y PNG)</small>
+                                <input type="file" id="input-file-imagenes" accept="image/*" multiple hidden>
+                            </label>
+                        </div>
+
+                        <div class="img-mode-panel" id="panel-img-url">
+                            <div class="url-add-row">
+                                <input type="url" id="input-url-imagen" placeholder="https://ejemplo.com/foto-producto.jpg">
+                                <button type="button" class="btn-add-url" id="btn-agregar-url">+ Agregar</button>
+                            </div>
+                        </div>
+
+                        <div id="img-upload-status" style="display:none; font-size:0.75rem; margin-top:0.45rem; padding:0.45rem 0.65rem; border-radius:8px; line-height:1.35;"></div>
+
+                        <div class="gallery-slots-grid" id="gallery-slots"></div>
+                    </div>
+
+                </div>
+
+                <!-- COLUMNA DERECHA: PRECIOS, RENTABILIDAD, STOCK Y WEB -->
+                <div class="prod-col">
+
+                    <!-- PRECIOS Y RENTABILIDAD EN VIVO -->
+                    <div class="form-section card-soft">
+                        <label class="section-kicker">PRECIOS Y RENTABILIDAD</label>
+
+                        <div class="field-row-2">
+                            <div class="field-group">
+                                <label for="prod-precio-normal">Precio Normal ($) <span class="req">*</span></label>
+                                <input type="number" id="prod-precio-normal" step="0.01" min="0" placeholder="0.00" required>
+                            </div>
+
+                            <div class="field-group">
+                                <label for="prod-precio-oferta">Precio Oferta ($)</label>
+                                <input type="number" id="prod-precio-oferta" step="0.01" min="0" placeholder="0.00">
+                            </div>
+                        </div>
+
+                        <div class="field-row-2">
+                            <div class="field-group">
+                                <label for="prod-precio-costo">Precio de Costo ($) 🔒</label>
+                                <input type="number" id="prod-precio-costo" step="0.01" min="0" placeholder="Opcional (Privado)">
+                            </div>
+
+                            <div class="field-group">
+                                <label for="prod-precio-mayorista">Precio Mayorista ($)</label>
+                                <input type="number" id="prod-precio-mayorista" step="0.01" min="0" placeholder="Opcional (Bulto)">
+                            </div>
+                        </div>
+
+                        <div class="margin-live-box" id="margin-live-box">
+                            <div class="margin-item">
+                                <span>Ganancia Neta</span>
+                                <strong id="calc-ganancia">$0.00</strong>
+                            </div>
+                            <div class="margin-item">
+                                <span>Margen Bruto</span>
+                                <strong id="calc-margen" class="badge-margin-neutral">0%</strong>
+                            </div>
+                            <div class="margin-item">
+                                <span>Descuento Oferta</span>
+                                <strong id="calc-descuento">—</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTROL DE STOCK Y PROVEEDOR -->
+                    <div class="form-section card-soft">
+                        <label class="section-kicker">STOCK Y LOGÍSTICA</label>
+
+                        <div class="field-row-2">
+                            <div class="field-group">
+                                <label for="prod-unidad">Unidad de Medida</label>
+                                <select id="prod-unidad">
+                                    <option value="Unidad">Unidad (U)</option>
+                                    <option value="Pack">Pack</option>
+                                    <option value="Caja / Bulto">Caja / Bulto</option>
+                                    <option value="Docena">Docena</option>
+                                </select>
+                            </div>
+
+                            <div class="field-group">
+                                <label for="prod-proveedor">Proveedor</label>
+                                <select id="prod-proveedor">
+                                    <option value="">Seleccionar Proveedor</option>
+                                    <option value="Hilandería Norte S.A.">Hilandería Norte S.A.</option>
+                                    <option value="Distribuidora Gourmet Sur">Distribuidora Gourmet Sur</option>
+                                    <option value="Mayorista Central">Mayorista Central</option>
+                                    <option value="Producción Propia">Producción Propia</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="field-row-2">
+                            <div class="field-group">
+                                <label for="prod-stock" id="label-stock">Stock Inicial (U)</label>
+                                <input type="number" id="prod-stock" value="10" step="1" min="0">
+                            </div>
+
+                            <div class="field-group">
+                                <label for="prod-umbral">Umbral Crítico de Alerta</label>
+                                <input type="number" id="prod-umbral" step="1" min="0" placeholder="Ej: 2 (Opcional)">
+                            </div>
+                        </div>
+                        <small class="field-hint">Si el umbral se deja vacío, usará el umbral global general en Control de Stock.</small>
+                    </div>
+
+                    <!-- PUBLICACIÓN EN TIENDA ONLINE Y PDF -->
+                    <div class="form-section">
+                        <label class="publish-toggle-card">
+                            <div class="publish-left">
+                                <span class="publish-icon">🌐</span>
+                                <div>
+                                    <strong>PUBLICAR EN TIENDA ONLINE</strong>
+                                    <small>Mostrar este producto en tu Catálogo Web</small>
+                                </div>
+                            </div>
+                            <div class="switch-wrap">
+                                <input type="checkbox" id="prod-publicar-web" checked>
+                                <span class="switch-slider"></span>
+                            </div>
+                        </label>
+
+                        <label class="publish-toggle-card secondary-toggle">
+                            <div class="publish-left">
+                                <span class="publish-icon">📄</span>
+                                <div>
+                                    <strong>INCLUIR EN CATÁLOGOS PDF</strong>
+                                    <small>Habilitar para exportación impresa y WhatsApp</small>
+                                </div>
+                            </div>
+                            <div class="switch-wrap">
+                                <input type="checkbox" id="prod-incluir-pdf" checked>
+                                <span class="switch-slider"></span>
+                            </div>
+                        </label>
+                    </div>
+
+                </div>
+            </div>
+        </form>
+
+        <!-- PIE DE MODAL FIJO -->
+        <footer class="prod-modal-footer">
+            <div class="footer-status-info" id="modal-save-summary">
+                💾 Se guardará <strong>1 producto</strong> en la Bóveda Local
+            </div>
+            <div class="footer-btns">
+                <button type="button" class="inv-btn inv-btn-light" id="btn-cancelar-modal-prod">Cancelar</button>
+                <button type="submit" form="form-nuevo-producto" class="inv-btn btn-save-primary" id="btn-guardar-prod">
+                    💾 Guardar Producto
+                </button>
+            </div>
+        </footer>
+
+    </div>
+</div>
+

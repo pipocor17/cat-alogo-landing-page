@@ -1,0 +1,628 @@
+<!-- ==========================================
+     MÓDULO: CONTROL DE STOCK Y REABASTECIMIENTO
+     ========================================== -->
+<div class="stock-wrap" id="stock-module-root">
+
+    <!-- CABECERA OPERATIVA -->
+    <header class="stock-header">
+        <div class="stock-header-left">
+            <div class="stock-status-line">
+                <span class="stock-sync-pill"><span class="dot-emerald">●</span> Motor Logístico Activo • Sync Bóveda Local</span>
+                <span class="stock-refresh-txt" id="stock-last-sync">Actualizado recién</span>
+            </div>
+            <h2>Control de Stock y Reabastecimiento</h2>
+            <p>Monitoreo en tiempo real de existencias, cálculo automatizado de punto de reorden y despacho ágil de órdenes a proveedores por WhatsApp o PDF.</p>
+        </div>
+
+        <div class="stock-header-actions">
+            <button type="button" class="stk-btn stk-btn-light" id="btn-stock-recepcion-f8" title="Abrir bandeja de pedidos en tránsito (Tecla F8)">
+                🚚 Recepción en Tránsito
+                <span class="stk-kbd">F8</span>
+                <span class="stk-count-badge" id="stock-badge-transito" style="display: none;">0</span>
+            </button>
+            <button type="button" class="stk-btn stk-btn-primary" id="btn-stock-auto-orden">
+                ⚡ Auto-Orden a Proveedores
+            </button>
+        </div>
+    </header>
+
+    <!-- 4 TARJETAS KPI -->
+    <section class="stock-kpi-grid">
+        <article class="stk-kpi-card">
+            <div class="stk-kpi-top">
+                <span class="stk-kpi-label">ARTÍCULOS TOTALES</span>
+                <span class="stk-kpi-icon icon-teal">📦</span>
+            </div>
+            <div class="stk-kpi-main">
+                <strong id="kpi-stock-total-skus">0</strong>
+                <span>SKUs</span>
+            </div>
+            <div class="stk-kpi-foot">
+                <span>Valorizado de depósito:</span>
+                <strong id="kpi-stock-valorizado">$0 ARS</strong>
+            </div>
+        </article>
+
+        <article class="stk-kpi-card kpi-alert" id="kpi-card-critico">
+            <div class="stk-kpi-top">
+                <span class="stk-kpi-label">STOCK CRÍTICO</span>
+                <span class="stk-kpi-icon icon-amber">⚠️</span>
+            </div>
+            <div class="stk-kpi-main">
+                <strong id="kpi-stock-criticos" class="text-danger">0</strong>
+                <span>SKUs bajo límite</span>
+            </div>
+            <div class="stk-kpi-foot">
+                <span>Riesgo de quiebre hoy:</span>
+                <span class="stk-pill-danger" id="kpi-stock-critico-tag">Saludable</span>
+            </div>
+        </article>
+
+        <article class="stk-kpi-card">
+            <div class="stk-kpi-top">
+                <span class="stk-kpi-label">MARGEN PROMEDIO</span>
+                <span class="stk-kpi-icon icon-blue">📈</span>
+            </div>
+            <div class="stk-kpi-main">
+                <strong id="kpi-stock-margen">0%</strong>
+                <span>Margen bruto</span>
+            </div>
+            <div class="stk-kpi-foot">
+                <span>Ganancia proyectada:</span>
+                <strong class="text-emerald" id="kpi-stock-ganancia">+$0 ARS</strong>
+            </div>
+        </article>
+
+        <article class="stk-kpi-card">
+            <div class="stk-kpi-top">
+                <span class="stk-kpi-label">ÓRDENES SUGERIDAS</span>
+                <span class="stk-kpi-icon icon-indigo">🛒</span>
+            </div>
+            <div class="stk-kpi-main">
+                <strong id="kpi-stock-ordenes">0</strong>
+                <span>Listas p/ Despachar</span>
+            </div>
+            <div class="stk-kpi-foot">
+                <span>Proveedores objetivo:</span>
+                <strong id="kpi-stock-provs-obj" class="text-truncate-sm">—</strong>
+            </div>
+        </article>
+    </section>
+
+    <!-- BLOQUE CENTRAL: DIRECTORIO DE PROVEEDORES + REPOSICIÓN 1-CLICK -->
+    <section class="stock-mid-grid">
+
+        <!-- DIRECTORIO LOGÍSTICO DE PROVEEDORES -->
+        <div class="stk-card stock-providers-box">
+            <div class="stk-box-head">
+                <div class="stk-box-title">
+                    <span>🏪</span>
+                    <h3>Directorio Logístico de Proveedores</h3>
+                </div>
+                <div class="stk-box-head-right">
+                    <span class="stk-muted-count" id="stock-prov-criticos-info">0 proveedores registrados</span>
+                    <button type="button" class="stk-btn stk-btn-light stk-btn-sm" id="btn-stock-gestionar-provs">
+                        ⚙️ Agenda y Productos
+                    </button>
+                </div>
+            </div>
+
+            <div class="stock-providers-grid" id="stock-providers-grid">
+                <!-- Se genera dinámicamente -->
+            </div>
+        </div>
+
+        <!-- TARJETA OSCURA: REPOSICIÓN AUTOMÁTICA 1-CLICK -->
+        <aside class="stock-auto-card">
+            <div class="stock-auto-top">
+                <span class="stock-auto-badge">Algoritmo de Reorden</span>
+                <span class="stock-auto-spark">✨</span>
+            </div>
+            <h3>Reposición Automática 1-Click</h3>
+            <p>Calcula el faltante según tus umbrales críticos, agrupa los productos por proveedor y redacta el pedido listo para WhatsApp o PDF.</p>
+            <button type="button" class="stk-btn-auto-cta" id="btn-stock-generar-todos">
+                💬 Generar y Enviar Pedidos (<span id="auto-orden-count">0</span>)
+            </button>
+            <div class="stock-auto-foot">
+                <span>Total reorden estimado:</span>
+                <strong id="auto-orden-estimado">$0 ARS</strong>
+            </div>
+        </aside>
+
+    </section>
+
+    <!-- BARRA DE BÚSQUEDA, FILTROS Y UMBRAL GLOBAL -->
+    <section class="stk-card stock-toolbar">
+        <div class="stock-search-wrap">
+            <span class="search-ico">🔍</span>
+            <input type="text" id="stock-search-input" placeholder="Buscar por SKU, nombre de producto o proveedor...">
+        </div>
+
+        <div class="stock-global-umbral" title="Umbral mínimo usado en productos que no tienen umbral individual cargado">
+            <label for="stock-umbral-global">Umbral global:</label>
+            <input type="number" id="stock-umbral-global" min="0" step="1" value="5">
+        </div>
+
+        <div class="stock-filter-chips" id="stock-filter-chips">
+            <!-- Chips dinámicos -->
+        </div>
+    </section>
+
+    <!-- TABLA OPERATIVA DE INVENTARIO & PUNTOS DE REORDEN -->
+    <section class="stk-card stock-table-card">
+        <div class="stk-table-head-bar">
+            <div class="stk-table-title-group">
+                <h3>Inventario Operativo & Puntos de Reorden</h3>
+                <span class="stk-pill-soft" id="stock-table-count-badge">0 ítems mostrados</span>
+            </div>
+            <span class="stk-scale-hint">⚖️ Pesaje fraccionario y decimales activos</span>
+        </div>
+
+        <div class="stock-table-scroll">
+            <table class="stock-table">
+                <thead>
+                    <tr>
+                        <th style="width: 28%;">PRODUCTO & VARIANTES</th>
+                        <th>SKU / CÓDIGO</th>
+                        <th>CATEGORÍA</th>
+                        <th>COSTO (ARS)</th>
+                        <th>VENTA (ARS)</th>
+                        <th>MARGEN</th>
+                        <th style="min-width: 175px;">NIVEL DE STOCK</th>
+                        <th>PROVEEDOR</th>
+                        <th style="text-align: right;">ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody id="stock-table-tbody">
+                    <!-- Filas dinámicas -->
+                </tbody>
+            </table>
+        </div>
+
+        <footer class="stock-table-footer">
+            <span id="stock-pagination-info">Mostrando 0 de 0 registros • Bóveda Local sincronizada</span>
+            <div class="stock-pagination-controls" id="stock-pagination-controls">
+                <!-- Botones de paginación -->
+            </div>
+        </footer>
+    </section>
+
+</div>
+
+<!-- MODAL RÁPIDO: AJUSTE DE STOCK (MERMA / CONTEO / INGRESO MANUAL) -->
+<div class="stk-modal-overlay" id="modal-ajuste-stock" aria-hidden="true">
+    <div class="stk-modal-box stk-modal-sm" role="dialog" aria-labelledby="modal-ajuste-title">
+        <header class="stk-modal-header">
+            <div>
+                <h3 id="modal-ajuste-title">Ajuste Rápido de Stock</h3>
+                <p id="modal-ajuste-sub">Producto</p>
+            </div>
+            <button type="button" class="stk-modal-close" id="btn-cerrar-modal-ajuste">✕</button>
+        </header>
+        <form id="form-ajuste-stock" class="stk-modal-body">
+            <div class="stk-ajuste-actual">
+                <span>Stock actual:</span>
+                <strong id="ajuste-stock-actual-val">0 u.</strong>
+            </div>
+
+            <div class="stk-field">
+                <label for="ajuste-tipo">Tipo de Movimiento</label>
+                <select id="ajuste-tipo" class="stk-input">
+                    <option value="sumar">➕ Ingreso / Sumar al stock</option>
+                    <option value="restar">➖ Merma / Rotura / Descontar</option>
+                    <option value="fijar">🎯 Fijar stock exacto (Conteo físico)</option>
+                </select>
+            </div>
+
+            <div class="stk-field">
+                <label for="ajuste-cantidad" id="ajuste-cantidad-label">Cantidad</label>
+                <input type="number" id="ajuste-cantidad" class="stk-input" min="0" step="0.001" value="1" required>
+            </div>
+
+            <div class="stk-field">
+                <label for="ajuste-motivo">Motivo (Opcional)</label>
+                <input type="text" id="ajuste-motivo" class="stk-input" placeholder="Ej: Conteo semanal, rotura en depósito...">
+            </div>
+
+            <div class="stk-ajuste-preview">
+                <span>Stock resultante:</span>
+                <strong id="ajuste-stock-resultante">0</strong>
+            </div>
+
+            <div class="stk-modal-footer">
+                <button type="button" class="stk-btn stk-btn-light" id="btn-cancelar-modal-ajuste">Cancelar</button>
+                <button type="submit" class="stk-btn stk-btn-primary">💾 Aplicar Ajuste</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 2: AGENDA DE PROVEEDORES Y ASIGNACIÓN DE PRODUCTOS -->
+<div class="stk-modal-overlay" id="modal-agenda-proveedores" aria-hidden="true">
+    <div class="stk-modal-box stk-modal-lg" role="dialog" aria-labelledby="modal-prov-title">
+        <header class="stk-modal-header">
+            <div>
+                <h3 id="modal-prov-title">🏪 Agenda de Proveedores y Asignación de Productos</h3>
+                <p>Administra tus proveedores y define qué productos vende cada uno para automatizar los pedidos.</p>
+            </div>
+            <button type="button" class="stk-modal-close" id="btn-cerrar-modal-prov">✕</button>
+        </header>
+
+        <div class="stk-prov-modal-grid">
+            <!-- COLUMNA IZQUIERDA: LISTA DE PROVEEDORES -->
+            <aside class="stk-prov-sidebar">
+                <button type="button" class="stk-btn stk-btn-primary" id="btn-prov-nuevo" style="width: 100%;">
+                    ➕ Nuevo Proveedor
+                </button>
+                <div class="stk-prov-list" id="stk-prov-list">
+                    <!-- Lista dinámica -->
+                </div>
+            </aside>
+
+            <!-- COLUMNA DERECHA: FICHA + ASIGNADOR DE PRODUCTOS -->
+            <form id="form-proveedor-agenda" class="stk-prov-editor">
+                <div class="stk-prov-editor-scroll">
+                    <div class="stk-editor-section-head">
+                        <strong id="prov-editor-heading">Nuevo Proveedor</strong>
+                        <button type="button" class="stk-row-btn btn-danger-outline" id="btn-prov-eliminar" style="display: none;">
+                            🗑️ Eliminar
+                        </button>
+                    </div>
+
+                    <div class="stk-form-row-2">
+                        <div class="stk-field">
+                            <label for="prov-nombre">Nombre / Razón Social *</label>
+                            <input type="text" id="prov-nombre" class="stk-input" placeholder="Ej: Lácteos del Sur" required>
+                        </div>
+                        <div class="stk-field">
+                            <label for="prov-rubro">Rubro / Línea</label>
+                            <input type="text" id="prov-rubro" class="stk-input" placeholder="Ej: Quesería & Frescos">
+                        </div>
+                    </div>
+
+                    <div class="stk-form-row-2">
+                        <div class="stk-field">
+                            <label for="prov-whatsapp">WhatsApp (con código de país)</label>
+                            <input type="text" id="prov-whatsapp" class="stk-input" placeholder="Ej: +54 9 351 5432-8890">
+                        </div>
+                        <div class="stk-field">
+                            <label for="prov-entrega">Tiempo de Entrega</label>
+                            <select id="prov-entrega" class="stk-input">
+                                <option value="Entrega 24 hs">Entrega 24 hs</option>
+                                <option value="Entrega 48 hs">Entrega 48 hs</option>
+                                <option value="Entrega 72 hs">Entrega 72 hs</option>
+                                <option value="Programado">Programado</option>
+                                <option value="Retiro en depósito">Retiro en depósito / Sucursal</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="stk-form-row-2">
+                        <div class="stk-field">
+                            <label for="prov-alias">Alias / CBU (Para Pagos)</label>
+                            <input type="text" id="prov-alias" class="stk-input" placeholder="Ej: LacteosSur.MP">
+                        </div>
+                        <div class="stk-field">
+                            <label for="prov-notas">Dirección / Notas (Opcional)</label>
+                            <input type="text" id="prov-notas" class="stk-input" placeholder="Ej: Reparte martes y jueves">
+                        </div>
+                    </div>
+
+                    <!-- ASIGNADOR DE PRODUCTOS -->
+                    <div class="stk-assign-box">
+                        <div class="stk-assign-head">
+                            <div>
+                                <strong>📦 Productos que vende este proveedor</strong>
+                                <span class="stk-pill-soft" id="prov-assigned-count">0 seleccionados</span>
+                            </div>
+                            <div class="stk-assign-filters">
+                                <button type="button" class="stk-mini-filter active" data-pfilter="todos">Todos</button>
+                                <button type="button" class="stk-mini-filter" data-pfilter="asignados">Asignados</button>
+                                <button type="button" class="stk-mini-filter" data-pfilter="libres">Sin proveedor</button>
+                            </div>
+                        </div>
+
+                        <input type="text" id="prov-prod-search" class="stk-input" placeholder="🔍 Filtrar productos por nombre, SKU o categoría...">
+
+                        <div class="stk-assign-list" id="prov-assign-list">
+                            <!-- Checklist dinámico de productos -->
+                        </div>
+                    </div>
+                </div>
+
+                <footer class="stk-modal-footer stk-prov-footer">
+                    <button type="button" class="stk-btn stk-btn-light" id="btn-cancelar-modal-prov">Cerrar</button>
+                    <button type="submit" class="stk-btn stk-btn-primary" id="btn-guardar-prov">
+                        💾 Guardar Proveedor y Productos
+                    </button>
+                </footer>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 3: GENERADOR DE PEDIDOS A PROVEEDORES (WHATSAPP / PDF) -->
+<div class="stk-modal-overlay" id="modal-pedido-proveedor" aria-hidden="true">
+    <div class="stk-modal-box stk-modal-xl" role="dialog" aria-labelledby="modal-ped-title">
+        <header class="stk-modal-header">
+            <div>
+                <h3 id="modal-ped-title">🛒 Nueva Orden de Pedido a Proveedor</h3>
+                <p id="modal-ped-sub">Selecciona los productos y cantidades a solicitar. Al enviar o descargar, el pedido pasará a estado "En Espera".</p>
+            </div>
+            <button type="button" class="stk-modal-close" id="btn-cerrar-modal-pedido">✕</button>
+        </header>
+
+        <div class="stk-ped-modal-grid">
+            <!-- COLUMNA IZQUIERDA: PROVEEDOR Y SELECCIÓN DE PRODUCTOS -->
+            <div class="stk-ped-left">
+                <div class="stk-ped-top-controls">
+                    <div class="stk-field" style="flex: 1;">
+                        <label for="ped-select-proveedor">Proveedor Destino</label>
+                        <select id="ped-select-proveedor" class="stk-input">
+                            <!-- Se rellena dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="stk-field" style="width: 190px;">
+                        <label for="ped-buscar-item">Filtrar ítems</label>
+                        <input type="text" id="ped-buscar-item" class="stk-input" placeholder="🔍 Nombre o SKU...">
+                    </div>
+                </div>
+
+                <div class="stk-ped-quickbar">
+                    <label class="stk-check-inline">
+                        <input type="checkbox" id="ped-chk-ver-todos">
+                        <span>Mostrar también productos de otros proveedores</span>
+                    </label>
+                    <div class="stk-ped-quick-btns">
+                        <button type="button" class="stk-mini-filter" id="btn-ped-auto-criticos">⚡ Marcar bajo mínimo</button>
+                        <button type="button" class="stk-mini-filter" id="btn-ped-limpiar-sel">Limpiar</button>
+                    </div>
+                </div>
+
+                <div class="stk-ped-items-list" id="ped-items-list">
+                    <!-- Filas dinámicas de productos/variantes -->
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA: VISTA PREVIA MENSAJE Y DESPACHO -->
+            <aside class="stk-ped-right">
+                <div class="stk-ped-preview-head">
+                    <strong>💬 Vista Previa del Mensaje</strong>
+                    <button type="button" class="stk-mini-filter" id="btn-ped-copiar-msg">📋 Copiar texto</button>
+                </div>
+
+                <textarea id="ped-mensaje-preview" class="stk-ped-textarea" rows="11" placeholder="Selecciona al menos 1 producto para armar el pedido..."></textarea>
+
+                <div class="stk-field">
+                    <label for="ped-nota-extra">Nota / Indicación de entrega (Opcional)</label>
+                    <input type="text" id="ped-nota-extra" class="stk-input" placeholder="Ej: Entregar por la mañana, avisar antes de salir...">
+                </div>
+
+                <div class="stk-ped-summary-box">
+                    <div class="stk-ped-sum-row">
+                        <span>Proveedor WhatsApp:</span>
+                        <strong id="ped-info-whatsapp">—</strong>
+                    </div>
+                    <div class="stk-ped-sum-row">
+                        <span>Ítems seleccionados:</span>
+                        <strong id="ped-info-items-count">0</strong>
+                    </div>
+                    <div class="stk-ped-sum-row total">
+                        <span>Costo estimado total:</span>
+                        <strong id="ped-info-total">$0 ARS</strong>
+                    </div>
+                </div>
+
+                <div class="stk-ped-dispatch-actions">
+                    <button type="button" class="stk-btn stk-btn-whatsapp" id="btn-ped-enviar-wa">
+                        💬 Enviar por WhatsApp
+                    </button>
+                    <div class="stk-ped-secondary-row">
+                        <button type="button" class="stk-btn stk-btn-light" id="btn-ped-descargar-pdf" style="flex: 1;">
+                            📄 Descargar PDF
+                        </button>
+                        <button type="button" class="stk-btn stk-btn-light" id="btn-ped-solo-guardar" style="flex: 1;">
+                            ⏳ Guardar en Espera
+                        </button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 4A: RECEPCIÓN EN TRÁNSITO (F8) CON BUSCADOR, FILTROS Y ORDEN -->
+<div class="stk-modal-overlay" id="modal-recepcion-transito" aria-hidden="true">
+    <div class="stk-modal-box stk-modal-xl" role="dialog" aria-labelledby="modal-rec-title">
+        <header class="stk-modal-header">
+            <div>
+                <h3 id="modal-rec-title">🚚 Recepción de Mercadería en Tránsito</h3>
+                <p>Verifica los pedidos enviados a proveedores, confirma las cantidades reales recibidas y registra el pago.</p>
+            </div>
+            <button type="button" class="stk-modal-close" id="btn-cerrar-modal-recepcion">✕</button>
+        </header>
+
+        <div class="stk-rec-tabs-bar">
+            <div class="stk-rec-tabs-left">
+                <button type="button" class="stk-rec-tab active" data-rectab="en_espera">
+                    ⏳ En Espera <span class="stk-tab-pill" id="rec-tab-count-espera">0</span>
+                </button>
+                <button type="button" class="stk-rec-tab" data-rectab="recibido">
+                    ✅ Recibidos / Historial <span class="stk-tab-pill" id="rec-tab-count-recibidos">0</span>
+                </button>
+            </div>
+            <div class="stk-rec-tabs-right">
+                <span class="stk-rec-filter-summary" id="rec-filter-summary">0 órdenes</span>
+                <button type="button" class="stk-row-btn btn-danger-outline" id="btn-rec-limpiar-saldados" style="display: none;" title="Elimina del historial todas las órdenes con deuda en $0">
+                    🧹 Limpiar saldados
+                </button>
+            </div>
+        </div>
+
+        <!-- BARRA DE BÚSQUEDA, FILTROS Y ORDENAMIENTO -->
+        <div class="stk-rec-toolbar">
+            <div class="stk-rec-search-box">
+                <span>🔍</span>
+                <input type="text" id="rec-search-input" placeholder="Buscar por N° orden (OC-...), proveedor, producto, SKU o factura...">
+            </div>
+
+            <select id="rec-filter-prov" class="stk-rec-select" title="Filtrar por proveedor">
+                <option value="todos">Todos los proveedores</option>
+            </select>
+
+            <select id="rec-filter-pago" class="stk-rec-select" title="Filtrar por estado de pago" style="display: none;">
+                <option value="todos">Todo estado de pago</option>
+                <option value="con_deuda">🔴 Con deuda pendiente</option>
+                <option value="saldado">✅ Saldados ($0 deuda)</option>
+                <option value="sin_pago">💳 Pago sin registrar</option>
+            </select>
+
+            <select id="rec-filter-periodo" class="stk-rec-select" title="Filtrar por fecha">
+                <option value="todos">Cualquier fecha</option>
+                <option value="hoy">Hoy</option>
+                <option value="7d">Últimos 7 días</option>
+                <option value="30d">Últimos 30 días</option>
+                <option value="anio">Este año</option>
+            </select>
+
+            <select id="rec-sort-select" class="stk-rec-select" title="Ordenar listado">
+                <option value="recientes">Orden: Más recientes</option>
+                <option value="antiguos">Orden: Más antiguos</option>
+                <option value="monto_desc">Orden: Mayor monto</option>
+                <option value="monto_asc">Orden: Menor monto</option>
+                <option value="deuda_desc">Orden: Mayor deuda</option>
+                <option value="prov_asc">Orden: Proveedor (A - Z)</option>
+            </select>
+
+            <button type="button" class="stk-mini-filter" id="btn-rec-clear-filters" style="display: none;" title="Restablecer búsqueda y filtros">
+                ✕ Limpiar
+            </button>
+        </div>
+
+        <div class="stk-rec-modal-grid">
+            <!-- LISTA DE ÓRDENES -->
+            <aside class="stk-rec-sidebar" id="rec-orders-list">
+                <!-- Órdenes dinámicas -->
+            </aside>
+
+            <!-- DETALLE Y VERIFICACIÓN DE LA ORDEN SELECCIONADA -->
+            <div class="stk-rec-detail" id="rec-order-detail">
+                <!-- Se renderiza dinámicamente -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ETAPA 4B: VENTANA DE PAGO Y REGISTRO DE DEUDA (FINANZAS) -->
+<!-- MODAL ETAPA 4B: VENTANA DE PAGO Y REGISTRO DE DEUDA (FINANZAS) -->
+<div class="stk-modal-overlay" id="modal-pago-pedido" aria-hidden="true">
+    <div class="stk-modal-box stk-modal-md" role="dialog" aria-labelledby="modal-pago-title">
+        <header class="stk-modal-header">
+            <div>
+                <h3 id="modal-pago-title">💳 Pago de Mercadería y Envío</h3>
+                <p id="modal-pago-sub">Orden • Proveedor</p>
+            </div>
+            <button type="button" class="stk-modal-close" id="btn-cerrar-modal-pago">✕</button>
+        </header>
+
+        <form id="form-pago-pedido" class="stk-modal-body">
+            <div class="stk-pago-alias-box" id="pago-alias-box" style="display: none;">
+                <span>🏦 Alias / CBU del proveedor:</span>
+                <strong id="pago-alias-val">—</strong>
+            </div>
+
+            <div class="stk-pago-resumen-grid">
+                <div class="stk-field" style="margin: 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:4px;">
+                        <label for="pago-subtotal-input" style="margin:0;">Costo Mercadería ($)</label>
+                        <button type="button" id="btn-pago-restaurar-sub" class="stk-mini-filter" style="display:none; padding:2px 7px; font-size:0.68rem;" title="Volver al monto calculado por catálogo">
+                            ↺ Usar calculado
+                        </button>
+                    </div>
+                    <input type="number" id="pago-subtotal-input" class="stk-input" min="0" step="0.01" value="0" required>
+                    <small id="pago-subtotal-hint" style="display:block; margin-top:4px; font-size:0.7rem; color:#64748b;">
+                        Calculado por catálogo: $0 ARS
+                    </small>
+                </div>
+                <div class="stk-field" style="margin: 0;">
+                    <label for="pago-costo-envio">Costo de Envío / Flete ($)</label>
+                    <input type="number" id="pago-costo-envio" class="stk-input" min="0" step="0.01" value="0">
+                    <small style="display:block; margin-top:4px; font-size:0.7rem; color:#64748b;">
+                        Opcional (se suma al total)
+                    </small>
+                </div>
+            </div>
+
+            <div class="stk-pago-total-bar">
+                <span>TOTAL A PAGAR (Mercadería + Envío)</span>
+                <strong id="pago-total-general">$0 ARS</strong>
+            </div>
+
+            <div class="stk-field">
+                <label>Modalidad de Pago</label>
+                <div class="stk-pago-mode-group">
+                    <label class="stk-radio-card active" id="lbl-modo-unico">
+                        <input type="radio" name="pago-modalidad" value="unico" checked>
+                        <div>
+                            <strong>Pago Único (Total)</strong>
+                            <small>Se salda el 100% ahora</small>
+                        </div>
+                    </label>
+                    <label class="stk-radio-card" id="lbl-modo-dividido">
+                        <input type="radio" name="pago-modalidad" value="dividido">
+                        <div>
+                            <strong>Pago Dividido / Parcial</strong>
+                            <small>Entrega parcial y saldo a deuda</small>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div class="stk-form-row-2">
+                <div class="stk-field">
+                    <label for="pago-monto-entregado">Monto Entregado Ahora ($)</label>
+                    <input type="number" id="pago-monto-entregado" class="stk-input" min="0" step="0.01" value="0" required>
+                </div>
+                <div class="stk-field">
+                    <label for="pago-medio">Medio de Pago</label>
+                    <select id="pago-medio" class="stk-input">
+                        <option value="Efectivo">💵 Efectivo</option>
+                        <option value="Transferencia">🏦 Transferencia Bancaria</option>
+                        <option value="Mercado Pago">📱 Mercado Pago / Billetera</option>
+                        <option value="Tarjeta de Débito">💳 Tarjeta de Débito</option>
+                        <option value="Tarjeta de Crédito">💳 Tarjeta de Crédito</option>
+                        <option value="Cheque">🧾 Cheque</option>
+                        <option value="Cuenta Corriente">📒 Cuenta Corriente (Sin entrega)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="stk-form-row-2">
+                <div class="stk-field">
+                    <label for="pago-comprobante">N° Factura / Remito (Opcional)</label>
+                    <input type="text" id="pago-comprobante" class="stk-input" placeholder="Ej: FC-A 0001-00045210">
+                </div>
+                <div class="stk-field">
+                    <label for="pago-notas">Notas del pago (Opcional)</label>
+                    <input type="text" id="pago-notas" class="stk-input" placeholder="Ej: Saldo a cancelar el viernes">
+                </div>
+            </div>
+
+            <div class="stk-pago-deuda-box" id="pago-deuda-box">
+                <div>
+                    <span id="pago-deuda-label">Deuda pendiente (pasa a Finanzas):</span>
+                    <small id="pago-deuda-hint">Sin saldo pendiente. El pedido quedará saldado.</small>
+                </div>
+                <strong id="pago-deuda-val">$0 ARS</strong>
+            </div>
+
+            <div class="stk-modal-footer">
+                <button type="button" class="stk-btn stk-btn-light" id="btn-cancelar-modal-pago">Dejar pendiente</button>
+                <button type="submit" class="stk-btn stk-btn-primary" id="btn-confirmar-pago-pedido">
+                    ✅ Confirmar Pago y Guardar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+

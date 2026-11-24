@@ -1,0 +1,431 @@
+/* ==========================================================================
+   ESTILOS: MODAL CENTRAL DE MEDIOS DE PAGO, RECARGOS Y DESCUENTOS
+   ========================================================================== */
+.mp-trigger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    padding: 0.46rem 0.85rem;
+    border-radius: 9px;
+    border: 1.5px solid #6366f1;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.mp-trigger-btn:hover {
+    background: #4f46e5;
+    color: #ffffff;
+}
+
+.mp-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.62);
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 3100;
+    padding: 1rem;
+}
+
+.mp-modal-overlay.active {
+    display: flex;
+}
+
+.mp-modal-xl {
+    background: #f8fafc;
+    border-radius: 18px;
+    width: 96vw;
+    max-width: 1120px;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35);
+    color: #0f172a;
+}
+
+/* CABECERA */
+.mp-header {
+    background: #ffffff;
+    padding: 1rem 1.3rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.mp-header h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.mp-header p {
+    margin: 0.2rem 0 0;
+    font-size: 0.76rem;
+    color: #64748b;
+}
+
+.mp-close-btn {
+    border: none;
+    background: #f1f5f9;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: 800;
+    color: #475569;
+    flex-shrink: 0;
+}
+.mp-close-btn:hover { background: #e2e8f0; color: #0f172a; }
+
+/* CUERPO 2 COLUMNAS */
+.mp-body-grid {
+    display: grid;
+    grid-template-columns: 420px minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.mp-col {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.mp-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 13px;
+    padding: 0.95rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.mp-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mp-card-head strong {
+    font-size: 0.86rem;
+    color: #0f172a;
+}
+
+.mp-pill-count {
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+}
+
+.mp-card-sub {
+    margin: 0;
+    font-size: 0.73rem;
+    color: #64748b;
+    line-height: 1.38;
+}
+
+.mp-group-lbl {
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: #2563eb;
+    text-transform: uppercase;
+    margin-top: 0.25rem;
+}
+
+.mp-group-lbl.is-digital { color: #7c3aed; }
+.mp-group-lbl.is-custom  { color: #047857; }
+
+/* LISTA DE CHECKBOXES DE MEDIOS */
+.mp-check-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.mp-check-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.52rem 0.72rem;
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.14s ease;
+}
+
+.mp-check-item:hover {
+    border-color: #cbd5e1;
+    background: #ffffff;
+}
+
+.mp-check-item.is-enabled {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.mp-check-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.mp-check-right {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.mp-check-item input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: #2563eb;
+    cursor: pointer;
+}
+
+.mp-del-custom {
+    border: none;
+    background: #fee2e2;
+    color: #b91c1c;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+.mp-del-custom:hover { background: #ef4444; color: #ffffff; }
+
+/* AGREGAR MEDIO PERSONALIZADO */
+.mp-add-custom-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 118px auto;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+}
+
+.mp-input,
+.mp-select {
+    width: 100%;
+    padding: 0.44rem 0.62rem;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    color: #0f172a;
+    background: #ffffff;
+}
+
+.mp-input:focus,
+.mp-select:focus {
+    outline: none;
+    border-color: #4f46e5;
+}
+
+/* TARJETAS DE RECARGOS Y DESCUENTOS */
+.mp-rules-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.mp-rule-row {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 11px;
+    padding: 0.7rem 0.8rem;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.mp-rule-row.mode-descuento {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.mp-rule-row.mode-recargo {
+    background: #fff7ed;
+    border-color: #fdba74;
+}
+
+.mp-rule-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.mp-rule-name {
+    font-size: 0.83rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.mp-sim-pill {
+    font-size: 0.7rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.mp-sim-pill.is-desc { background: #dcfce7; color: #15803d; }
+.mp-sim-pill.is-rec  { background: #ffedd5; color: #c2410c; }
+
+.mp-rule-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 105px;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.mp-pct-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.mp-pct-wrap input {
+    padding-right: 1.6rem;
+    text-align: right;
+    font-weight: 800;
+}
+
+.mp-pct-wrap span {
+    position: absolute;
+    right: 0.55rem;
+    font-size: 0.76rem;
+    font-weight: 800;
+    color: #64748b;
+    pointer-events: none;
+}
+
+/* PROTECCIÓN DE MARGEN + REDONDEO + ALIAS/CBU */
+.mp-switch-opt {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.77rem;
+    color: #334155;
+    padding: 0.48rem 0.65rem;
+    border-radius: 9px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+}
+
+.mp-switch-opt input {
+    margin-top: 2px;
+    accent-color: #047857;
+    cursor: pointer;
+}
+
+.mp-form-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.mp-field label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 0.22rem;
+}
+
+/* PIE DEL MODAL */
+.mp-footer {
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    padding: 0.85rem 1.3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.mp-footer-meta {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #475569;
+}
+
+.mp-footer-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.mp-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 9px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    font-family: inherit;
+    transition: all 0.14s ease;
+}
+
+.mp-btn-light {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+.mp-btn-light:hover { background: #f1f5f9; }
+
+.mp-btn-primary {
+    background: #047857;
+    border-color: #047857;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(4, 120, 87, 0.25);
+}
+.mp-btn-primary:hover { background: #065f46; }
+
+.mp-btn-indigo {
+    background: #4f46e5;
+    border-color: #4f46e5;
+    color: #ffffff;
+    padding: 0.44rem 0.75rem;
+}
+.mp-btn-indigo:hover { background: #4338ca; }
+
+@media (max-width: 900px) {
+    .mp-body-grid { grid-template-columns: 1fr; }
+    .mp-form-grid-2 { grid-template-columns: 1fr; }
+}
+

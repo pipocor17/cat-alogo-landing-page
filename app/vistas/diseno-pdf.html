@@ -1,0 +1,811 @@
+<!-- ==========================================
+     ESTUDIO DE DISEÑO PDF (WYSIWYG)
+     ========================================== -->
+<div class="pdf-studio-wrap" id="pdf-studio-root">
+
+    <!-- BARRA SUPERIOR DE CONTROL Y PLANTILLAS -->
+    <header class="pdf-topbar">
+        <div class="pdf-title-group">
+            <h2>🎨 Estudio de Diseño PDF & Exportación</h2>
+            <div class="pdf-status-inline">
+                <span class="pdf-pill-sync"><strong class="dot-green">●</strong> Sincronizado con Bóveda Local</span>
+                <span>• <strong id="pdf-stat-top-count">0</strong> productos habilitados para PDF</span>
+            </div>
+        </div>
+
+        <div class="pdf-topbar-actions">
+            <div class="pdf-template-picker">
+                <select id="pdf-select-plantilla" class="pdf-select-sm" title="Plantillas guardadas">
+                    <option value="preset:comercial">📄 Comercial Estándar</option>
+                </select>
+                <button type="button" class="pdf-icon-btn" id="btn-pdf-borrar-plantilla" title="Eliminar plantilla propia" style="display: none;">🗑️</button>
+            </div>
+            <button type="button" class="pdf-btn pdf-btn-light" id="btn-pdf-guardar-plantilla" title="Guardar diseño como plantilla propia">
+                💾 Guardar Plantilla
+            </button>
+            <div class="pdf-history-group">
+                <button type="button" class="pdf-icon-btn" id="btn-pdf-undo" title="Deshacer (Ctrl + Z)" disabled>↩</button>
+                <button type="button" class="pdf-icon-btn" id="btn-pdf-redo" title="Rehacer (Ctrl + Y)" disabled>↪</button>
+            </div>
+            <button type="button" class="pdf-btn pdf-btn-indigo" id="btn-pdf-fullscreen" title="Ampliar vista previa">
+                ⛶ Pantalla Completa
+            </button>
+        </div>
+    </header>
+
+    <!-- ESPACIO DE TRABAJO DIVIDIDO: CONTROLES (IZQ) + VISOR A4 (DER) -->
+    <div class="pdf-workspace">
+
+        <!-- COLUMNA IZQUIERDA: 6 PESTAÑAS DE PERSONALIZACIÓN -->
+        <aside class="pdf-controls-col">
+            <nav class="pdf-tabs-nav" id="pdf-tabs-nav" aria-label="Herramientas de diseño PDF">
+                <button type="button" class="pdf-tab-btn active" data-pdf-tab="contenido">📦 Contenido</button>
+                <button type="button" class="pdf-tab-btn" data-pdf-tab="layout">📐 Layout</button>
+                <button type="button" class="pdf-tab-btn" data-pdf-tab="tipografia">🔤 Textos</button>
+                <button type="button" class="pdf-tab-btn" data-pdf-tab="estilo">🎨 Estilo y B&N</button>
+                <button type="button" class="pdf-tab-btn" data-pdf-tab="capas">📑 Capas</button>
+                <button type="button" class="pdf-tab-btn" data-pdf-tab="caratula">📘 Carátula</button>
+            </nav>
+
+            <div class="pdf-tabs-body">
+
+                <!-- PESTAÑA 1: CONTENIDO -->
+                <section class="pdf-tab-panel active" id="pdf-panel-contenido">
+                    <div class="pdf-section-head">
+                        <h3>Contenido del Catálogo</h3>
+                        <span class="pdf-badge-soft" id="pdf-filtered-badge">0 incluidos</span>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label for="pdf-precio-modo">Tipo de Precio a Mostrar</label>
+                        <select id="pdf-precio-modo" class="pdf-input">
+                            <option value="publico">Precio Público (Normal / Oferta)</option>
+                            <option value="mayorista">Precio Mayorista (Bulto)</option>
+                            <option value="oculto">Sin Precio (Solo exhibición)</option>
+                        </select>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label for="pdf-orden-productos">Orden de Productos</label>
+                        <select id="pdf-orden-productos" class="pdf-input">
+                            <option value="categoria">Agrupados por Categoría</option>
+                            <option value="nombre-asc">Alfabético (A - Z)</option>
+                            <option value="precio-asc">Menor a Mayor Precio</option>
+                            <option value="precio-desc">Mayor a Menor Precio</option>
+                            <option value="recientes">Más Recientes Primero</option>
+                        </select>
+                    </div>
+
+                    <label class="pdf-switch-row">
+                        <span>Ocultar productos con Stock en 0</span>
+                        <input type="checkbox" id="pdf-ocultar-sinstock">
+                    </label>
+
+                    <label class="pdf-switch-row">
+                        <span>Mostrar solo productos en Oferta</span>
+                        <input type="checkbox" id="pdf-solo-ofertas">
+                    </label>
+
+                    <label class="pdf-switch-row">
+                        <span>Mostrar separadores por categoría</span>
+                        <input type="checkbox" id="pdf-show-cat-headers">
+                    </label>
+
+                    <div class="pdf-field" style="margin-top: 0.85rem;">
+                        <div class="pdf-cats-head">
+                            <label style="margin:0;">Categorías a Incluir</label>
+                            <div class="pdf-cats-actions">
+                                <button type="button" class="pdf-link-btn" id="btn-pdf-cats-all">Todas</button>
+                                <span>•</span>
+                                <button type="button" class="pdf-link-btn" id="btn-pdf-cats-none">Ninguna</button>
+                            </div>
+                        </div>
+                        <div class="pdf-cats-checklist" id="pdf-cats-checklist">
+                            <!-- Se rellena dinámicamente -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PESTAÑA 2: LAYOUT E IMAGEN -->
+                <section class="pdf-tab-panel" id="pdf-panel-layout">
+                    <div class="pdf-section-head">
+                        <h3>Geometría e Imagen</h3>
+                        <span class="pdf-badge-soft">A4 210×297mm</span>
+                    </div>
+
+                    <div class="pdf-row-2">
+                        <div class="pdf-field">
+                            <label>Orientación</label>
+                            <div class="pdf-segmented" id="pdf-orientacion-group">
+                                <button type="button" class="seg-btn active" data-val="portrait">Vertical</button>
+                                <button type="button" class="seg-btn" data-val="landscape">Horiz.</button>
+                            </div>
+                        </div>
+                        <div class="pdf-field">
+                            <label>Columnas Grid</label>
+                            <div class="pdf-segmented" id="pdf-columnas-group">
+                                <button type="button" class="seg-btn" data-val="1">1</button>
+                                <button type="button" class="seg-btn" data-val="2">2</button>
+                                <button type="button" class="seg-btn active" data-val="3">3</button>
+                                <button type="button" class="seg-btn" data-val="4">4</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label>Escala Global de Tarjetas</label>
+                        <div class="pdf-scale-grid" id="pdf-escala-group">
+                            <button type="button" class="seg-btn active" data-val="100">100%</button>
+                            <button type="button" class="seg-btn" data-val="90">90%</button>
+                            <button type="button" class="seg-btn" data-val="80">80%</button>
+                            <button type="button" class="seg-btn" data-val="70">70%</button>
+                            <button type="button" class="seg-btn" data-val="60">60%</button>
+                            <button type="button" class="seg-btn" data-val="50">50%</button>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-range-margen">Margen perimetral de hoja</label>
+                            <strong id="val-pdf-margen">12 mm</strong>
+                        </div>
+                        <input type="range" id="pdf-range-margen" min="6" max="24" value="12">
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-range-gap">Separación entre fichas (Gap)</label>
+                            <strong id="val-pdf-gap">12 px</strong>
+                        </div>
+                        <input type="range" id="pdf-range-gap" min="6" max="24" value="12">
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-range-img-height">Altura de imagen</label>
+                            <strong id="val-pdf-img-height">145 px</strong>
+                        </div>
+                        <input type="range" id="pdf-range-img-height" min="70" max="220" value="145">
+                    </div>
+
+                    <div class="pdf-field" id="pdf-field-img-width" style="display: none;">
+                        <div class="pdf-range-head">
+                            <label for="pdf-range-img-width">Ancho de imagen lateral</label>
+                            <strong id="val-pdf-img-width">40%</strong>
+                        </div>
+                        <input type="range" id="pdf-range-img-width" min="25" max="60" value="40">
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-range-radius">Redondeo de Tarjeta</label>
+                            <strong id="val-pdf-radius">8 px</strong>
+                        </div>
+                        <input type="range" id="pdf-range-radius" min="0" max="24" value="8">
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-range-img-radius">Redondeo de Imagen</label>
+                            <strong id="val-pdf-img-radius">6 px</strong>
+                        </div>
+                        <input type="range" id="pdf-range-img-radius" min="0" max="24" value="6">
+                    </div>
+
+                    <div class="pdf-field">
+                        <label>Relación / Modo de Foto</label>
+                        <div class="pdf-segmented" id="pdf-aspecto-group">
+                            <button type="button" class="seg-btn active" data-val="contain">Completa</button>
+                            <button type="button" class="seg-btn" data-val="cover">Recortar</button>
+                            <button type="button" class="seg-btn" data-val="none">Sin Foto</button>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label>Posición de Foto en Tarjeta</label>
+                        <div class="pdf-segmented" id="pdf-img-align-group">
+                            <button type="button" class="seg-btn" data-val="left">Izquierda</button>
+                            <button type="button" class="seg-btn active" data-val="center">Arriba</button>
+                            <button type="button" class="seg-btn" data-val="right">Derecha</button>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label>Alineación de Textos</label>
+                        <div class="pdf-segmented" id="pdf-text-align-group">
+                            <button type="button" class="seg-btn active" data-val="left">Izquierda</button>
+                            <button type="button" class="seg-btn" data-val="center">Centro</button>
+                            <button type="button" class="seg-btn" data-val="right">Derecha</button>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label for="pdf-color-img-bg">Fondo del recuadro de imagen</label>
+                        <div class="pdf-color-row">
+                            <span>Color de fondo de foto</span>
+                            <input type="color" id="pdf-color-img-bg" value="#f8fafc">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PESTAÑA 3: TIPOGRAFÍA Y COLORES DE TEXTO -->
+                <section class="pdf-tab-panel" id="pdf-panel-tipografia">
+                    <div class="pdf-section-head">
+                        <h3>Tipografía y Textos</h3>
+                        <span class="pdf-badge-soft">En vivo</span>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label for="pdf-font-family">Familia Tipográfica</label>
+                        <select id="pdf-font-family" class="pdf-input">
+                            <option value="'Inter', sans-serif">Inter (Moderna Limpia)</option>
+                            <option value="'Roboto', sans-serif">Roboto (Google Font)</option>
+                            <option value="'Montserrat', sans-serif">Montserrat (Geométrica)</option>
+                            <option value="'Poppins', sans-serif">Poppins (Redondeada)</option>
+                            <option value="'Lato', sans-serif">Lato (Corporativa)</option>
+                            <option value="'Playfair Display', serif">Playfair Display (Boutique)</option>
+                            <option value="'Georgia', serif">Georgia (Editorial Clásica)</option>
+                            <option value="'Trebuchet MS', sans-serif">Trebuchet (Comercial)</option>
+                            <option value="monospace">Monoespaciada (Técnica / Lista)</option>
+                        </select>
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-size-titulo">Tamaño Título de Producto</label>
+                            <strong id="val-size-titulo">13 px</strong>
+                        </div>
+                        <input type="range" id="pdf-size-titulo" min="10" max="18" value="13">
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-size-precio">Tamaño Precio Principal</label>
+                            <strong id="val-size-precio">16 px</strong>
+                        </div>
+                        <input type="range" id="pdf-size-precio" min="12" max="24" value="16">
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-size-desc">Tamaño Descripción</label>
+                            <strong id="val-size-desc">10 px</strong>
+                        </div>
+                        <input type="range" id="pdf-size-desc" min="8" max="16" value="10">
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-size-sku">Tamaño Código SKU</label>
+                            <strong id="val-size-sku">9 px</strong>
+                        </div>
+                        <input type="range" id="pdf-size-sku" min="7" max="15" value="9">
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-size-stock">Tamaño Stock</label>
+                            <strong id="val-size-stock">9 px</strong>
+                        </div>
+                        <input type="range" id="pdf-size-stock" min="7" max="15" value="9">
+                    </div>
+
+                    <div class="pdf-colors-grid">
+                        <div class="pdf-color-row">
+                            <span>Título</span>
+                            <input type="color" id="pdf-color-titulo" value="#0f172a">
+                        </div>
+                        <div class="pdf-color-row">
+                            <span>Precio</span>
+                            <input type="color" id="pdf-color-precio" value="#0f766e">
+                        </div>
+                        <div class="pdf-color-row">
+                            <span>Descripción</span>
+                            <input type="color" id="pdf-color-desc" value="#64748b">
+                        </div>
+                        <div class="pdf-color-row">
+                            <span>Código SKU</span>
+                            <input type="color" id="pdf-color-sku" value="#475569">
+                        </div>
+                        <div class="pdf-color-row">
+                            <span>Texto Stock</span>
+                            <input type="color" id="pdf-color-stock" value="#047857">
+                        </div>
+                        <div class="pdf-color-row">
+                            <span>Fondo Stock</span>
+                            <input type="color" id="pdf-color-stock-bg" value="#ecfdf5">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PESTAÑA 4: ESTILO, FONDOS AVANZADOS, BORDES Y B&N -->
+                <section class="pdf-tab-panel" id="pdf-panel-estilo">
+                    <div class="pdf-section-head">
+                        <h3>Branding y Blanco & Negro</h3>
+                    </div>
+
+                    <div class="pdf-bw-card">
+                        <label class="pdf-switch-row" style="margin:0;">
+                            <div>
+                                <strong>🖨️ Modo Escala de Grises (B&N)</strong>
+                                <small>Convierte todo el catálogo para impresión económica</small>
+                            </div>
+                            <input type="checkbox" id="pdf-modo-grises">
+                        </label>
+                    </div>
+
+                    <div class="pdf-colors-grid" style="margin-top: 0.85rem;">
+                        <div class="pdf-color-row">
+                            <span>Acento Marca</span>
+                            <input type="color" id="pdf-color-acento" value="#0f766e">
+                        </div>
+                        <div class="pdf-color-row">
+                            <span>Borde Tarjeta</span>
+                            <input type="color" id="pdf-color-borde" value="#e2e8f0">
+                        </div>
+                    </div>
+
+                    <hr class="pdf-divider">
+
+                    <!-- FONDO DE HOJA A4 -->
+                    <div class="pdf-bg-group-box">
+                        <div class="pdf-field">
+                            <label for="pdf-hoja-bg-tipo">Fondo de Hoja A4</label>
+                            <select id="pdf-hoja-bg-tipo" class="pdf-input">
+                                <option value="solid">Color Sólido</option>
+                                <option value="gradient">Gradiente (2 colores)</option>
+                                <option value="image">Imagen / Textura</option>
+                            </select>
+                        </div>
+
+                        <div class="pdf-colors-grid">
+                            <div class="pdf-color-row">
+                                <span>Color Base</span>
+                                <input type="color" id="pdf-color-hoja" value="#ffffff">
+                            </div>
+                            <div class="pdf-color-row" id="pdf-hoja-grad-c2-wrap" style="display: none;">
+                                <span>Color 2</span>
+                                <input type="color" id="pdf-color-hoja-2" value="#e2e8f0">
+                            </div>
+                        </div>
+
+                        <div class="pdf-field" id="pdf-hoja-grad-dir-wrap" style="display: none; margin-top: 0.5rem;">
+                            <label for="pdf-hoja-grad-dir">Dirección del Gradiente</label>
+                            <select id="pdf-hoja-grad-dir" class="pdf-input">
+                                <option value="180deg">Vertical (Arriba → Abajo)</option>
+                                <option value="90deg">Horizontal (Izq. → Der.)</option>
+                                <option value="135deg">Diagonal (↘)</option>
+                                <option value="45deg">Diagonal (↗)</option>
+                            </select>
+                        </div>
+
+                        <div id="pdf-hoja-img-controls" style="display: none; margin-top: 0.55rem;">
+                            <div class="pdf-bg-upload-row">
+                                <label class="pdf-btn pdf-btn-light" for="pdf-input-hoja-bg-img" style="cursor: pointer; flex: 1; text-align: center;">
+                                    🖼️ Subir Fondo de Hoja
+                                </label>
+                                <input type="file" id="pdf-input-hoja-bg-img" accept="image/*" hidden>
+                                <button type="button" class="pdf-btn pdf-btn-light" id="btn-pdf-quitar-hoja-bg" style="display: none;">✕</button>
+                            </div>
+                            <div class="pdf-field" style="margin-top: 0.5rem;">
+                                <div class="pdf-range-head">
+                                    <label for="pdf-hoja-bg-opacity">Opacidad del Fondo</label>
+                                    <strong id="val-pdf-hoja-bg-opacity">40%</strong>
+                                </div>
+                                <input type="range" id="pdf-hoja-bg-opacity" min="5" max="100" value="40">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="pdf-divider">
+
+                    <!-- FONDO DE TARJETA DE PRODUCTO -->
+                    <div class="pdf-bg-group-box">
+                        <div class="pdf-field">
+                            <label for="pdf-card-bg-tipo">Fondo de Tarjeta de Producto</label>
+                            <select id="pdf-card-bg-tipo" class="pdf-input">
+                                <option value="solid">Color Sólido</option>
+                                <option value="gradient">Gradiente (2 colores)</option>
+                                <option value="image">Imagen / Textura</option>
+                            </select>
+                        </div>
+
+                        <div class="pdf-colors-grid">
+                            <div class="pdf-color-row">
+                                <span>Color Base</span>
+                                <input type="color" id="pdf-color-card" value="#ffffff">
+                            </div>
+                            <div class="pdf-color-row" id="pdf-card-grad-c2-wrap" style="display: none;">
+                                <span>Color 2</span>
+                                <input type="color" id="pdf-color-card-2" value="#f1f5f9">
+                            </div>
+                        </div>
+
+                        <div class="pdf-field" id="pdf-card-grad-dir-wrap" style="display: none; margin-top: 0.5rem;">
+                            <label for="pdf-card-grad-dir">Dirección del Gradiente</label>
+                            <select id="pdf-card-grad-dir" class="pdf-input">
+                                <option value="180deg">Vertical (Arriba → Abajo)</option>
+                                <option value="90deg">Horizontal (Izq. → Der.)</option>
+                                <option value="135deg">Diagonal (↘)</option>
+                                <option value="45deg">Diagonal (↗)</option>
+                            </select>
+                        </div>
+
+                        <div id="pdf-card-img-controls" style="display: none; margin-top: 0.55rem;">
+                            <div class="pdf-bg-upload-row">
+                                <label class="pdf-btn pdf-btn-light" for="pdf-input-card-bg-img" style="cursor: pointer; flex: 1; text-align: center;">
+                                    🖼️ Subir Fondo de Tarjeta
+                                </label>
+                                <input type="file" id="pdf-input-card-bg-img" accept="image/*" hidden>
+                                <button type="button" class="pdf-btn pdf-btn-light" id="btn-pdf-quitar-card-bg" style="display: none;">✕</button>
+                            </div>
+                            <div class="pdf-field" style="margin-top: 0.5rem;">
+                                <div class="pdf-range-head">
+                                    <label for="pdf-card-bg-opacity">Opacidad del Fondo</label>
+                                    <strong id="val-pdf-card-bg-opacity">40%</strong>
+                                </div>
+                                <input type="range" id="pdf-card-bg-opacity" min="5" max="100" value="40">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="pdf-divider">
+
+                    <!-- 8 ESTILOS DE BORDE Y GROSOR -->
+                    <div class="pdf-field">
+                        <label>Estilo de Borde de Tarjetas (8 estilos)</label>
+                        <div class="pdf-border-styles-grid" id="pdf-border-style-group">
+                            <button type="button" class="border-style-btn active" data-val="solid">
+                                <span class="border-sample-line" style="border-top-style: solid;"></span>
+                                <span>Sólido</span>
+                            </button>
+                            <button type="button" class="border-style-btn" data-val="dashed">
+                                <span class="border-sample-line" style="border-top-style: dashed;"></span>
+                                <span>Guiones</span>
+                            </button>
+                            <button type="button" class="border-style-btn" data-val="dotted">
+                                <span class="border-sample-line" style="border-top-style: dotted;"></span>
+                                <span>Punteado</span>
+                            </button>
+                            <button type="button" class="border-style-btn" data-val="double">
+                                <span class="border-sample-line" style="border-top-style: double; border-top-width: 4px;"></span>
+                                <span>Doble</span>
+                            </button>
+                            <button type="button" class="border-style-btn" data-val="groove">
+                                <span class="border-sample-line" style="border-top-style: groove; border-top-width: 4px;"></span>
+                                <span>Relieve</span>
+                            </button>
+                            <button type="button" class="border-style-btn" data-val="ridge">
+                                <span class="border-sample-line" style="border-top-style: ridge; border-top-width: 4px;"></span>
+                                <span>Elevado</span>
+                            </button>
+                            <button type="button" class="border-style-btn" data-val="inset">
+                                <span class="border-sample-line" style="border-top-style: inset; border-top-width: 4px;"></span>
+                                <span>Bisel</span>
+                            </button>
+                            <button type="button" class="border-style-btn" data-val="none">
+                                <span class="border-sample-line none-line"></span>
+                                <span>Sin Borde</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <div class="pdf-range-head">
+                            <label for="pdf-border-width">Grosor del Borde</label>
+                            <strong id="val-pdf-border-width">1 px</strong>
+                        </div>
+                        <input type="range" id="pdf-border-width" min="0" max="8" value="1">
+                    </div>
+                </section>
+
+                <!-- PESTAÑA 5: CAPAS Y CABECERA/PIE -->
+                <section class="pdf-tab-panel" id="pdf-panel-capas">
+                    <div class="pdf-section-head">
+                        <h3>Elementos y Hoja</h3>
+                    </div>
+
+                    <label class="pdf-switch-row">
+                        <span>Mostrar Código SKU</span>
+                        <input type="checkbox" id="pdf-show-sku" checked>
+                    </label>
+                    <label class="pdf-switch-row">
+                        <span>Mostrar Descripción Corta</span>
+                        <input type="checkbox" id="pdf-show-desc" checked>
+                    </label>
+                    <label class="pdf-switch-row">
+                        <span>Mostrar Badge de Stock</span>
+                        <input type="checkbox" id="pdf-show-stock" checked>
+                    </label>
+                    <label class="pdf-switch-row">
+                        <span>Mostrar Etiqueta de Oferta</span>
+                        <input type="checkbox" id="pdf-show-oferta" checked>
+                    </label>
+                    <label class="pdf-switch-row">
+                        <span>Mostrar unidad junto al precio</span>
+                        <input type="checkbox" id="pdf-show-unit-price" checked>
+                    </label>
+
+                    <div class="pdf-field" style="margin-top: 0.75rem;">
+                        <label>Orden de Elementos en la Ficha</label>
+                        <div class="pdf-layers-list" id="pdf-layers-order-list">
+                            <!-- Se genera dinámicamente con botones ▲ ▼ -->
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label for="pdf-footer-texto">Texto del Pie de Página</label>
+                        <input type="text" id="pdf-footer-texto" class="pdf-input" value="Catálogo generado en Bóveda Local">
+                    </div>
+
+                    <hr class="pdf-divider">
+
+                    <div class="pdf-field">
+                        <label for="pdf-header-nombre">Nombre del Negocio (Cabecera)</label>
+                        <input type="text" id="pdf-header-nombre" class="pdf-input" value="CAT-ALOGO STORE">
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-header-sub">Subtítulo / Lista</label>
+                        <input type="text" id="pdf-header-sub" class="pdf-input" value="CATÁLOGO COMERCIAL & PRECIOS VIGENTES">
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-header-contacto">Contacto / Dirección / WhatsApp</label>
+                        <input type="text" id="pdf-header-contacto" class="pdf-input" value="WhatsApp: +54 9 351 000-0000 • Envíos a todo el país">
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-header-validez">Edición / Validez</label>
+                        <input type="text" id="pdf-header-validez" class="pdf-input" value="Precios vigentes • Sujeto a stock">
+                    </div>
+                </section>
+
+                <!-- PESTAÑA 6: CARÁTULA, LOGOS, FECHAS Y HOJA DE CIERRE -->
+                <section class="pdf-tab-panel" id="pdf-panel-caratula">
+                    <div class="pdf-section-head">
+                        <h3>Portada y Hoja de Cierre</h3>
+                        <span class="pdf-badge-soft">Corporativo</span>
+                    </div>
+
+                    <!-- LOGO DEL NEGOCIO: VISTA PREVIA + GALERÍA + 5 GENÉRICOS -->
+                    <div class="pdf-field">
+                        <label>Logo del Negocio (Portada, Cabeceras y Cierre)</label>
+                        <div class="pdf-logo-preview-card">
+                            <div class="pdf-logo-thumb-box">
+                                <img id="pdf-logo-preview-img" src="" alt="Vista previa del logo" style="display: none;">
+                                <span id="pdf-logo-preview-empty">📦</span>
+                            </div>
+                            <div class="pdf-logo-preview-info">
+                                <strong id="pdf-logo-preview-status">Sin logo cargado</strong>
+                                <div class="pdf-logo-uploader">
+                                    <label class="pdf-btn pdf-btn-light" for="pdf-input-logo" style="cursor: pointer;">📁 Subir Galería</label>
+                                    <input type="file" id="pdf-input-logo" accept="image/*" hidden>
+                                    <button type="button" class="pdf-btn pdf-btn-light" id="btn-pdf-quitar-logo" style="display: none;">✕ Quitar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label>O elige un Logo Genérico (5 estilos)</label>
+                        <div class="pdf-generic-logos-grid" id="pdf-generic-logos-grid">
+                            <!-- Se renderizan automáticamente desde diseno-pdf.js -->
+                        </div>
+                    </div>
+
+                    <hr class="pdf-divider">
+
+                    <!-- FECHAS DEL CATÁLOGO -->
+                    <div class="pdf-row-2">
+                        <div class="pdf-field">
+                            <label for="pdf-fecha-creacion">Fecha de Creación</label>
+                            <input type="date" id="pdf-fecha-creacion" class="pdf-input">
+                        </div>
+                        <div class="pdf-field">
+                            <label for="pdf-fecha-validez">Válido hasta</label>
+                            <input type="date" id="pdf-fecha-validez" class="pdf-input">
+                        </div>
+                    </div>
+
+                    <hr class="pdf-divider">
+
+                    <!-- PORTADA CORPORATIVA -->
+                    <label class="pdf-switch-row">
+                        <span>Incluir Portada Corporativa (Hoja 1)</span>
+                        <input type="checkbox" id="pdf-incluir-portada">
+                    </label>
+
+                    <div class="pdf-field">
+                        <label for="pdf-portada-estilo">Estilo de Portada</label>
+                        <select id="pdf-portada-estilo" class="pdf-input">
+                            <option value="moderna">Moderna (Banda de color lateral)</option>
+                            <option value="editorial">Editorial (Fondo acento completo)</option>
+                            <option value="minimal">Minimalista (Blanca limpia)</option>
+                        </select>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label>Colores de Portada (Hoja 1)</label>
+                        <div class="pdf-colors-grid">
+                            <div class="pdf-color-row">
+                                <span>Título Portada</span>
+                                <input type="color" id="pdf-color-portada-titulo" value="#0f172a">
+                            </div>
+                            <div class="pdf-color-row">
+                                <span>Textos Portada</span>
+                                <input type="color" id="pdf-color-portada-texto" value="#475569">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label for="pdf-portada-titulo">Título de Portada</label>
+                        <input type="text" id="pdf-portada-titulo" class="pdf-input" value="Catálogo de Productos">
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-portada-sub">Subtítulo / Temporada</label>
+                        <input type="text" id="pdf-portada-sub" class="pdf-input" value="Nueva Colección & Lista de Precios">
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-portada-eslogan">Eslogan Comercial</label>
+                        <input type="text" id="pdf-portada-eslogan" class="pdf-input" placeholder="Ej: ¡Calidad y precios directos todos los días!">
+                    </div>
+
+                    <hr class="pdf-divider">
+
+                    <!-- HOJA DE CIERRE INSTITUCIONAL -->
+                    <label class="pdf-switch-row">
+                        <span>Incluir Hoja de Cierre Institucional</span>
+                        <input type="checkbox" id="pdf-incluir-cierre">
+                    </label>
+
+                    <div class="pdf-field">
+                        <label>Colores de Hoja de Cierre</label>
+                        <div class="pdf-colors-grid">
+                            <div class="pdf-color-row">
+                                <span>Título Cierre</span>
+                                <input type="color" id="pdf-color-cierre-titulo" value="#0f172a">
+                            </div>
+                            <div class="pdf-color-row">
+                                <span>Textos Cierre</span>
+                                <input type="color" id="pdf-color-cierre-texto" value="#475569">
+                            </div>
+                            <div class="pdf-color-row">
+                                <span>Fondo Recuadro</span>
+                                <input type="color" id="pdf-color-cierre-card" value="#ffffff">
+                            </div>
+                            <div class="pdf-color-row">
+                                <span>Borde Recuadro</span>
+                                <input type="color" id="pdf-color-cierre-borde" value="#e2e8f0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pdf-field">
+                        <label for="pdf-cierre-titulo">Título de Cierre</label>
+                        <input type="text" id="pdf-cierre-titulo" class="pdf-input" value="¡Gracias por elegirnos!">
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-cierre-mensaje">Mensaje / Condiciones de Compra</label>
+                        <textarea id="pdf-cierre-mensaje" class="pdf-input" rows="2">Consultá disponibilidad y realizá tu pedido directo por WhatsApp. Envíos rápidos y atención personalizada.</textarea>
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-cierre-pagos">Medios de Pago</label>
+                        <input type="text" id="pdf-cierre-pagos" class="pdf-input" placeholder="Ej: Efectivo, Transferencia (Alias: MiTienda.OK), Tarjetas">
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-cierre-envios">Métodos de Envío</label>
+                        <input type="text" id="pdf-cierre-envios" class="pdf-input" placeholder="Ej: Envíos a domicilio en el día • Retiro en local">
+                    </div>
+                    <div class="pdf-field">
+                        <label for="pdf-cierre-redes">Redes / Web / Dirección</label>
+                        <input type="text" id="pdf-cierre-redes" class="pdf-input" value="Instagram: @mitienda • Web: cat-alogo.store">
+                    </div>
+                </section>
+
+            </div>
+        </aside>
+
+        <!-- COLUMNA DERECHA: VISOR A4 EN TIEMPO REAL -->
+        <section class="pdf-canvas-col" id="pdf-canvas-col">
+
+            <!-- BARRA DEL VISOR: PAGINADOR, MODO 1/2 HOJAS Y ZOOM -->
+            <div class="pdf-viewer-bar">
+                <div class="pdf-viewer-left">
+                    <span class="pdf-render-badge" id="pdf-render-status">● Renderizado OK</span>
+                    <div class="pdf-page-nav">
+                        <button type="button" class="pdf-icon-btn" id="btn-pdf-page-prev" title="Hoja anterior">◀</button>
+                        <span class="pdf-page-label" id="pdf-page-indicator">Hoja <strong>1</strong> de <strong>1</strong></span>
+                        <button type="button" class="pdf-icon-btn" id="btn-pdf-page-next" title="Hoja siguiente">▶</button>
+                    </div>
+                </div>
+
+                <div class="pdf-viewer-right">
+                    <div class="pdf-view-mode" title="Cantidad de hojas en pantalla">
+                        <button type="button" class="view-mode-btn active" data-spread="1">📄 1 Hoja</button>
+                        <button type="button" class="view-mode-btn" data-spread="2">📖 2 Hojas</button>
+                    </div>
+
+                    <div class="pdf-zoom-controls">
+                        <button type="button" class="pdf-icon-btn" id="btn-pdf-zoom-out" title="Alejar">−</button>
+                        <span id="pdf-zoom-val">75%</span>
+                        <button type="button" class="pdf-icon-btn" id="btn-pdf-zoom-in" title="Acercar">+</button>
+                        <button type="button" class="pdf-btn-xs" id="btn-pdf-zoom-fit">Ajustar</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ESCENARIO DONDE SE RENDERIZAN LAS HOJAS A4 -->
+            <div class="pdf-stage" id="pdf-stage">
+                <div class="pdf-sheets-viewport" id="pdf-sheets-viewport">
+                    <!-- Las hojas A4 se generan aquí en vivo -->
+                </div>
+            </div>
+
+        </section>
+
+    </div>
+
+    <!-- BARRA INFERIOR: MÉTRICAS Y 3 MOTORES DE EXPORTACIÓN -->
+    <footer class="pdf-export-footer">
+        <div class="pdf-metrics-strip">
+            <div class="pdf-metric-item">
+                <span>Páginas Totales</span>
+                <strong id="pdf-metric-pages">1 Página A4</strong>
+            </div>
+            <div class="pdf-metric-item">
+                <span>Modo de Color</span>
+                <strong id="pdf-metric-color">Color (RGB)</strong>
+            </div>
+            <div class="pdf-metric-item">
+                <span>Artículos Listados</span>
+                <strong id="pdf-metric-items">0 Visibles</strong>
+            </div>
+            <div class="pdf-metric-item">
+                <span>Peso Estimado</span>
+                <strong id="pdf-metric-weight">~0.4 MB</strong>
+            </div>
+        </div>
+
+        <div class="pdf-export-cards">
+            <div class="export-card">
+                <div class="export-card-head">
+                    <h4>🖨️ PDF Alta Calidad (Impresión)</h4>
+                    <span class="pdf-badge-soft">HD</span>
+                </div>
+                <p>Textos nítidos e imágenes en alta resolución listas para imprenta, oficina o impresión en B&N.</p>
+                <button type="button" class="pdf-btn pdf-btn-light btn-full" id="btn-export-pdf-hd">
+                    🖨️ Generar PDF Alta Calidad
+                </button>
+            </div>
+
+            <div class="export-card featured">
+                <div class="export-card-head">
+                    <h4>💬 PDF Optimizado (WhatsApp)</h4>
+                    <span class="pdf-badge-green">RECOMENDADO</span>
+                </div>
+                <p>Compresión inteligente para enviar al instante por WhatsApp Business sin consumir datos.</p>
+                <button type="button" class="pdf-btn pdf-btn-primary btn-full" id="btn-export-pdf-wa">
+                    ⬇️ Descargar PDF WhatsApp
+                </button>
+            </div>
+
+            <div class="export-card">
+                <div class="export-card-head">
+                    <h4>🖼️ Imágenes PNG Sueltas</h4>
+                    <span class="pdf-badge-soft" id="pdf-png-mode-badge">ZIP / HD</span>
+                </div>
+                <p>Exporta todo el catálogo en ZIP o elige una sola hoja en PNG de alta resolución para Estados e Instagram.</p>
+                <div class="pdf-png-picker">
+                    <label for="pdf-png-page-select">Página a exportar</label>
+                    <select id="pdf-png-page-select" class="pdf-input pdf-png-select">
+                        <option value="all">Todas las páginas (ZIP)</option>
+                    </select>
+                </div>
+                <button type="button" class="pdf-btn pdf-btn-light btn-full" id="btn-export-png-zip">
+                    📦 Exportar todas en ZIP
+                </button>
+            </div>
+        </div>
+    </footer>
+
+</div>
+

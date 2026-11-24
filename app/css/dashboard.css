@@ -1,0 +1,580 @@
+/* ==========================================================================
+   Cat-Alogo | Dashboard Interno (Panel de Control)
+   ========================================================================== */
+
+:root {
+    --bg-dark: #0f172a;        /* Azul Marino Profundo - Sidebar */
+    --accent-indigo: #6366f1;  /* Índigo - Resaltado activo */
+    --accent-green: #22c55e;   /* Verde Menta - Rentabilidad y Cajas */
+    --accent-amber: #f59e0b;   /* Dorado Ámbar - Alertas */
+    
+    /* Variables Modo Claro */
+    --bg-light: #f8fafc;       /* Fondo principal del área de trabajo */
+    --card-bg: #ffffff;        /* Fondo de las tarjetas y topbar */
+    --text-dark: #1e293b;      /* Texto principal oscuro */
+    --text-muted: #64748b;     /* Texto secundario/subtítulos */
+    --border-color: #e2e8f0;   /* Bordes sutiles */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+}
+
+/* ==========================================
+   LAYOUT PRINCIPAL
+   ========================================== */
+.app-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ==========================================
+   BARRA LATERAL (SIDEBAR)
+   ========================================== */
+.sidebar {
+    width: 260px;
+    background-color: var(--bg-dark);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    height: 100vh;
+    left: 0;
+    top: 0;
+    z-index: 100;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-header {
+    padding: 2rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sidebar-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+.sidebar-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #fff;
+}
+
+.sidebar-nav {
+    flex: 1;
+    padding: 0 1rem;
+    margin-top: 1rem;
+}
+
+.nav-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    color: #94a3b8;
+    text-decoration: none;
+    border-radius: 12px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Estado Activo con resplandor Índigo */
+.nav-item.active .nav-link {
+    background-color: var(--accent-indigo);
+    color: #fff;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.nav-icon {
+    font-size: 1.1rem;
+}
+
+.sidebar-footer {
+    padding: 1.5rem 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.logout-btn {
+    color: #ef4444; /* Rojo para salida */
+}
+
+.logout-btn:hover {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+/* ==========================================
+   ÁREA DE TRABAJO PRINCIPAL (MAIN CONTENT)
+   ========================================== */
+.main-content {
+    flex: 1;
+    margin-left: 260px; /* Espacio para el sidebar fijo */
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================
+   TOPBAR (Cabecera Superior)
+   ========================================== */
+.topbar {
+    height: 80px;
+    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+}
+
+.topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.page-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.badge-local {
+    background-color: rgba(34, 197, 94, 0.1);
+    color: var(--accent-green);
+    padding: 0.4rem 0.8rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-info {
+    text-align: right;
+}
+
+.user-name {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-dark);
+}
+
+.user-role {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.user-avatar {
+    width: 42px;
+    height: 42px;
+    background-color: var(--bg-dark);
+    color: #fff;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+/* ==========================================
+   CONTENIDO DEL DASHBOARD (Tarjetas)
+   ========================================== */
+.dashboard-content {
+    padding: 2.5rem;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.08);
+}
+
+/* Tarjeta Destacada (Caja Abierta) */
+.card-highlight {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border: none;
+    box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.3);
+}
+
+.card-title {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.8rem;
+}
+
+.card-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    color: var(--text-dark);
+}
+
+.card-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+/* Ajustes de color para la tarjeta destacada verde */
+.card-highlight .card-title {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.card-highlight .card-value,
+.card-highlight .card-subtitle {
+    color: #ffffff;
+}
+
+.card-highlight .card-subtitle a {
+    color: #ffffff;
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.trend-up {
+    color: var(--accent-green);
+    background-color: rgba(34, 197, 94, 0.1);
+    padding: 0.25rem 0.6rem;
+    border-radius: 6px;
+    font-weight: 700;
+}
+
+
+/* ==========================================
+   LAYOUT DEL DASHBOARD (Gráfico y Tabla)
+   ========================================== */
+.dashboard-grid {
+    display: grid;
+    /* Divide el espacio: 2 fracciones para el gráfico, 1 para la tabla */
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.card-header .card-title {
+    margin-bottom: 0;
+    color: var(--text-dark); /* Título oscuro para estas tarjetas */
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: none; /* Quitamos mayúsculas */
+    letter-spacing: normal;
+}
+
+/* Acciones del gráfico (simuladas) */
+.chart-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.2rem 0.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* ==========================================
+   ESTILOS DE LA TABLA
+   ========================================== */
+.table-responsive {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.data-table th {
+    text-align: left;
+    color: var(--text-muted);
+    font-weight: 500;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-table td {
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.5); /* Borde sutil */
+    color: var(--text-dark);
+}
+
+.data-table tr:last-child td {
+    border-bottom: none;
+}
+
+.data-table .amount {
+    font-weight: 600;
+}
+
+/* Etiqueta de Estado */
+.status-badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-badge.success {
+    background-color: rgba(34, 197, 94, 0.15);
+    color: #16a34a; /* Verde más oscuro para legibilidad */
+}
+
+/* Actualización Media Queries */
+@media (max-width: 1200px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr; /* Apila gráfico y tabla en pantallas medianas */
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+}
+
+
+
+
+
+
+
+/* ==========================================
+   MEDIA QUERIES (Responsive Básico)
+   ========================================== */
+@media (max-width: 1024px) {
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .topbar {
+        padding: 0 1.5rem;
+    }
+    
+    .dashboard-content {
+        padding: 1.5rem;
+    }
+}
+
+/* ==========================================
+   VISTA: INVENTARIO (PÁGINA COMPLETA)
+   ========================================== */
+.view-section {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.view-section.active {
+    opacity: 1;
+}
+
+.action-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    background: var(--card-bg);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    background: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    width: 350px;
+}
+
+.search-input {
+    border: none;
+    background: transparent;
+    outline: none;
+    width: 100%;
+    margin-left: 0.5rem;
+    color: var(--text-dark);
+    font-family: 'Inter', sans-serif;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Grilla de Tarjetas de Producto */
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.5rem;
+}
+
+.product-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.product-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+}
+
+.product-image {
+    height: 160px;
+    background: var(--bg-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.product-image img {
+    max-height: 80%;
+    max-width: 80%;
+    object-fit: contain;
+}
+
+.product-info {
+    padding: 1.2rem;
+}
+
+.product-sku {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+}
+
+.product-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.product-stock {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.8rem;
+}
+
+.text-alert {
+    color: #ef4444;
+    font-weight: 600;
+}
+
+.product-price {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--accent-indigo);
+}
+
+.product-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.badge-offer { background-color: var(--accent-green); }
+.badge-alert { background-color: #ef4444; }

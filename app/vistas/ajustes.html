@@ -1,0 +1,345 @@
+<!-- ==========================================
+     MÓDULO: CONFIGURACIÓN & BÓVEDA LOCAL (ETAPA 1)
+     ========================================== -->
+<div class="cfg-wrap" id="config-module-root">
+
+    <!-- CABECERA PRINCIPAL -->
+    <header class="cfg-header">
+        <div class="cfg-header-left">
+            <div class="cfg-eyebrow">
+                <span class="cfg-pill-live">● ARQUITECTURA LOCAL-FIRST • ZERO CLOUD LOCK-IN</span>
+                <span class="cfg-eyebrow-meta" id="cfg-header-version">Bóveda Local v4.2</span>
+            </div>
+            <h2>⚙️ Configuración &amp; Bóveda Local</h2>
+            <p>Administra copias de seguridad (.catbak / .json), perfil del negocio, moneda, hardware POS y mantenimiento de tu almacenamiento.</p>
+        </div>
+
+        <div class="cfg-header-actions">
+            <button type="button" class="cfg-btn cfg-btn-light" id="btn-cfg-guia-app">
+                📖 Cómo funciona
+            </button>
+            <button type="button" class="cfg-btn cfg-btn-light" id="btn-cfg-abrir-restaurar">
+                📥 Restaurar Bóveda
+            </button>
+            <button type="button" class="cfg-btn cfg-btn-primary" id="btn-cfg-backup-rapido">
+                💾 Generar Respaldo (.catbak)
+            </button>
+        </div>
+    </header>
+
+    <!-- 4 TARJETAS KPI REALES DE SALUD DE LA BÓVEDA -->
+    <section class="cfg-kpi-grid">
+        <article class="cfg-kpi-card">
+            <div class="cfg-kpi-top">
+                <span class="cfg-kpi-lbl">ALMACENAMIENTO LOCAL</span>
+                <span class="cfg-badge-ok" id="cfg-kpi-uso-badge">Óptimo</span>
+            </div>
+            <strong class="cfg-kpi-val" id="cfg-kpi-peso">0 KB</strong>
+            <div class="cfg-progress-track">
+                <div class="cfg-progress-fill" id="cfg-kpi-barra" style="width: 2%;"></div>
+            </div>
+            <small id="cfg-kpi-desglose">0 productos • 0 ventas • 0 clientes</small>
+        </article>
+
+        <article class="cfg-kpi-card">
+            <div class="cfg-kpi-top">
+                <span class="cfg-kpi-lbl">INTEGRIDAD DE BÓVEDA</span>
+                <span class="cfg-badge-indigo">SHA-256</span>
+            </div>
+            <strong class="cfg-kpi-val cfg-mono-val" id="cfg-kpi-hash">Calculando…</strong>
+            <small id="cfg-kpi-hash-sub">Firma digital verificable en tiempo real</small>
+        </article>
+
+        <article class="cfg-kpi-card">
+            <div class="cfg-kpi-top">
+                <span class="cfg-kpi-lbl">HISTORIAL DE RESPALDOS</span>
+                <span class="cfg-badge-soft" id="cfg-kpi-copias-badge">0 copias</span>
+            </div>
+            <strong class="cfg-kpi-val" id="cfg-kpi-ultimo-bak">Sin respaldos</strong>
+            <small id="cfg-kpi-ultimo-sub">Recomendado: al menos 1 copia semanal</small>
+        </article>
+
+        <article class="cfg-kpi-card">
+            <div class="cfg-kpi-top">
+                <span class="cfg-kpi-lbl">SALUD DEL SISTEMA</span>
+                <span class="cfg-badge-ok">100% Offline</span>
+            </div>
+            <strong class="cfg-kpi-val text-emerald" id="cfg-kpi-tablas">0 colecciones</strong>
+            <small id="cfg-kpi-tablas-sub">Operativo sin internet • Tus datos son tuyos</small>
+        </article>
+    </section>
+
+    <!-- NAVEGACIÓN DE 5 PESTAÑAS -->
+    <nav class="cfg-tabs-bar" id="cfg-tabs-bar">
+        <button type="button" class="cfg-tab active" data-cfgtab="boveda">💾 Bóveda Local &amp; Respaldos</button>
+        <button type="button" class="cfg-tab" data-cfgtab="negocio">🏪 Negocio, Usuario &amp; Moneda</button>
+        <button type="button" class="cfg-tab" data-cfgtab="pos">💳 Pagos, POS &amp; Hardware</button>
+        <button type="button" class="cfg-tab" data-cfgtab="nube">☁️ Nube &amp; Sincronización</button>
+        <button type="button" class="cfg-tab" data-cfgtab="seguridad">🛡️ Seguridad &amp; Mantenimiento</button>
+    </nav>
+
+    <!-- ==========================================
+         PESTAÑA 1: BÓVEDA LOCAL & RESPALDOS (.CATBAK)
+         ========================================== -->
+    <section class="cfg-panel active" id="cfg-panel-boveda">
+        <div class="cfg-grid-2-asym">
+
+            <!-- COLUMNA IZQUIERDA: MOTOR DE RESPALDO + HISTORIAL -->
+            <div class="cfg-col">
+                <article class="cfg-card">
+                    <div class="cfg-card-head">
+                        <div>
+                            <h3>💾 Motor de Respaldo (.catbak / .json)</h3>
+                            <p>Descarga toda tu información en un archivo portátil para guardarlo en tu PC, pendrive o nube.</p>
+                        </div>
+                        <span class="cfg-badge-soft">Formato Abierto</span>
+                    </div>
+
+                    <!-- OPCIONAL: CIFRADO AES-GCM 256 -->
+                    <div class="cfg-crypto-box">
+                        <label class="cfg-switch-row">
+                            <input type="checkbox" id="cfg-chk-cifrar-bak">
+                            <span>
+                                <strong>🔐 Proteger respaldo con contraseña (Cifrado AES-GCM 256 — Opcional)</strong>
+                                <small>No es obligatorio. Actívalo solo si vas a subir el archivo a la nube, enviarlo por correo o compartir el equipo.</small>
+                            </span>
+                        </label>
+
+                        <div class="cfg-crypto-fields" id="cfg-crypto-fields" style="display: none;">
+                            <div class="cfg-form-grid-2">
+                                <div class="cfg-field">
+                                    <label for="cfg-inp-bak-pass">Contraseña para cifrar</label>
+                                    <input type="password" id="cfg-inp-bak-pass" class="cfg-input" placeholder="Mínimo 4 caracteres">
+                                </div>
+                                <div class="cfg-field">
+                                    <label for="cfg-inp-bak-pass2">Repetir contraseña</label>
+                                    <input type="password" id="cfg-inp-bak-pass2" class="cfg-input" placeholder="Confirma tu contraseña">
+                                </div>
+                            </div>
+                            <div class="cfg-warn-note">
+                                ⚠️ <strong>Importante:</strong> El cifrado ocurre 100% en tu navegador y nadie guarda tu contraseña. <strong>Si la olvidas, el archivo cifrado no podrá recuperarse.</strong> Si prefieres respaldo simple, deja esta opción desactivada.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2 TARJETAS DE DESCARGA: COMPLETA VS LIVIANA -->
+                    <div class="cfg-bak-options">
+                        <div class="cfg-bak-card is-primary">
+                            <div class="cfg-bak-top">
+                                <strong>📦 Bóveda Completa (.catbak)</strong>
+                                <span class="cfg-badge-ok" id="cfg-size-full">0 KB</span>
+                            </div>
+                            <p>Incluye inventario maestro, fotos, clientes, cuentas corrientes, ventas POS, turnos, finanzas y configuración de Cat-Web.</p>
+                            <button type="button" class="cfg-btn cfg-btn-primary" id="btn-cfg-descargar-full" style="width:100%;">
+                                ⬇️ Descargar .catbak Full
+                            </button>
+                        </div>
+
+                        <div class="cfg-bak-card">
+                            <div class="cfg-bak-top">
+                                <strong>⚡ Respaldo Liviano (.json)</strong>
+                                <span class="cfg-badge-soft" id="cfg-size-lite">0 KB</span>
+                            </div>
+                            <p>Solo datos estructurados (catálogo, precios, stock, clientes y ventas) sin imágenes pesadas. Ideal para copias rápidas diarias.</p>
+                            <button type="button" class="cfg-btn cfg-btn-light" id="btn-cfg-descargar-lite" style="width:100%;">
+                                {} Descargar Datos (.json)
+                            </button>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- HISTORIAL DE COPIAS GENERADAS -->
+                <article class="cfg-card">
+                    <div class="cfg-card-head">
+                        <div>
+                            <h3>📜 Registro de Respaldos Generados</h3>
+                            <p>Auditoría local de las últimas copias creadas desde este dispositivo.</p>
+                        </div>
+                        <button type="button" class="cfg-link-btn" id="btn-cfg-limpiar-hist-bak">Limpiar registro</button>
+                    </div>
+                    <div class="cfg-bak-hist-list" id="cfg-bak-hist-list">
+                        <!-- Filas dinámicas -->
+                    </div>
+                </article>
+            </div>
+
+            <!-- COLUMNA DERECHA: RESTAURAR + FILOSOFÍA LOCAL-FIRST -->
+            <div class="cfg-col">
+                <article class="cfg-card">
+                    <div class="cfg-card-head">
+                        <div>
+                            <h3>📥 Restaurar Bóveda desde Archivo</h3>
+                            <p>Recupera tu negocio completo o migra desde otra PC seleccionando un archivo <code>.catbak</code> o <code>.json</code>.</p>
+                        </div>
+                    </div>
+
+                    <div class="cfg-dropzone" id="cfg-restore-dropzone">
+                        <input type="file" id="cfg-restore-file-input" accept=".catbak,.json" hidden>
+                        <div class="cfg-drop-ico">🗂️</div>
+                        <strong>Arrastra tu archivo .catbak o .json aquí</strong>
+                        <span>o haz clic para examinar tu computadora (verás una vista previa antes de sobrescribir)</span>
+                    </div>
+
+                    <!-- VISTA PREVIA ANTES DE RESTAURAR -->
+                    <div class="cfg-restore-preview" id="cfg-restore-preview" style="display: none;">
+                        <div class="cfg-rp-head">
+                            <strong id="cfg-rp-filename">archivo.catbak</strong>
+                            <span class="cfg-badge-indigo" id="cfg-rp-tipo">Sin cifrar</span>
+                        </div>
+
+                        <div id="cfg-rp-pass-wrap" style="display: none;">
+                            <label for="cfg-rp-pass-inp" style="display:block; font-size:0.73rem; font-weight:700; margin-bottom:4px;">🔐 Este archivo está cifrado. Ingresa su contraseña:</label>
+                            <div style="display:flex; gap:0.4rem;">
+                                <input type="password" id="cfg-rp-pass-inp" class="cfg-input" placeholder="Contraseña del respaldo">
+                                <button type="button" class="cfg-btn cfg-btn-indigo" id="btn-cfg-rp-descifrar">Desbloquear</button>
+                            </div>
+                        </div>
+
+                        <div class="cfg-rp-summary" id="cfg-rp-summary" style="display: none;">
+                            <!-- Resumen de contenido verificado -->
+                        </div>
+
+                        <div class="cfg-rp-actions">
+                            <button type="button" class="cfg-btn cfg-btn-light" id="btn-cfg-rp-cancelar">Cancelar</button>
+                            <button type="button" class="cfg-btn cfg-btn-primary" id="btn-cfg-rp-aplicar" disabled>
+                                ✅ Confirmar y Restaurar Bóveda
+                            </button>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="cfg-card cfg-card-info">
+                    <strong>🛡️ Filosofía Local-First: Soberanía Absoluta</strong>
+                    <p>Tus productos, precios, clientes y caja viven en tu propio dispositivo. Si se corta internet, tu comercio sigue vendiendo al 100%. Recuerda generar una copia <code>.catbak</code> periódicamente por si cambias de PC o borras los datos del navegador.</p>
+                </article>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ==========================================
+         PESTAÑA 2: NEGOCIO, USUARIO & MONEDA (ETAPA 2)
+         ========================================== -->
+    <section class="cfg-panel" id="cfg-panel-negocio">
+        <div id="cfg-stage2-negocio-anchor">
+            <article class="cfg-card cfg-placeholder-card">
+                <div class="cfg-ph-ico">🏪</div>
+                <h3>Perfil del Negocio, Usuario, Moneda y Modo Oscuro</h3>
+                <p>En la <strong>Etapa 2</strong> activaremos aquí los formularios completos de Perfil del Negocio, Perfil del Usuario, Moneda/Decimales, Cotización Dólar opcional (manual o en vivo), Margen CMV, Plantilla a Proveedores y Modo Oscuro global.</p>
+            </article>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         PESTAÑA 3: PAGOS, POS & HARDWARE (ETAPA 2/3)
+         ========================================== -->
+    <section class="cfg-panel" id="cfg-panel-pos">
+        <article class="cfg-card">
+            <div class="cfg-card-head">
+                <div>
+                    <h3>💳 Métodos de Pago, Recargos y Descuentos</h3>
+                    <p>Configura los medios habilitados en caja, porcentajes automáticos, redondeo y tus datos de Transferencia (Alias/CBU).</p>
+                </div>
+                <button type="button" class="cfg-btn cfg-btn-indigo" data-abrir-medios-pago>
+                    💳 Abrir Gestor de Medios y Recargos
+                </button>
+            </div>
+        </article>
+        <div id="cfg-stage3-pos-anchor">
+            <article class="cfg-card cfg-placeholder-card">
+                <div class="cfg-ph-ico">🖨️</div>
+                <h3>Hardware POS, Ticket Térmico (80mm/58mm) y Remove.bg</h3>
+                <p>En la <strong>Etapa 2 y 3</strong> agregaremos el formato por defecto de ticket térmico, mensaje al pie del ticket, auto-respaldo al cerrar caja (Corte Z) y la API Key de Remove.bg centralizada.</p>
+            </article>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         PESTAÑA 4: NUBE & SINCRONIZACIÓN (ETAPA 3)
+         ========================================== -->
+    <section class="cfg-panel" id="cfg-panel-nube">
+        <div id="cfg-stage3-nube-anchor">
+            <article class="cfg-card cfg-placeholder-card">
+                <div class="cfg-ph-ico">☁️</div>
+                <h3>Puente en la Nube (Firebase &amp; Respaldo Drive)</h3>
+                <p>Tu tienda <strong>Cat-Web</strong> ya cuenta con conexión directa a Firebase/Firestore. En la <strong>Etapa 3</strong> centralizaremos aquí el estado de sincronización y las opciones de respaldo en la nube.</p>
+            </article>
+        </div>
+    </section>
+
+    <!-- ==========================================
+         PESTAÑA 5: SEGURIDAD, MANTENIMIENTO & ZONA DE PELIGRO
+         ========================================== -->
+    <section class="cfg-panel" id="cfg-panel-seguridad">
+        <div class="cfg-grid-2">
+            <!-- AUDITORÍA REAL DE COLECCIONES -->
+            <article class="cfg-card">
+                <div class="cfg-card-head">
+                    <div>
+                        <h3>🔍 Auditoría de Almacenamiento Local</h3>
+                        <p>Detalle exacto del peso y cantidad de registros de cada módulo en tu navegador.</p>
+                    </div>
+                    <button type="button" class="cfg-btn cfg-btn-light cfg-btn-sm" id="btn-cfg-reauditar">↻ Reanalizar</button>
+                </div>
+                <div class="cfg-audit-table" id="cfg-audit-list">
+                    <!-- Filas dinámicas -->
+                </div>
+            </article>
+
+            <!-- ANCLA ETAPA 3 (OPTIMIZADOR WEBP + PIN) + ZONA DE PELIGRO -->
+            <div class="cfg-col">
+                <div id="cfg-stage3-mant-anchor"></div>
+
+                <article class="cfg-card cfg-danger-card">
+                    <div class="cfg-card-head">
+                        <div>
+                            <h3 class="text-danger">⚠️ Zona de Peligro</h3>
+                            <p>Acciones irreversibles sobre tu Bóveda Local. Genera un respaldo <code>.catbak</code> antes de continuar.</p>
+                        </div>
+                    </div>
+
+                    <div class="cfg-danger-actions">
+                        <div>
+                            <strong>Reiniciar Bóveda Local por completo</strong>
+                            <small>Elimina todos los productos, clientes, proveedores, ventas POS, turnos y configuraciones de este navegador.</small>
+                        </div>
+                        <button type="button" class="cfg-btn cfg-btn-danger" id="btn-cfg-reset-boveda">
+                            🗑️ Reiniciar Bóveda Local
+                        </button>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<!-- MODAL: CÓMO FUNCIONA LA APP (PARIDAD CON APP MÓVIL) -->
+<div class="cfg-modal-overlay" id="modal-cfg-guia" aria-hidden="true">
+    <div class="cfg-modal-box cfg-modal-sm" role="dialog" aria-labelledby="cfg-guia-title">
+        <header class="cfg-modal-head">
+            <h3 id="cfg-guia-title">📖 Cómo funciona Cat-Alogo</h3>
+            <button type="button" class="cfg-close-btn" id="btn-cfg-cerrar-guia">✕</button>
+        </header>
+        <div class="cfg-modal-body">
+            <div class="cfg-guia-item is-blue">
+                <strong>🔐 Privacidad y Velocidad (Bóveda Local)</strong>
+                <p>El sistema guarda tus productos, ventas e imágenes directamente en la memoria de tu equipo para que funcione al instante y sin depender de internet.</p>
+            </div>
+            <div class="cfg-guia-item is-red">
+                <strong>⚠️ Regla de Navegador / Dispositivo</strong>
+                <p>Al guardarse de forma local, si borras los datos del navegador o cambias de computadora sin exportar tu respaldo, perderás el inventario cargado localmente.</p>
+            </div>
+            <div class="cfg-guia-item is-green">
+                <strong>💾 Copias de Seguridad (.catbak / .json)</strong>
+                <p>Usa el botón <strong>Generar Respaldo (.catbak)</strong> periódicamente para guardar una copia segura. Puedes cifrarla con contraseña si vas a subirla a la nube.</p>
+            </div>
+            <div class="cfg-guia-item is-amber">
+                <strong>☁️ Ecosistema Sincronizado (App ↔ PC ↔ Web)</strong>
+                <p>Cuando conectas tu proyecto Firebase en Cat-Web, tu catálogo público y los pedidos se sincronizan con la app móvil usando el mismo enlace.</p>
+            </div>
+            <button type="button" class="cfg-btn cfg-btn-primary" id="btn-cfg-guia-ok" style="width:100%;">Entendido</button>
+        </div>
+    </div>
+</div>
+

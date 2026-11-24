@@ -1,0 +1,335 @@
+<!-- ==========================================
+     MÓDULO: DASHBOARD PRINCIPAL / PANEL OPERATIVO
+     ========================================== -->
+<div class="ini-wrap" id="inicio-module-root">
+
+    <!-- CABECERA OPERATIVA -->
+    <header class="ini-header">
+        <div class="ini-header-left">
+            <div class="ini-eyebrow">
+                <span class="ini-pill-live">● LOCAL-FIRST OMS</span>
+                <span class="ini-date-lbl" id="ini-fecha-hoy">—</span>
+            </div>
+            <h2>Panel de Control Operativo</h2>
+        </div>
+
+        <div class="ini-header-actions">
+            <span class="ini-status-chip">🛡️ Bóveda Local Activa</span>
+            <button type="button" class="ini-btn ini-btn-light" id="btn-ini-resumen-diario" title="Emitir Reporte Híbrido Diario en PDF">
+                🖨️ Imprimir Resumen Diario
+            </button>
+        </div>
+    </header>
+
+    <!-- 4 TARJETAS KPI EN TIEMPO REAL -->
+    <section class="ini-kpi-grid">
+
+        <!-- KPI 1: BÓVEDA LOCAL / PRODUCTOS -->
+        <article class="ini-kpi-card">
+            <div class="ini-kpi-top">
+                <span class="ini-kpi-lbl">BÓVEDA LOCAL ENCRIPTADA</span>
+                <span class="ini-kpi-ico ico-slate">🗄️</span>
+            </div>
+            <div class="ini-kpi-val" id="ini-kpi-total-prods">0</div>
+            <div class="ini-kpi-sub" id="ini-kpi-prods-sub">Productos cargados en inventario</div>
+            <div class="ini-kpi-foot">
+                <span id="ini-kpi-cats-count">0 categorías activas</span>
+                <span class="ini-mini-tag tag-ok">100% Offline</span>
+            </div>
+        </article>
+
+        <!-- KPI 2: CATÁLOGO & WEB PÚBLICA -->
+        <article class="ini-kpi-card">
+            <div class="ini-kpi-top">
+                <span class="ini-kpi-lbl">CATÁLOGO &amp; WEB PÚBLICA</span>
+                <span class="ini-kpi-ico ico-emerald">👁️</span>
+            </div>
+            <div class="ini-kpi-val text-emerald" id="ini-kpi-visibles">0</div>
+            <div class="ini-kpi-sub">Artículos con visibilidad activa</div>
+            <div class="ini-kpi-foot">
+                <span id="ini-kpi-visibles-pct">0% del total publicado</span>
+                <span class="ini-mini-tag tag-slate">Listos PDF / Web</span>
+            </div>
+        </article>
+
+        <!-- KPI 3: VENTAS DEL TURNO / DÍA -->
+        <article class="ini-kpi-card">
+            <div class="ini-kpi-top">
+                <span class="ini-kpi-lbl" id="ini-kpi-ventas-lbl">VENTAS TURNO ACTIVO</span>
+                <span class="ini-kpi-ico ico-blue">🧾</span>
+            </div>
+            <div class="ini-kpi-val" id="ini-kpi-ventas-val">$0</div>
+            <div class="ini-kpi-sub" id="ini-kpi-ventas-tx">0 tickets emitidos</div>
+            <div class="ini-kpi-foot">
+                <span id="ini-kpi-ticket-prom">Ticket Prom: $0</span>
+                <strong id="ini-kpi-ventas-var" class="text-emerald">Sin ref. ayer</strong>
+            </div>
+        </article>
+
+        <!-- KPI 4: ESTADO DE CAJA (TARJETA DESTACADA CON CRONÓMETRO) -->
+        <article class="ini-kpi-card ini-caja-card" id="ini-caja-card">
+            <div class="ini-caja-top">
+                <span class="ini-caja-badge" id="ini-caja-estado-badge">● CAJA ABIERTA</span>
+                <span class="ini-caja-timer" id="ini-caja-timer">0h 00m</span>
+            </div>
+
+            <div class="ini-caja-main">
+                <strong id="ini-caja-turno-num">Turno #—</strong>
+                <span id="ini-caja-fondo">Fondo Inicial: $0</span>
+            </div>
+
+            <div class="ini-caja-foot">
+                <div class="ini-caja-op">
+                    <small>Cajero en Turno</small>
+                    <strong id="ini-caja-operador">—</strong>
+                </div>
+                <div class="ini-caja-btns" id="ini-caja-btns">
+                    <button type="button" class="ini-btn-caja" id="btn-ini-caja-accion">
+                        💵 Arqueo / Cerrar
+                    </button>
+                </div>
+            </div>
+        </article>
+
+    </section>
+
+    <!-- BOTONERA OPERATIVA CENTRALIZADA (8 ACCESOS DIRECTOS) -->
+    <section class="ini-section-block">
+        <div class="ini-section-head">
+            <strong>⊞ Botonera Operativa Centralizada</strong>
+            <span>Accesos directos rápidos para ejecución diaria</span>
+        </div>
+
+        <div class="ini-actions-grid">
+            <button type="button" class="ini-tile tile-primary" id="tile-ini-pos">
+                <span class="ini-tile-ico">🛒</span>
+                <strong>POS Rápido</strong>
+                <small>Atajo (F12)</small>
+            </button>
+
+            <button type="button" class="ini-tile" id="tile-ini-finanzas">
+                <span class="ini-tile-ico">🏛️</span>
+                <strong>Hub Financiero</strong>
+                <small>7 Niveles / CMV</small>
+            </button>
+
+            <button type="button" class="ini-tile" id="tile-ini-gasto">
+                <span class="ini-tile-ico">💸</span>
+                <strong>Gasto Rápido</strong>
+                <small>OPEX / Retiros</small>
+            </button>
+
+            <button type="button" class="ini-tile" id="tile-ini-masiva">
+                <span class="ini-tile-ico">📈</span>
+                <strong>Actualiz. Masiva</strong>
+                <small>% y Redondeo</small>
+            </button>
+
+            <button type="button" class="ini-tile tile-blue" id="tile-ini-nuevo-prod">
+                <span class="ini-tile-ico">➕</span>
+                <strong>Nuevo Producto</strong>
+                <small>Cargar al Stock</small>
+            </button>
+
+            <button type="button" class="ini-tile tile-emerald" id="tile-ini-dolar">
+                <span class="ini-tile-ico">💵</span>
+                <strong id="tile-ini-dolar-val">$1.150 USD</strong>
+                <small>Editar Tasa</small>
+            </button>
+
+            <button type="button" class="ini-tile tile-danger" id="tile-ini-stock-critico">
+                <span class="ini-tile-ico">⚠️</span>
+                <strong>Stock Crítico</strong>
+                <small id="tile-ini-stock-sub">0 en alerta</small>
+            </button>
+
+            <button type="button" class="ini-tile tile-amber" id="tile-ini-fiados">
+                <span class="ini-tile-ico">📒</span>
+                <strong id="tile-ini-fiados-cant">0 Fiados</strong>
+                <small id="tile-ini-fiados-monto">$0 pend.</small>
+            </button>
+        </div>
+    </section>
+
+    <!-- RADAR DE ALERTAS ACCIONABLES DEL DÍA (SOLO VISIBLE SI HAY ALERTAS) -->
+    <section class="ini-alerts-wrap" id="ini-alerts-wrap" style="display: none;">
+        <div class="ini-alerts-head">
+            <strong>🔔 Radar de Alertas Accionables del Día</strong>
+            <span id="ini-alerts-count">0 pendientes</span>
+        </div>
+        <div class="ini-alerts-list" id="ini-alerts-list">
+            <!-- Alertas dinámicas con botón directo para resolver -->
+        </div>
+    </section>
+
+    <!-- ======================================================
+         ETAPA 2A: BLOQUE DE PLANTILLA ACTIVA & PRESETS RÁPIDOS
+         ====================================================== -->
+    <section class="ini-card ini-template-card" id="ini-card-plantilla">
+        <div class="ini-tpl-top">
+            <div class="ini-tpl-info">
+                <div class="ini-tpl-preview-ico">📑</div>
+                <div>
+                    <div class="ini-tpl-title-row">
+                        <span class="ini-tpl-badge">PLANTILLA ACTIVA</span>
+                        <strong id="ini-tpl-nombre">Lista Ejecutiva (Original)</strong>
+                        <span class="ini-tpl-meta" id="ini-tpl-meta">• Inter Display • Modo Claro</span>
+                    </div>
+                    <p id="ini-tpl-desc">Diseño corporativo optimizado para catálogo impreso en hoja A4 y envío directo por WhatsApp. Muestra SKU, precio minorista y disponibilidad.</p>
+                </div>
+            </div>
+
+            <div class="ini-tpl-actions">
+                <button type="button" class="ini-btn ini-btn-light" id="btn-ini-ir-editor">
+                    ✏️ Editor WYSIWYG
+                </button>
+                <button type="button" class="ini-btn ini-btn-primary" id="btn-ini-exportar-cat">
+                    📄 Exportar PDF / Catálogo
+                </button>
+            </div>
+        </div>
+
+        <div class="ini-tpl-presets" id="ini-tpl-presets">
+            <span class="ini-presets-lbl">Presets Rápidos:</span>
+            <button type="button" class="ini-preset-chip active" data-preset="ejecutiva">📄 A4 Lista Ejecutiva</button>
+            <button type="button" class="ini-preset-chip" data-preset="instagram">📸 Tarjeta Cuadrada (Instagram/Story)</button>
+            <button type="button" class="ini-preset-chip" data-preset="mayorista">📋 Matriz Mayorista Sin Fotos</button>
+            <button type="button" class="ini-preset-chip" data-preset="ofertas">🔥 Volante de Ofertas</button>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         ETAPA 2B: PRODUCTOS RECIENTES & VISIBILIDAD EN VIVO
+         ====================================================== -->
+    <section class="ini-section-block" id="ini-sec-productos">
+        <div class="ini-prods-toolbar">
+            <div class="ini-prods-title">
+                <strong>📦 Productos Recientes &amp; Visibilidad en Vivo</strong>
+                <span id="ini-prods-counter">Mostrando 0 de 0</span>
+            </div>
+
+            <div class="ini-prods-controls">
+                <div class="ini-search-wrap">
+                    <span>🔍</span>
+                    <input type="text" id="ini-prod-search" placeholder="Filtrar por SKU, nombre o categoría...">
+                </div>
+
+                <div class="ini-filter-chips" id="ini-prod-filters">
+                    <button type="button" class="ini-fchip active" data-pfilter="todos">Todos</button>
+                    <button type="button" class="ini-fchip" data-pfilter="visibles">👁️ Visibles</button>
+                    <button type="button" class="ini-fchip" data-pfilter="ocultos">🙈 Ocultos</button>
+                    <button type="button" class="ini-fchip" data-pfilter="oferta">🔥 Oferta</button>
+                    <button type="button" class="ini-fchip" data-pfilter="critico">⚠️ Crítico</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="ini-prods-grid" id="ini-prods-grid">
+            <!-- Tarjetas dinámicas de productos -->
+        </div>
+
+        <div class="ini-prods-more-wrap" id="ini-prods-more-wrap" style="display: none;">
+            <button type="button" class="ini-btn ini-btn-light" id="btn-ini-ver-mas-prods">
+                ⬇️ Ver más productos
+            </button>
+            <button type="button" class="ini-btn ini-btn-light" id="btn-ini-ir-inventario">
+                📦 Ir al Inventario Completo →
+            </button>
+        </div>
+    </section>
+
+    <!-- ======================================================
+         ETAPA 3: BARRA DE INTEGRIDAD DE BÓVEDA & SEMÁFORO .CATBAK
+         ====================================================== -->
+    <footer class="ini-vault-bar" id="ini-vault-bar">
+        <div class="ini-vault-left">
+            <div class="ini-vault-ico" id="ini-vault-ico">🛡️</div>
+            <div class="ini-vault-info">
+                <div class="ini-vault-title-row">
+                    <strong>Integridad de Bóveda Local: <span class="text-emerald" id="ini-vault-integrity">100% Sin Errores</span></strong>
+                    <span class="ini-vault-semaforo sem-warn" id="ini-vault-semaforo">● Sin respaldo .catbak aún</span>
+                </div>
+                <div class="ini-vault-meta">
+                    <span id="ini-vault-usage-lbl">Espacio utilizado: 0 KB / 5 MB</span>
+                    <span class="ini-dot-sep">•</span>
+                    <span id="ini-vault-collections-lbl">0 colecciones activas</span>
+                    <span class="ini-dot-sep">•</span>
+                    <span>Atajo rápido al POS: <kbd class="ini-kbd">F12</kbd></span>
+                </div>
+                <div class="ini-vault-meter">
+                    <div class="ini-vault-meter-fill" id="ini-vault-meter-fill" style="width: 2%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ini-vault-actions">
+            <button type="button" class="ini-btn ini-btn-light" id="btn-ini-ir-restaurar" title="Abrir centro de restauración .catbak en Finanzas">
+                ♻️ Restaurar
+            </button>
+            <button type="button" class="ini-btn ini-btn-primary" id="btn-ini-descargar-catbak" title="Exportar copia completa de seguridad en formato .catbak">
+                ⬇️ Descargar Bóveda (.catbak)
+            </button>
+        </div>
+    </footer>
+
+</div>
+
+<!-- MODAL RÁPIDO: EDITAR TASA DÓLAR HOY DESDE DASHBOARD -->
+<div class="ini-modal-overlay" id="modal-ini-dolar" aria-hidden="true">
+    <div class="ini-modal-box" role="dialog" aria-labelledby="modal-ini-usd-title">
+        <header class="ini-modal-header">
+            <div>
+                <h3 id="modal-ini-usd-title">💵 Actualizar Tasa Dólar Hoy</h3>
+                <p>Sincronizada automáticamente con el Hub Financiero (Nivel 1 al 7).</p>
+            </div>
+            <button type="button" class="ini-modal-close" id="btn-cerrar-modal-ini-usd">✕</button>
+        </header>
+
+        <form id="form-ini-dolar" class="ini-modal-body">
+            <div class="ini-field">
+                <label for="ini-inp-dolar">Cotización ($ ARS por 1 USD) *</label>
+                <input type="number" id="ini-inp-dolar" class="ini-input" min="1" step="1" required>
+            </div>
+            <footer class="ini-modal-footer">
+                <button type="button" class="ini-btn ini-btn-light" id="btn-cancelar-modal-ini-usd">Cancelar</button>
+                <button type="submit" class="ini-btn ini-btn-primary">💾 Guardar Cotización</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL RÁPIDO: ABRIR TURNO DE CAJA DESDE DASHBOARD -->
+<div class="ini-modal-overlay" id="modal-ini-abrir-turno" aria-hidden="true">
+    <div class="ini-modal-box" role="dialog" aria-labelledby="modal-ini-turno-title">
+        <header class="ini-modal-header">
+            <div>
+                <h3 id="modal-ini-turno-title">🔓 Abrir Turno de Caja</h3>
+                <p>Habilita una nueva sesión sincronizada con el Terminal POS y Finanzas.</p>
+            </div>
+            <button type="button" class="ini-modal-close" id="btn-cerrar-modal-ini-turno">✕</button>
+        </header>
+
+        <form id="form-ini-abrir-turno" class="ini-modal-body">
+            <div class="ini-field">
+                <label for="ini-apt-nombre">Caja / Turno</label>
+                <select id="ini-apt-nombre" class="ini-input">
+                    <option value="Caja #01 • Turno Mañana">Caja #01 • Turno Mañana</option>
+                    <option value="Caja #01 • Turno Tarde">Caja #01 • Turno Tarde</option>
+                    <option value="Caja #01 • Turno Completo">Caja #01 • Turno Completo</option>
+                </select>
+            </div>
+            <div class="ini-field">
+                <label for="ini-apt-operador">Operador / Cajero *</label>
+                <input type="text" id="ini-apt-operador" class="ini-input" value="Carlos Mendoza" required>
+            </div>
+            <div class="ini-field">
+                <label for="ini-apt-fondo">Fondo Inicial en Gaveta ($ ARS) *</label>
+                <input type="number" id="ini-apt-fondo" class="ini-input" min="0" step="100" value="20000" required>
+            </div>
+            <footer class="ini-modal-footer">
+                <button type="button" class="ini-btn ini-btn-light" id="btn-cancelar-modal-ini-turno">Cancelar</button>
+                <button type="submit" class="ini-btn ini-btn-primary">✅ Abrir Turno</button>
+            </footer>
+        </form>
+    </div>
+</div>

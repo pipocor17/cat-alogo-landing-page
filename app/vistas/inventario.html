@@ -1,0 +1,653 @@
+<!-- ==========================================
+     ENCABEZADO DEL MÓDULO INVENTARIO
+     ========================================== -->
+<div class="inv-header" id="inv-module-root">
+    <div class="inv-title-group">
+        <h2>📦 Inventario Inteligente &amp; Bóveda de Productos</h2>
+        <div class="inv-stats-inline">
+            <span><strong class="dot-green">●</strong> <strong id="stat-total-articulos">0</strong> Artículos Cargados</span>
+            <span>• <strong id="stat-visibles-pdf">0</strong> Visibles en Catálogo PDF</span>
+            <span>• <strong id="stat-visibles-web">0</strong> Visibles en Catálogo WEB</span>
+            <span class="badge-ia-soft">Motor IA v3.2 Conectado</span>
+        </div>
+    </div>
+    <div class="inv-header-actions">
+        <button type="button" class="inv-btn inv-btn-light" id="btn-gestor-categorias">🏷️ Categorías</button>
+        <button type="button" class="imp-trigger-btn" id="btn-abrir-importar-masivo">📥 Importar CSV / Excel</button>
+        <button type="button" class="inv-btn inv-btn-light" id="btn-inv-exportar-imprimir">🖨️ Exportar / Imprimir</button>
+        <button type="button" class="inv-btn inv-btn-amber" id="btn-toggle-studio">✨ Estudio Marketing IA <span class="tag-pro">PRO</span></button>
+        <button type="button" class="inv-btn inv-btn-primary" id="btn-nuevo-producto">+ Crear Nuevo Producto</button>
+    </div>
+</div>
+
+<!-- ==========================================
+     BUSCADOR, SELECTOR DUAL DE CATEGORÍAS Y SALUD DEL INVENTARIO
+     ========================================== -->
+<div class="inv-toolbar-card">
+    <div class="inv-search-row">
+        <div class="inv-search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="inv-search-input" placeholder="Buscar por nombre, SKU o escanear código de barras USB... (Atajo [F2])">
+            <span class="inv-scanner-pill" id="inv-scanner-pill" title="Lector de código de barras USB activo: si existe edita, si no existe crea producto">🔫 USB</span>
+            <kbd class="kbd-hint">F2</kbd>
+        </div>
+        <button type="button" class="inv-btn inv-btn-light">📷 Escanear con Cámara</button>
+    </div>
+
+    <!-- SELECTOR DUAL DE CATEGORÍAS + FILTROS WEB / PDF -->
+    <div class="inv-cats-shell">
+        <div class="inv-cats-top-row">
+            <!-- Modo Desplegable A-Z con buscador -->
+            <div class="inv-cat-dropdown-wrap" id="inv-cats-dropdown-wrap" style="display: none;">
+                <button type="button" class="inv-cat-dropdown-btn" id="inv-cat-dropdown-btn" aria-expanded="false">
+                    <span id="inv-cat-dropdown-label">📂 Todas las categorías</span>
+                    <span class="inv-cat-caret">▼</span>
+                </button>
+                <div class="inv-cat-dropdown-menu" id="inv-cat-dropdown-menu">
+                    <div class="inv-cat-dropdown-search-wrap">
+                        <input type="text" id="inv-cat-dropdown-search" class="inv-cat-dropdown-search" placeholder="🔍 Buscar categoría (A-Z)...">
+                    </div>
+                    <div class="inv-cat-dropdown-list" id="inv-cat-dropdown-list"></div>
+                </div>
+            </div>
+
+            <!-- Accesos rápidos permanentes: Web / PDF -->
+            <div class="inv-channel-quick-pills" id="inv-channel-quick-pills">
+                <button type="button" class="inv-ch-pill" data-inv-ch="en-web" title="Ver solo productos publicados en Catálogo Web">
+                    🌐 En Web (<span id="inv-cnt-en-web">0</span>)
+                </button>
+                <button type="button" class="inv-ch-pill" data-inv-ch="en-pdf" title="Ver solo productos activos en Catálogo PDF">
+                    📄 En PDF (<span id="inv-cnt-en-pdf">0</span>)
+                </button>
+            </div>
+
+            <!-- Switch Modo Desplegable vs Botones -->
+            <div class="inv-cats-mode-switch" role="group" aria-label="Formato de categorías">
+                <button type="button" class="inv-cat-mode-btn" id="btn-inv-cat-mode-dropdown" data-cat-mode="dropdown" title="Categorías en desplegable con buscador A-Z">
+                    📋 Desplegable
+                </button>
+                <button type="button" class="inv-cat-mode-btn active" id="btn-inv-cat-mode-chips" data-cat-mode="chips" title="Categorías como botones">
+                    🏷️ Botones
+                </button>
+            </div>
+        </div>
+
+        <!-- Modo Botones (chips dinámicos sincronizados con categorias.js) -->
+        <div class="inv-filters-row" id="inv-filters">
+            <button type="button" class="filter-chip active" data-filter="todos">Todos (0)</button>
+        </div>
+    </div>
+
+    <!-- BARRA DE SALUD DEL INVENTARIO (1 CLIC) -->
+    <div class="inv-health-row" id="inv-health-filters">
+        <span class="inv-health-lbl">🩺 AUDITORÍA:</span>
+        <button type="button" class="inv-health-chip active" data-health="todos">Todos</button>
+        <button type="button" class="inv-health-chip chip-pin" data-health="anclados">📌 Anclados (<span id="inv-hcnt-anclados">0</span>)</button>
+        <button type="button" class="inv-health-chip chip-danger" data-health="sin-stock">🔴 Sin stock (<span id="inv-hcnt-sinstock">0</span>)</button>
+        <button type="button" class="inv-health-chip chip-amber" data-health="stock-critico">🟠 Crítico (<span id="inv-hcnt-critico">0</span>)</button>
+        <button type="button" class="inv-health-chip" data-health="sin-foto">📷 Sin foto (<span id="inv-hcnt-sinfoto">0</span>)</button>
+        <button type="button" class="inv-health-chip" data-health="sin-costo">💸 Sin costo (<span id="inv-hcnt-sincosto">0</span>)</button>
+        <button type="button" class="inv-health-chip" data-health="oferta">🏷️ En oferta (<span id="inv-hcnt-oferta">0</span>)</button>
+        <button type="button" class="inv-health-chip" data-health="balanza">⚖️ Balanza (<span id="inv-hcnt-balanza">0</span>)</button>
+        <button type="button" class="inv-health-chip" data-health="ocultos-web">🙈 Ocultos Web (<span id="inv-hcnt-ocultosweb">0</span>)</button>
+    </div>
+</div>
+
+<!-- ==========================================
+     LAYOUT DIVIDIDO: PRODUCTOS (IZQ) + ESTUDIO IA (DER)
+     ========================================== -->
+<div class="inv-split-layout">
+
+    <!-- COLUMNA IZQUIERDA: LISTADO Y VARIANTES -->
+    <div class="inv-list-column">
+        <div class="inv-list-meta">
+            <span id="inv-page-info">Página <strong>1</strong> • <strong>0</strong> productos</span>
+
+            <div class="inv-meta-right">
+                <label class="inv-sort-wrap" for="inv-sort-select">
+                    <span>Ordenar:</span>
+                    <select id="inv-sort-select" class="inv-sort-select">
+                        <option value="recientes">🕒 Más recientes</option>
+                        <option value="nombre-asc">🔤 Nombre (A - Z)</option>
+                        <option value="nombre-desc">🔤 Nombre (Z - A)</option>
+                        <option value="categoria-asc">📂 Categoría (A - Z)</option>
+                        <option value="categoria-desc">📂 Categoría (Z - A)</option>
+                        <option value="precio-desc">💲 Mayor precio</option>
+                        <option value="precio-asc">💲 Menor precio</option>
+                        <option value="margen-desc">📈 Mayor margen %</option>
+                        <option value="margen-asc">📉 Menor margen %</option>
+                        <option value="stock-asc">📦 Menor stock primero</option>
+                        <option value="stock0-primero">🔴 Stock en 0 primero</option>
+                        <option value="stock0-final">✅ Stock en 0 al final</option>
+                        <option value="oferta-primero">🏷️ Con oferta primero</option>
+                        <option value="oferta-final">🏷️ Con oferta al final</option>
+                        <option value="sin-foto">📷 Sin foto primero</option>
+                        <option value="sin-costo">💸 Sin costo primero</option>
+                        <option value="balanza">⚖️ Balanza primero</option>
+                    </select>
+                </label>
+
+                <div class="inv-view-switch" id="inv-view-switcher" role="group" aria-label="Formato de vista">
+                    <button type="button" class="inv-view-btn active" data-inv-view="cards" title="Vista Tarjetas completas (con variantes)">▦ Tarjetas</button>
+                    <button type="button" class="inv-view-btn" data-inv-view="table" title="Vista Tabla Rápida con edición directa de Costo, Precio y Stock">☰ Tabla Rápida</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ÁREA CON SCROLL INTERNO PARA TARJETAS O TABLA RÁPIDA -->
+        <div class="inv-list-scroll-area" id="inv-list-scroll-area">
+            <!-- Contenedor dinámico de tarjetas (modal-producto.js) -->
+            <div id="inv-productos-creados"></div>
+
+            <!-- Contenedor dinámico de Vista Tabla Rápida (edición en línea) -->
+            <div id="inv-tabla-rapida-wrap" class="inv-tabla-rapida-wrap" style="display: none;"></div>
+        </div>
+
+        <!-- PAGINACIÓN Y ESTADÍSTICAS DEL PIE (SIEMPRE ACCESIBLE) -->
+        <div class="inv-pagination">
+            <div class="inv-footer-stats" id="inv-footer-stats">
+                <span>🌐 N° de productos en catálogo Web: <strong>0</strong> de <strong>0</strong> productos</span>
+                <span>📄 N° de productos en catálogo PDF: <strong>0</strong> de <strong>0</strong> productos</span>
+            </div>
+
+            <div class="inv-pagination-right">
+                <label class="per-page-wrap" for="inv-per-page-select">
+                    <span>Ver:</span>
+                    <select id="inv-per-page-select" class="inv-sort-select">
+                        <option value="5">5 / pág.</option>
+                        <option value="10">10 / pág.</option>
+                        <option value="20">20 / pág.</option>
+                        <option value="30" selected>30 / pág.</option>
+                        <option value="50">50 / pág.</option>
+                        <option value="100">100 / pág.</option>
+                    </select>
+                </label>
+
+                <div class="page-controls" id="inv-page-controls"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: ESTUDIO CREATIVO & MARKETING IA -->
+    <aside class="inv-studio-column" id="ia-studio-panel">
+        <div class="studio-card">
+
+            <header class="studio-header">
+                <div>
+                    <h3>✨ Estudio Creativo &amp; Marketing IA</h3>
+                    <p>Generador de Contenido Local 9:16</p>
+                </div>
+                <span class="api-pill-active">API IA Activa</span>
+            </header>
+
+            <!-- PESTAÑAS PRINCIPALES -->
+            <div class="studio-tabs">
+                <button type="button" class="studio-tab active" data-studio-tab="stories">📱 Stories &amp; WhatsApp</button>
+                <button type="button" class="studio-tab" data-studio-tab="remover">🪄 Borrador de Fondo</button>
+            </div>
+
+            <!-- PESTAÑA 1: GENERADOR DE STORIES 9:16 -->
+            <div class="studio-tab-content active" id="tab-stories">
+                <div class="story-preview-frame" id="story-canvas-preview">
+                    <div class="story-bg-overlay" id="story-bg-overlay"></div>
+
+                    <div class="story-preview-inner">
+                        <div class="story-brand-top" id="preview-brand">cat-alogo.store • 3h</div>
+                        <span class="story-hook-badge" id="preview-hook">OFERTA ESPECIAL 25% OFF</span>
+
+                        <div class="story-img-stage style-card" id="preview-img-box">
+                            <div class="story-img-placeholder" id="preview-story-placeholder">
+                                <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
+                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                    <polyline points="21 15 16 10 5 21"></polyline>
+                                </svg>
+                                <span>Selecciona un producto<br>con ✨ Estudio IA</span>
+                            </div>
+                            <img id="preview-story-img" src="" alt="Vista previa producto" style="display: none;">
+                        </div>
+
+                        <div class="story-price-block">
+                            <div class="story-old-price" id="preview-old-price">$6,000</div>
+                            <div class="story-main-price" id="preview-price">$4,500</div>
+                            <div class="story-prod-title" id="preview-title">Nombre del Producto</div>
+                        </div>
+
+                        <div class="story-cta-pill" id="preview-cta">Pide por WhatsApp al instante</div>
+                    </div>
+                </div>
+
+                <div class="story-photos-switcher" id="story-product-photos-box" style="display: none;">
+                    <div class="switcher-head">
+                        <span>🖼️ Fotos del producto (<strong id="story-photo-counter">1/1</strong>)</span>
+                        <div class="switcher-arrows">
+                            <button type="button" class="photo-nav-btn" id="btn-story-photo-prev" title="Foto anterior">◀</button>
+                            <button type="button" class="photo-nav-btn" id="btn-story-photo-next" title="Foto siguiente">▶</button>
+                        </div>
+                    </div>
+                    <div class="switcher-thumbs" id="story-photo-thumbs"></div>
+                </div>
+
+                <div class="studio-subtabs">
+                    <button type="button" class="studio-subtab active" data-subtab="textos">📝 Textos</button>
+                    <button type="button" class="studio-subtab" data-subtab="fondo">🎨 Fondo y Colores</button>
+                    <button type="button" class="studio-subtab" data-subtab="estilo">🖼️ Marco y Zoom</button>
+                </div>
+
+                <div class="studio-subpanel active" id="subpanel-textos">
+                    <label class="studio-field-label">Plantilla Promocional</label>
+                    <div class="preset-grid">
+                        <button type="button" class="preset-btn active" data-hook="OFERTA ESPECIAL 25% OFF">Oferta Destacada</button>
+                        <button type="button" class="preset-btn" data-hook="NUEVO LANZAMIENTO ✨">Nuevo Lanzamiento</button>
+                        <button type="button" class="preset-btn" data-hook="🔥 LIQUIDACIÓN HOY">Liquidación</button>
+                        <button type="button" class="preset-btn" data-hook="📦 PRECIO MAYORISTA">Venta Mayorista</button>
+                    </div>
+
+                    <div class="studio-field">
+                        <label for="input-story-brand">Marca / Encabezado superior</label>
+                        <input type="text" id="input-story-brand" value="cat-alogo.store • 3h" placeholder="Ej: @mitienda">
+                    </div>
+
+                    <div class="studio-field">
+                        <label for="input-story-hook">Texto Gancho</label>
+                        <input type="text" id="input-story-hook" value="OFERTA ESPECIAL 25% OFF">
+                    </div>
+
+                    <div class="studio-row-2">
+                        <div class="studio-field">
+                            <label for="input-story-price">Precio Promo</label>
+                            <input type="text" id="input-story-price" value="$4,500">
+                        </div>
+                        <div class="studio-field">
+                            <label for="input-story-old">Tachado</label>
+                            <input type="text" id="input-story-old" value="$6,000">
+                        </div>
+                    </div>
+
+                    <div class="studio-field">
+                        <label for="input-story-title">Título del Producto</label>
+                        <input type="text" id="input-story-title" value="Nombre del Producto">
+                    </div>
+
+                    <div class="studio-field">
+                        <label for="input-story-cta">Llamado a la Acción (CTA WhatsApp)</label>
+                        <input type="text" id="input-story-cta" value="Pide por WhatsApp al instante">
+                    </div>
+                </div>
+
+                <div class="studio-subpanel" id="subpanel-fondo">
+                    <label class="studio-field-label">Tipo de Fondo</label>
+                    <div class="bg-mode-pills">
+                        <button type="button" class="bg-mode-btn active" data-bg-mode="gradient">Degradado</button>
+                        <button type="button" class="bg-mode-btn" data-bg-mode="solid">Sólido</button>
+                        <button type="button" class="bg-mode-btn" data-bg-mode="image">Imagen</button>
+                    </div>
+
+                    <div class="bg-mode-config" id="cfg-bg-solid" style="display: none;">
+                        <div class="color-control-row">
+                            <span>Color de fondo</span>
+                            <input type="color" id="color-bg-solid" value="#0f172a">
+                        </div>
+                    </div>
+
+                    <div class="bg-mode-config" id="cfg-bg-gradient">
+                        <div class="studio-row-2">
+                            <div class="color-control-row">
+                                <span>Color 1</span>
+                                <input type="color" id="color-bg-grad1" value="#0f172a">
+                            </div>
+                            <div class="color-control-row">
+                                <span>Color 2</span>
+                                <input type="color" id="color-bg-grad2" value="#0f766e">
+                            </div>
+                        </div>
+                        <div class="studio-field" style="margin-top: 0.45rem;">
+                            <label for="select-bg-grad-dir">Dirección del degradado</label>
+                            <select id="select-bg-grad-dir" class="studio-select">
+                                <option value="135deg">Diagonal (↘)</option>
+                                <option value="180deg">Vertical (↓)</option>
+                                <option value="90deg">Horizontal (→)</option>
+                                <option value="45deg">Diagonal inversa (↗)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-mode-config" id="cfg-bg-image" style="display: none;">
+                        <div class="bg-img-actions">
+                            <label class="mini-btn" for="input-bg-img-file" style="cursor: pointer;">📁 Subir de Galería</label>
+                            <input type="file" id="input-bg-img-file" accept="image/*" hidden>
+                            <button type="button" class="mini-btn" id="btn-clear-bg-img">✕ Quitar</button>
+                        </div>
+                        <div class="bg-url-row">
+                            <input type="url" id="input-bg-img-url" placeholder="O pega una URL de imagen web...">
+                            <button type="button" class="mini-btn" id="btn-apply-bg-url">Usar</button>
+                        </div>
+                        <div class="studio-field" style="margin-top: 0.45rem;">
+                            <label for="range-bg-overlay">Oscurecer fondo para legibilidad (<span id="val-bg-overlay">35%</span>)</label>
+                            <input type="range" id="range-bg-overlay" min="0" max="80" value="35">
+                        </div>
+                    </div>
+
+                    <hr class="studio-divider">
+
+                    <label class="studio-field-label">Colores de Cada Elemento</label>
+                    <div class="colors-grid-2">
+                        <div class="color-control-row">
+                            <span>Fondo Gancho</span>
+                            <input type="color" id="color-hook-bg" value="#ef4444">
+                        </div>
+                        <div class="color-control-row">
+                            <span>Texto Gancho</span>
+                            <input type="color" id="color-hook-text" value="#ffffff">
+                        </div>
+                        <div class="color-control-row">
+                            <span>Precio Promo</span>
+                            <input type="color" id="color-price-text" value="#4ade80">
+                        </div>
+                        <div class="color-control-row">
+                            <span>Título y Marca</span>
+                            <input type="color" id="color-title-text" value="#ffffff">
+                        </div>
+                        <div class="color-control-row">
+                            <span>Fondo Botón CTA</span>
+                            <input type="color" id="color-cta-bg" value="#22c55e">
+                        </div>
+                        <div class="color-control-row">
+                            <span>Texto Botón CTA</span>
+                            <input type="color" id="color-cta-text" value="#052e16">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="studio-subpanel" id="subpanel-estilo">
+                    <label class="studio-field-label">Estilo del Marco de la Foto</label>
+                    <div class="bg-mode-pills">
+                        <button type="button" class="frame-style-btn active" data-frame="card">Tarjeta Blanca</button>
+                        <button type="button" class="frame-style-btn" data-frame="none">Sin Fondo</button>
+                        <button type="button" class="frame-style-btn" data-frame="circle">Circular</button>
+                    </div>
+
+                    <div class="studio-field" style="margin-top: 0.7rem;">
+                        <label for="range-img-zoom">Tamaño / Zoom de la imagen (<span id="val-img-zoom">100%</span>)</label>
+                        <input type="range" id="range-img-zoom" min="70" max="140" value="100">
+                    </div>
+
+                    <button type="button" class="mini-btn" id="btn-reset-story-style" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
+                        ↺ Restablecer colores y diseño
+                    </button>
+                </div>
+
+                <div class="studio-actions-stack">
+                    <button type="button" class="inv-btn inv-btn-primary btn-full" id="btn-descargar-historia">
+                        ⬇️ Descargar Historia 9:16 (PNG Ultra HD)
+                    </button>
+                    <button type="button" class="inv-btn inv-btn-light btn-full" id="btn-compartir-whatsapp">
+                        💬 Compartir a Estados de WhatsApp
+                    </button>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 2: BORRADOR DE FONDO (REMOVE.BG REAL) -->
+            <div class="studio-tab-content" id="tab-remover">
+                <div class="remover-header-line">
+                    <span>Borrador Inteligente (Remove.bg)</span>
+                    <span class="badge-margin" id="remover-api-status">Sin API Key</span>
+                </div>
+
+                <div class="api-key-box">
+                    <div class="api-key-top">
+                        <label for="input-removebg-key">🔑 API Key de Remove.bg</label>
+                        <a href="https://www.remove.bg/es/api" target="_blank" rel="noopener">Obtener gratis ↗</a>
+                    </div>
+                    <div class="api-key-row">
+                        <input type="password" id="input-removebg-key" placeholder="Pega tu clave de remove.bg aquí...">
+                        <button type="button" class="mini-btn" id="btn-guardar-apikey">Guardar</button>
+                    </div>
+                </div>
+
+                <button type="button" class="inv-btn inv-btn-indigo btn-full" id="btn-ejecutar-removebg" style="margin-bottom: 0.9rem;">
+                    🪄 Borrar Fondo con IA (PNG Transparente)
+                </button>
+
+                <div class="before-after-grid">
+                    <div class="ba-card before-card">
+                        <div class="ba-placeholder" id="remover-placeholder-before">
+                            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                            <span>Sin imagen</span>
+                        </div>
+                        <img src="" id="remover-img-before" alt="Antes" style="display: none;">
+                        <span class="ba-label label-dark">ANTES: Original</span>
+                    </div>
+                    <div class="ba-card after-card checkerboard-bg" id="bg-preview-box">
+                        <div class="ba-placeholder" id="remover-placeholder-after">
+                            <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5"></path>
+                            </svg>
+                            <span>Vista previa IA</span>
+                        </div>
+                        <img src="" id="remover-img-after" alt="Después" style="display: none;">
+                        <span class="ba-label label-green" id="remover-after-label">DESPUÉS: Sin Fondo</span>
+                    </div>
+                </div>
+
+                <label class="studio-label" style="margin-top: 1rem;">Fondo de Salida (Opcional):</label>
+                <div class="bg-options-grid">
+                    <button type="button" class="bg-opt active" data-bg="transparent">
+                        <span class="bg-swatch swatch-checker"></span>
+                        PNG Transparente
+                    </button>
+                    <button type="button" class="bg-opt" data-bg="#ffffff">
+                        <span class="bg-swatch" style="background:#ffffff; border:1px solid #cbd5e1;"></span>
+                        Blanco Puro
+                    </button>
+                    <button type="button" class="bg-opt" data-bg="linear-gradient(135deg, #dcfce7, #86efac)">
+                        <span class="bg-swatch" style="background:linear-gradient(135deg, #dcfce7, #22c55e);"></span>
+                        Gradiente Verde
+                    </button>
+                    <button type="button" class="bg-opt" data-bg="#f5e6d3">
+                        <span class="bg-swatch" style="background:#e7d3b7;"></span>
+                        Madera Nórdica
+                    </button>
+                </div>
+
+                <div class="remover-final-actions">
+                    <button type="button" class="inv-btn inv-btn-primary btn-full" id="btn-aplicar-recorte">
+                        ✅ Aplicar al Producto
+                    </button>
+                    <button type="button" class="inv-btn inv-btn-light btn-full" id="btn-descargar-recorte">
+                        ⬇️ Descargar PNG sin Fondo
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </aside>
+
+</div>
+
+<!-- MODAL XL: IMPORTACIÓN MASIVA & RECONCILIACIÓN (CSV / EXCEL) -->
+<div class="imp-modal-overlay" id="modal-importar-masivo" aria-hidden="true">
+    <div class="imp-modal-xl" role="dialog" aria-labelledby="imp-modal-title">
+        <header class="imp-header">
+            <div>
+                <div class="imp-eyebrow">
+                    <span class="imp-pill-live">● MOTOR DE INGESTA LOCAL-FIRST</span>
+                    <span class="imp-eyebrow-meta">🛡️ 100% en memoria del navegador • Compatible con Excel (.xlsx/.xls) y CSV</span>
+                </div>
+                <h3 id="imp-modal-title">Importación Masiva &amp; Reconciliación de Catálogo</h3>
+                <p>Mapeo automático de columnas, sanitizador de precios argentinos y control de duplicados por SKU.</p>
+            </div>
+
+            <div class="imp-header-actions">
+                <button type="button" class="imp-btn imp-btn-light" id="btn-imp-plantilla-vacia">📄 Plantilla Vacía (.xlsx)</button>
+                <button type="button" class="imp-btn imp-btn-blue-soft" id="btn-imp-exportar-actual">📤 Exportar Mi Inventario</button>
+                <button type="button" class="imp-modal-close" id="btn-cerrar-modal-importar">✕</button>
+            </div>
+        </header>
+
+        <section class="imp-kpi-strip">
+            <div class="imp-kpi">
+                <span class="imp-kpi-lbl">ARCHIVO EN MEMORIA</span>
+                <strong id="imp-kpi-archivo">Sin archivo</strong>
+                <small id="imp-kpi-archivo-sub">Arrastra un .xlsx o .csv abajo</small>
+            </div>
+            <div class="imp-kpi">
+                <span class="imp-kpi-lbl">MAPEO SEMÁNTICO</span>
+                <strong id="imp-kpi-mapeo">0 / 0 Columnas</strong>
+                <small id="imp-kpi-mapeo-sub">Detección automática de campos</small>
+            </div>
+            <div class="imp-kpi">
+                <span class="imp-kpi-lbl">SEGURIDAD DE INVENTARIO</span>
+                <strong id="imp-kpi-seguridad">—</strong>
+                <small id="imp-kpi-seguridad-sub">Nuevos vs. Actualizaciones por SKU</small>
+            </div>
+            <div class="imp-kpi">
+                <span class="imp-kpi-lbl">INTEGRIDAD CMV (HUB N5)</span>
+                <strong id="imp-kpi-cmv">—</strong>
+                <small id="imp-kpi-cmv-sub">Costos declarados vs. Fricción Cero</small>
+            </div>
+        </section>
+
+        <div class="imp-body-grid">
+            <aside class="imp-left-col">
+                <section class="imp-panel">
+                    <div class="imp-panel-head">
+                        <strong>📂 Fuente de Datos Local</strong>
+                        <span class="imp-badge-soft">SheetJS Local</span>
+                    </div>
+
+                    <div class="imp-dropzone" id="imp-dropzone">
+                        <input type="file" id="imp-file-input" accept=".xlsx,.xls,.csv,.txt" style="display:none;">
+                        <div class="imp-drop-ico">📊</div>
+                        <strong id="imp-drop-title">Arrastra tu archivo Excel o CSV aquí</strong>
+                        <span id="imp-drop-sub">o haz clic para seleccionarlo desde tu PC (.xlsx, .xls, .csv)</span>
+                    </div>
+
+                    <div class="imp-file-meta" id="imp-file-meta" style="display:none;">
+                        <div class="imp-meta-row">
+                            <span id="imp-meta-nombre" class="imp-meta-name">—</span>
+                            <button type="button" class="imp-link-btn" id="btn-imp-cambiar-archivo">Cambiar archivo</button>
+                        </div>
+                        <div class="imp-meta-grid">
+                            <div><small>FILAS DETECTADAS</small><strong id="imp-meta-filas">0</strong></div>
+                            <div><small>FORMATO / SEP.</small><strong id="imp-meta-formato">—</strong></div>
+                            <div id="imp-hoja-wrap" style="display:none;">
+                                <small>HOJA EXCEL</small>
+                                <select id="imp-select-hoja" class="imp-select-xs"></select>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="imp-panel">
+                    <div class="imp-panel-head">
+                        <strong>🧭 Reconciliación de Esquema (Mapeo)</strong>
+                        <span class="imp-badge-ok" id="imp-mapeo-pill">0 asignados</span>
+                    </div>
+                    <p class="imp-panel-sub">Asigna cada columna de tu planilla al campo nativo de Cat-Alogo. Nombre y Precio son los campos clave.</p>
+                    <div class="imp-mapping-list" id="imp-mapping-list">
+                        <div class="imp-empty-mini">Carga un archivo arriba para detectar y mapear sus columnas automáticamente.</div>
+                    </div>
+                </section>
+
+                <div id="imp-stage2-rules-anchor"></div>
+            </aside>
+
+            <section class="imp-right-col">
+                <div class="imp-preview-toolbar">
+                    <div class="imp-preview-tabs" id="imp-preview-tabs">
+                        <button type="button" class="imp-ptab active" data-imptab="todos">Todos (<span id="imp-cnt-todos">0</span>)</button>
+                        <button type="button" class="imp-ptab" data-imptab="listos">✅ Listos (<span id="imp-cnt-listos">0</span>)</button>
+                        <button type="button" class="imp-ptab" data-imptab="avisos">⚠️ Advertencias (<span id="imp-cnt-avisos">0</span>)</button>
+                        <button type="button" class="imp-ptab" data-imptab="errores">🔴 Conflictos (<span id="imp-cnt-errores">0</span>)</button>
+                    </div>
+                    <input type="text" id="imp-preview-search" class="imp-search-sm" placeholder="🔍 Filtrar fila o SKU...">
+                </div>
+
+                <div class="imp-table-wrap">
+                    <table class="imp-table">
+                        <thead>
+                            <tr>
+                                <th>EST.</th>
+                                <th>SKU</th>
+                                <th>PRODUCTO</th>
+                                <th>CATEGORÍA</th>
+                                <th style="text-align:right;">COSTO</th>
+                                <th style="text-align:right;">P. VENTA</th>
+                                <th style="text-align:right;">MARGEN</th>
+                                <th style="text-align:right;">STOCK</th>
+                            </tr>
+                        </thead>
+                        <tbody id="imp-preview-tbody">
+                            <tr>
+                                <td colspan="8" style="text-align:center; padding:3rem 1rem; color:#64748b;">
+                                    📂 Sube un archivo <strong>.xlsx</strong> o <strong>.csv</strong> (o descarga la plantilla arriba) para auditar tus productos antes de importar.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="imp-sanitizer-note" id="imp-sanitizer-note" style="display:none;">
+                    ✨ <strong>Sanitización Activa en Memoria:</strong> formatos de moneda argentina (<code>$ 1.250,50</code>, <code>12.400</code>) y textos UTF-8 normalizados automáticamente.
+                </div>
+
+                <footer class="imp-footer">
+                    <div class="imp-footer-info" id="imp-footer-info">Esperando archivo para analizar...</div>
+                    <div class="imp-footer-btns">
+                        <button type="button" class="imp-btn imp-btn-light" id="btn-imp-descartar">Descartar y Volver</button>
+                        <button type="button" class="imp-btn imp-btn-primary" id="btn-imp-ejecutar" disabled>🚀 Ejecutar Ingesta Masiva</button>
+                    </div>
+                </footer>
+            </section>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL RÁPIDO: EXPORTAR / IMPRIMIR INVENTARIO -->
+<div class="inv-exp-overlay" id="modal-inv-exportar" aria-hidden="true">
+    <div class="inv-exp-box" role="dialog" aria-labelledby="inv-exp-title">
+        <header class="inv-exp-head">
+            <div>
+                <h3 id="inv-exp-title">🖨️ Exportar / Imprimir Inventario</h3>
+                <p id="inv-exp-sub">Elige el formato de salida para tu lista de productos y precios.</p>
+            </div>
+            <button type="button" class="inv-exp-close" id="btn-cerrar-modal-inv-exp">✕</button>
+        </header>
+
+        <div class="inv-exp-body">
+            <label class="inv-exp-chk">
+                <input type="checkbox" id="inv-exp-solo-visibles">
+                <span>Incluir únicamente productos con <strong>visibilidad activa</strong></span>
+            </label>
+
+            <div class="inv-exp-grid">
+                <button type="button" class="inv-exp-card exp-pdf" id="btn-inv-exp-pdf">
+                    <span class="exp-ico">📄</span>
+                    <strong>Lista de Precios PDF (A4)</strong>
+                    <small>Tabla lista para imprimir o enviar por WhatsApp (SKU, Stock y Precio)</small>
+                </button>
+                <button type="button" class="inv-exp-card exp-xls" id="btn-inv-exp-xlsx">
+                    <span class="exp-ico">📊</span>
+                    <strong>Planilla Excel (.xlsx)</strong>
+                    <small>Con costos, precios, stock y categorías para editar y re-importar</small>
+                </button>
+                <button type="button" class="inv-exp-card exp-csv" id="btn-inv-exp-csv">
+                    <span class="exp-ico">📑</span>
+                    <strong>Archivo CSV (.csv)</strong>
+                    <small>Formato liviano universal separado por punto y coma</small>
+                </button>
+                <button type="button" class="inv-exp-card exp-cat" id="btn-inv-exp-diseno">
+                    <span class="exp-ico">🎨</span>
+                    <strong>Catálogo Visual con Fotos</strong>
+                    <small>Abrir el Estudio de Diseño PDF para exportar con tu marca</small>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+

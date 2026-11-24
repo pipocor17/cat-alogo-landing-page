@@ -1,0 +1,549 @@
+<!-- ==========================================
+     MÓDULO: CAT-WEB • VIDRIERA ONLINE & RADAR DE PEDIDOS (ETAPA 1)
+     ========================================== -->
+<div class="cw-wrap" id="catweb-module-root">
+
+    <!-- CABECERA PRINCIPAL -->
+    <header class="cw-header">
+        <div class="cw-header-left">
+            <div class="cw-eyebrow">
+                <span class="cw-pill-live" id="cw-sync-badge">● MODO LOCAL-FIRST LISTO PARA NUBE</span>
+                <span class="cw-eyebrow-meta" id="cw-last-sync-lbl">Última sincronización: Sin sincronizar aún</span>
+            </div>
+            <h2>🌐 Cat-Web • Vidriera Online &amp; Radar de Pedidos</h2>
+            <p>Administra el diseño de tu tienda pública, controla qué productos se muestran online y recibe pedidos sin comisiones.</p>
+        </div>
+
+        <div class="cw-header-right">
+            <div class="cw-url-bar">
+                <span class="cw-url-ico">🔗</span>
+                <span class="cw-url-text" id="cw-public-url-display">https://cat-alogo.store/mi-tienda</span>
+                <button type="button" class="cw-mini-btn" id="btn-cw-copiar-url" title="Copiar enlace público">📋 Copiar</button>
+                <button type="button" class="cw-mini-btn" id="btn-cw-compartir-url" title="Compartir tienda por WhatsApp">💬</button>
+                <button type="button" class="cw-mini-btn" id="btn-cw-visitar-url" title="Abrir enlace público en nueva pestaña">↗</button>
+                <button type="button" class="cw-mini-btn" id="btn-cw-abrir-qr" title="Ver y descargar Código QR de la tienda">📱 QR</button>
+            </div>
+
+            <div class="cw-header-actions">
+                <button type="button" class="cw-btn cw-btn-light" id="btn-cw-personalizar">
+                    🎨 Personalizar Tienda
+                </button>
+                <button type="button" class="cw-btn cw-btn-light" id="btn-cw-config-nube">
+                    🔌 Conectar Firebase
+                </button>
+                <button type="button" class="cw-btn cw-btn-primary" id="btn-cw-sincronizar">
+                    ☁️ Sincronizar Bóveda → Nube
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 4 TARJETAS KPI -->
+    <section class="cw-kpi-grid">
+        <article class="cw-kpi-card">
+            <span class="cw-kpi-lbl">PEDIDOS RECIBIDOS HOY</span>
+            <strong class="cw-kpi-val" id="cw-kpi-hoy">0 Pedidos</strong>
+            <small id="cw-kpi-hoy-sub">$0 en ventas online hoy</small>
+        </article>
+
+        <article class="cw-kpi-card kpi-amber">
+            <span class="cw-kpi-lbl">RADAR EN ESPERA</span>
+            <strong class="cw-kpi-val text-amber" id="cw-kpi-pendientes">0 Pendientes</strong>
+            <small id="cw-kpi-pendientes-sub">Sin pedidos pendientes de procesar</small>
+        </article>
+
+        <article class="cw-kpi-card kpi-emerald">
+            <span class="cw-kpi-lbl">CATÁLOGO WEB ACTIVO</span>
+            <strong class="cw-kpi-val text-emerald" id="cw-kpi-visibles">0 Visibles</strong>
+            <small id="cw-kpi-visibles-sub">de 0 productos en Bóveda Local</small>
+        </article>
+
+        <article class="cw-kpi-card kpi-indigo">
+            <span class="cw-kpi-lbl">COMISIÓN POR VENTA</span>
+            <strong class="cw-kpi-val text-indigo">0% Comisión</strong>
+            <small id="cw-kpi-ahorro-sub">Cobros directos a tu banco / caja</small>
+        </article>
+    </section>
+
+    <!-- LAYOUT DIVIDIDO: GESTIÓN Y RADAR (IZQ) + VISTA PREVIA SPA EN VIVO (DER) -->
+    <div class="cw-split-grid">
+
+        <!-- COLUMNA IZQUIERDA -->
+        <div class="cw-left-col">
+
+            <!-- ACCESOS RÁPIDOS DE GESTIÓN (PARIDAD CON APP MÓVIL) -->
+            <section class="cw-quick-strip">
+                <button type="button" class="cw-quick-card" id="btn-cw-abrir-personalizar-card">
+                    <span class="cw-q-ico">🎨</span>
+                    <div>
+                        <strong>Configurar y Personalizar Web</strong>
+                        <small>Portada, logo, color, horarios, WhatsApp y envío</small>
+                    </div>
+                    <span class="cw-q-arrow">›</span>
+                </button>
+
+                <button type="button" class="cw-quick-card" id="btn-cw-abrir-visibilidad">
+                    <span class="cw-q-ico">📦</span>
+                    <div>
+                        <strong>¿Qué productos mostrar en la web?</strong>
+                        <small id="cw-q-vis-sub">Control por categoría y artículo</small>
+                    </div>
+                    <span class="cw-q-arrow">›</span>
+                </button>
+
+                <button type="button" class="cw-quick-card" id="btn-cw-abrir-menu">
+                    <span class="cw-q-ico">🗂️</span>
+                    <div>
+                        <strong>Organizar Menú de la Web</strong>
+                        <small>Agrupa categorías en secciones (Etapa 2)</small>
+                    </div>
+                    <span class="cw-q-arrow">›</span>
+                </button>
+            </section>
+
+            <!-- RADAR DE PEDIDOS ONLINE (GESTIÓN PRO, BORRADO SEGURO Y FILTROS) -->
+            <section class="cw-card" id="cw-radar-section">
+                <div class="cw-card-head">
+                    <div>
+                        <h3>📡 Radar de Pedidos Online</h3>
+                        <p>Prepara pedidos, avisa por WhatsApp y factúralos directo en el POS con descuento automático de stock.</p>
+                    </div>
+                    <div class="cw-radar-head-tools">
+                        <label class="cw-sound-toggle" title="Emitir sonido al recibir un pedido nuevo">
+                            <input type="checkbox" id="cw-chk-sonido" checked>
+                            <span>🔔 Alerta sonora</span>
+                        </label>
+                        <button type="button" class="cw-btn cw-btn-light cw-btn-sm" id="btn-cw-limpiar-cerrados" title="Eliminar en lote pedidos cancelados o despachados">
+                            🧹 Limpiar cerrados
+                        </button>
+                        <button type="button" class="cw-btn cw-btn-light cw-btn-sm" id="btn-cw-simular-pedido">
+                            🧪 Simular Pedido
+                        </button>
+                    </div>
+                </div>
+
+                <!-- BARRA DE FILTRO POR FECHA Y BUSCADOR -->
+                <div class="cw-radar-filter-bar">
+                    <input type="text" id="cw-radar-search" class="cw-input cw-radar-search-inp" placeholder="🔍 Buscar #WEB, cliente o teléfono...">
+                    <select id="cw-radar-rango" class="cw-input cw-radar-range-sel" title="Rango de fechas visible en el Radar">
+                        <option value="hoy_pendientes" selected>📅 Hoy + Pendientes</option>
+                        <option value="7dias">🗓️ Últimos 7 días</option>
+                        <option value="todos">📂 Histórico completo</option>
+                    </select>
+                </div>
+
+                <!-- PESTAÑAS DE ESTADO (INCLUYE CANCELADOS) -->
+                <div class="cw-radar-tabs" id="cw-radar-tabs">
+                    <button type="button" class="cw-rtab active" data-rtab="todos">Todos (<span id="cw-rcnt-todos">0</span>)</button>
+                    <button type="button" class="cw-rtab" data-rtab="pendientes">Pendientes (<span id="cw-rcnt-pendientes">0</span>)</button>
+                    <button type="button" class="cw-rtab" data-rtab="facturados">Facturados POS (<span id="cw-rcnt-facturados">0</span>)</button>
+                    <button type="button" class="cw-rtab" data-rtab="despachados">Despachados (<span id="cw-rcnt-despachados">0</span>)</button>
+                    <button type="button" class="cw-rtab" data-rtab="cancelados">Cancelados (<span id="cw-rcnt-cancelados">0</span>)</button>
+                </div>
+
+                <div class="cw-radar-list" id="cw-radar-list">
+                    <!-- Tarjetas completas (activos) y filas compactas (cerrados) -->
+                </div>
+            </section>
+
+            <!-- RESUMEN DE MARCA BLANCA Y MEDIOS DE PAGO CONECTADOS -->
+            <section class="cw-card">
+                <div class="cw-card-head">
+                    <div>
+                        <h3>⚙️ Resumen de Marca Blanca &amp; Medios Activos</h3>
+                        <p>Conectado automáticamente con tu bóveda de Medios de Pago y Recargos.</p>
+                    </div>
+                    <button type="button" class="cw-link-btn" data-abrir-medios-pago>Editar Medios ↗</button>
+                </div>
+
+                <div class="cw-brand-summary" id="cw-brand-summary">
+                    <!-- Resumen dinámico -->
+                </div>
+            </section>
+
+        </div>
+
+        <!-- COLUMNA DERECHA: VISTA PREVIA EN VIVO DE LA TIENDA WEB -->
+        <aside class="cw-right-col">
+            <div class="cw-preview-card">
+                <div class="cw-preview-top">
+                    <div>
+                        <strong>📱 Vista Previa Tienda Web (SPA)</strong>
+                        <small id="cw-preview-sub">En vivo con tus productos reales</small>
+                    </div>
+                    <div class="cw-device-switch">
+                        <button type="button" class="cw-dev-btn active" data-cw-dev="mobile">Móvil</button>
+                        <button type="button" class="cw-dev-btn" data-cw-dev="desktop">Desktop</button>
+                    </div>
+                </div>
+
+                <div class="cw-preview-stage" id="cw-preview-stage">
+                    <div class="cw-phone-frame is-mobile" id="cw-device-frame">
+                        <!-- BARRA SUPERIOR SIMULADA -->
+                        <div class="cw-store-banner" id="cw-prev-banner">
+                            <div class="cw-store-banner-overlay"></div>
+                            <div class="cw-store-brand-row">
+                                <div class="cw-store-logo" id="cw-prev-logo">🛍️</div>
+                                <div class="cw-store-titles">
+                                    <strong id="cw-prev-nombre">Mi Tienda</strong>
+                                    <span id="cw-prev-desc">Pedidos online sin comisiones</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- INFO RÁPIDA DE ENVÍO Y MEDIOS -->
+                        <div class="cw-store-badges-bar" id="cw-prev-badges"></div>
+
+                        <!-- BUSCADOR Y CATEGORÍAS DE LA TIENDA -->
+                        <div class="cw-store-controls">
+                            <input type="text" id="cw-prev-search" class="cw-store-search" placeholder="🔍 Buscar en el catálogo...">
+                            <div class="cw-store-cats" id="cw-prev-cats"></div>
+                        </div>
+
+                        <!-- GRILLA DE PRODUCTOS VISIBLES REALES -->
+                        <div class="cw-store-grid" id="cw-prev-grid"></div>
+
+                        <!-- BARRA INFERIOR DE CARRITO SIMULADO -->
+                        <div class="cw-store-cart-bar" id="cw-prev-cart-bar" style="display:none;">
+                            <span id="cw-prev-cart-info">🛒 0 ítems • $0</span>
+                            <button type="button" id="btn-cw-prev-clear-cart">Limpiar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL 1: PERSONALIZAR TIENDA WEB (PARIDAD APP MÓVIL + EXTRAS)
+     ========================================== -->
+<div class="cw-modal-overlay" id="modal-cw-personalizar" aria-hidden="true">
+    <div class="cw-modal-box cw-modal-lg" role="dialog" aria-labelledby="cw-pers-title">
+        <header class="cw-modal-head">
+            <div>
+                <h3 id="cw-pers-title">🌐 Personalizar Tienda Web</h3>
+                <p>Lo que cambies aquí se verá en tu vista previa y en tu catálogo online al sincronizar.</p>
+            </div>
+            <button type="button" class="cw-close-btn" id="btn-cw-cerrar-pers">✕</button>
+        </header>
+
+        <form id="form-cw-personalizar" class="cw-modal-body">
+
+            <!-- ENLACE PÚBLICO -->
+            <div class="cw-form-section">
+                <span class="cw-sec-lbl">🔗 TU ENLACE PÚBLICO (MISMO LINK QUE LA APP)</span>
+                <div class="cw-form-grid-2">
+                    <div class="cw-field">
+                        <label for="cw-inp-base-url">Dominio / Base de tu tienda</label>
+                        <input type="url" id="cw-inp-base-url" class="cw-input" placeholder="https://catalogo-web-chi.vercel.app">
+                    </div>
+                    <div class="cw-field">
+                        <label for="cw-inp-slug">Identificador / Slug de tu comercio</label>
+                        <input type="text" id="cw-inp-slug" class="cw-input" placeholder="mi-comercio">
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLOR PRINCIPAL -->
+            <div class="cw-form-section">
+                <span class="cw-sec-lbl">🎨 COLOR PRINCIPAL DE TU WEB</span>
+                <div class="cw-color-row">
+                    <div class="cw-swatches" id="cw-color-swatches">
+                        <button type="button" class="cw-swatch" data-color="#f59e0b" style="background:#f59e0b;"></button>
+                        <button type="button" class="cw-swatch" data-color="#2563eb" style="background:#2563eb;"></button>
+                        <button type="button" class="cw-swatch" data-color="#059669" style="background:#059669;"></button>
+                        <button type="button" class="cw-swatch" data-color="#ef4444" style="background:#ef4444;"></button>
+                        <button type="button" class="cw-swatch" data-color="#7c3aed" style="background:#7c3aed;"></button>
+                        <button type="button" class="cw-swatch" data-color="#ec4899" style="background:#ec4899;"></button>
+                        <button type="button" class="cw-swatch" data-color="#0f172a" style="background:#0f172a;"></button>
+                    </div>
+                    <label class="cw-custom-color-lbl">
+                        Otro:
+                        <input type="color" id="cw-inp-color" value="#059669">
+                    </label>
+                </div>
+            </div>
+
+            <!-- BANNER DE PORTADA Y LOGO / ÍCONO RÁPIDO -->
+            <div class="cw-form-grid-2">
+                <div class="cw-form-section">
+                    <span class="cw-sec-lbl">🖼️ BANNER DE PORTADA</span>
+                    <div class="cw-banner-preview-box" id="cw-pers-banner-prev">
+                        <span>Sin portada (usa color principal)</span>
+                    </div>
+                    <div class="cw-upload-row">
+                        <label class="cw-btn cw-btn-dark cw-btn-sm" for="cw-file-banner" style="cursor:pointer;">📸 Seleccionar Portada</label>
+                        <input type="file" id="cw-file-banner" accept="image/*" hidden>
+                        <button type="button" class="cw-btn cw-btn-light cw-btn-sm" id="btn-cw-quitar-banner">Quitar</button>
+                    </div>
+                </div>
+
+                <div class="cw-form-section">
+                    <span class="cw-sec-lbl">🏷️ LOGO O ÍCONO RÁPIDO</span>
+                    <div class="cw-logo-row">
+                        <div class="cw-logo-preview-circle" id="cw-pers-logo-prev">🛍️</div>
+                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                            <label class="cw-btn cw-btn-blue cw-btn-sm" for="cw-file-logo" style="cursor:pointer;">🖼️ Subir Logo</label>
+                            <input type="file" id="cw-file-logo" accept="image/*" hidden>
+                            <button type="button" class="cw-btn cw-btn-light cw-btn-sm" id="btn-cw-quitar-logo">Usar ícono</button>
+                        </div>
+                    </div>
+                    <div class="cw-icons-grid" id="cw-icons-grid">
+                        <!-- 15 íconos rápidos iguales a la app móvil -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- IDENTIDAD, HORARIOS Y WHATSAPP -->
+            <div class="cw-form-section">
+                <span class="cw-sec-lbl">🏪 IDENTIDAD Y CONTACTO</span>
+                <div class="cw-form-grid-2">
+                    <div class="cw-field">
+                        <label for="cw-inp-nombre">Nombre de la Web *</label>
+                        <input type="text" id="cw-inp-nombre" class="cw-input" required placeholder="Ej: La Semilla">
+                    </div>
+                    <div class="cw-field">
+                        <label for="cw-inp-whatsapp">WhatsApp para Pedidos *</label>
+                        <input type="text" id="cw-inp-whatsapp" class="cw-input" placeholder="+5493510000000">
+                    </div>
+                </div>
+                <div class="cw-field" style="margin-top:0.55rem;">
+                    <label for="cw-inp-desc">Descripción corta / Días y horarios de reparto</label>
+                    <textarea id="cw-inp-desc" class="cw-input" rows="2" placeholder="Ej: Días y Horario de reparto: Lunes a sábado 13 hs y 18 hs."></textarea>
+                </div>
+            </div>
+
+            <!-- COSTO DE ENVÍO A DOMICILIO + REGLA STOCK 0 -->
+            <div class="cw-form-section">
+                <span class="cw-sec-lbl">🛵 COSTO DE ENVÍO A DOMICILIO</span>
+                <div class="cw-ship-modes" id="cw-ship-modes">
+                    <button type="button" class="cw-ship-btn" data-ship="gratis">🆓 Gratis</button>
+                    <button type="button" class="cw-ship-btn active" data-ship="fijo">💵 Monto Fijo</button>
+                    <button type="button" class="cw-ship-btn" data-ship="porcentaje">% Porcentaje</button>
+                </div>
+                <div class="cw-field" id="cw-ship-val-wrap" style="margin-top:0.55rem;">
+                    <label for="cw-inp-envio-val" id="cw-lbl-envio-val">Monto fijo de envío ($ ARS)</label>
+                    <input type="number" id="cw-inp-envio-val" class="cw-input" min="0" step="100" value="0">
+                </div>
+                <small style="color:#64748b; font-size:0.71rem;">* El envío solo se cobra si el cliente elige "Me lo envían". Si elige "Lo retiro", será gratis.</small>
+
+                <label class="cw-switch-row" style="margin-top:0.75rem;">
+                    <input type="checkbox" id="cw-chk-ocultar-sin-stock">
+                    <span><strong>Ocultar automáticamente productos con Stock = 0</strong> en la tienda web (evita vender sin stock).</span>
+                </label>
+            </div>
+
+            <footer class="cw-modal-footer">
+                <button type="button" class="cw-btn cw-btn-light" id="btn-cw-cancelar-pers">Cancelar</button>
+                <button type="submit" class="cw-btn cw-btn-indigo">🚀 Guardar y Actualizar Vista Previa</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL 2: CÓDIGO QR PARA MOSTRADOR / VIDRIERA
+     ========================================== -->
+<div class="cw-modal-overlay" id="modal-cw-qr" aria-hidden="true">
+    <div class="cw-modal-box cw-modal-sm" role="dialog" aria-labelledby="cw-qr-title">
+        <header class="cw-modal-head">
+            <div>
+                <h3 id="cw-qr-title">📱 Código QR de tu Tienda</h3>
+                <p>Imprímelo para el mostrador, vidriera o bolsas de reparto.</p>
+            </div>
+            <button type="button" class="cw-close-btn" id="btn-cw-cerrar-qr">✕</button>
+        </header>
+
+        <div class="cw-modal-body" style="align-items:center; text-align:center;">
+            <div class="cw-qr-card-print" id="cw-qr-print-area">
+                <strong id="cw-qr-store-name">Mi Tienda</strong>
+                <span class="cw-qr-sub">Escaneá y mirá nuestro catálogo online</span>
+                <div class="cw-qr-img-box">
+                    <img id="cw-qr-img" src="" alt="Código QR Cat-Web">
+                </div>
+                <small id="cw-qr-url-lbl">—</small>
+            </div>
+
+            <div style="display:flex; gap:0.5rem; width:100%; justify-content:center; flex-wrap:wrap;">
+                <button type="button" class="cw-btn cw-btn-light" id="btn-cw-qr-imprimir">🖨️ Imprimir Cartel</button>
+                <button type="button" class="cw-btn cw-btn-primary" id="btn-cw-qr-descargar">⬇️ Descargar QR (PNG)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL 3: VISIBILIDAD WEB EN ACORDEÓN POR PRODUCTO
+     ========================================== -->
+<div class="cw-modal-overlay" id="modal-cw-visibilidad" aria-hidden="true">
+    <div class="cw-modal-box cw-modal-lg" role="dialog" aria-labelledby="cw-vis-title">
+        <header class="cw-modal-head">
+            <div>
+                <h3 id="cw-vis-title">📦 Visibilidad Web — Elige qué ofreces online</h3>
+                <p>Activa o pausa categorías completas o productos individuales. Se sincroniza con Inventario.</p>
+            </div>
+            <button type="button" class="cw-close-btn" id="btn-cw-cerrar-vis">✕</button>
+        </header>
+
+        <div class="cw-modal-body">
+            <div class="cw-vis-toolbar">
+                <input type="text" id="cw-vis-search" class="cw-input" placeholder="🔍 Buscar producto, SKU o categoría...">
+                <span class="cw-soft-pill" id="cw-vis-resumen-pill">0 de 0 visibles</span>
+            </div>
+
+            <div class="cw-acc-list" id="cw-vis-accordion">
+                <!-- Acordeón dinámico por categoría -->
+            </div>
+
+            <footer class="cw-modal-footer">
+                <button type="button" class="cw-btn cw-btn-primary" id="btn-cw-vis-listo">✅ Listo</button>
+            </footer>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL 4: ORGANIZAR MENÚ WEB POR GRUPOS
+     ========================================== -->
+<div class="cw-modal-overlay" id="modal-cw-menu" aria-hidden="true">
+    <div class="cw-modal-box cw-modal-lg" role="dialog" aria-labelledby="cw-menu-title">
+        <header class="cw-modal-head">
+            <div>
+                <h3 id="cw-menu-title">🗂️ Organizar Menú Web</h3>
+                <p>Agrupa múltiples subcategorías dentro de secciones principales (ej: Almacén, Bebidas, Indumentaria).</p>
+            </div>
+            <button type="button" class="cw-close-btn" id="btn-cw-cerrar-menu">✕</button>
+        </header>
+
+        <div class="cw-modal-body">
+            <div class="cw-menu-create-bar">
+                <input type="text" id="cw-menu-new-name" class="cw-input" placeholder="Nombre del grupo (ej: Almacén, Ofertas, Hogar)...">
+                <button type="button" class="cw-btn cw-btn-indigo" id="btn-cw-menu-add-group">+ Crear Grupo</button>
+            </div>
+
+            <div class="cw-menu-groups-list" id="cw-menu-groups-list">
+                <!-- Tarjetas dinámicas de grupos -->
+            </div>
+
+            <footer class="cw-modal-footer">
+                <button type="button" class="cw-btn cw-btn-light" id="btn-cw-cancelar-menu">Cancelar</button>
+                <button type="button" class="cw-btn cw-btn-indigo" id="btn-cw-guardar-menu">🚀 Guardar Menú Web</button>
+            </footer>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL 5: TICKET WEB DETALLADO
+     ========================================== -->
+<div class="cw-modal-overlay" id="modal-cw-ticket" aria-hidden="true">
+    <div class="cw-modal-box cw-modal-md" role="dialog" aria-labelledby="cw-tk-num">
+        <header class="cw-tk-head-dark">
+            <div>
+                <span class="cw-tk-eyebrow">TICKET WEB</span>
+                <h3 id="cw-tk-num">Pedido #WEB-0000</h3>
+            </div>
+            <button type="button" class="cw-tk-close-dark" id="btn-cw-cerrar-tk">✕</button>
+        </header>
+
+        <div class="cw-modal-body" id="cw-tk-body">
+            <!-- Contenido dinámico del pedido -->
+        </div>
+
+        <footer class="cw-tk-footer" id="cw-tk-footer">
+            <!-- Acciones dinámicas del pedido -->
+        </footer>
+    </div>
+</div>
+
+<!-- ==========================================
+     MODAL 6: PUENTE FIREBASE / FIRESTORE & COMPRESIÓN WEBP (ETAPA 3)
+     ========================================== -->
+<div class="cw-modal-overlay" id="modal-cw-nube" aria-hidden="true">
+    <div class="cw-modal-box cw-modal-lg" role="dialog" aria-labelledby="cw-nube-title">
+        <header class="cw-modal-head">
+            <div>
+                <h3 id="cw-nube-title">☁️ Puente Firebase / Firestore (App Móvil ↔ PC ↔ Web)</h3>
+                <p>Conecta el mismo proyecto Firebase y UID de tu app móvil para sincronizar el catálogo y recibir pedidos en vivo.</p>
+            </div>
+            <button type="button" class="cw-close-btn" id="btn-cw-cerrar-nube">✕</button>
+        </header>
+
+        <form id="form-cw-nube" class="cw-modal-body">
+            <div class="cw-form-section">
+                <span class="cw-sec-lbl">🔑 CREDENCIALES DE TU PROYECTO FIREBASE</span>
+                <div class="cw-field">
+                    <label for="cw-fb-json">Pega aquí tu objeto JSON de Firebase (opcional para autocompletar)</label>
+                    <textarea id="cw-fb-json" class="cw-input cw-mono" rows="3" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea>
+                </div>
+
+                <div class="cw-form-grid-2">
+                    <div class="cw-field">
+                        <label for="cw-fb-apikey">apiKey *</label>
+                        <input type="text" id="cw-fb-apikey" class="cw-input" placeholder="AIzaSy...">
+                    </div>
+                    <div class="cw-field">
+                        <label for="cw-fb-projectid">projectId *</label>
+                        <input type="text" id="cw-fb-projectid" class="cw-input" placeholder="mi-proyecto-cat-alogo">
+                    </div>
+                    <div class="cw-field">
+                        <label for="cw-fb-authdomain">authDomain</label>
+                        <input type="text" id="cw-fb-authdomain" class="cw-input" placeholder="mi-proyecto.firebaseapp.com">
+                    </div>
+                    <div class="cw-field">
+                        <label for="cw-fb-appid">appId</label>
+                        <input type="text" id="cw-fb-appid" class="cw-input" placeholder="1:123456:web:abcdef">
+                    </div>
+                </div>
+            </div>
+
+            <div class="cw-form-section">
+                <span class="cw-sec-lbl">🧭 MAPEO DE COLECCIONES (MISMO UID QUE LA APP MÓVIL)</span>
+                <div class="cw-form-grid-3">
+                    <div class="cw-field">
+                        <label for="cw-fb-uid">UID / ID de Tienda *</label>
+                        <input type="text" id="cw-fb-uid" class="cw-input" placeholder="ej: la-semilla o UID usuario">
+                    </div>
+                    <div class="cw-field">
+                        <label for="cw-fb-col-tiendas">Colección Tiendas</label>
+                        <input type="text" id="cw-fb-col-tiendas" class="cw-input" value="tiendas">
+                    </div>
+                    <div class="cw-field">
+                        <label for="cw-fb-col-pedidos">Subcolección Pedidos</label>
+                        <input type="text" id="cw-fb-col-pedidos" class="cw-input" value="pedidos">
+                    </div>
+                </div>
+                <small style="color:#64748b; font-size:0.71rem;">
+                    Ruta Firestore usada: <code>/{coleccionTiendas}/{uid}</code> para el catálogo y <code>/{coleccionTiendas}/{uid}/{subcoleccionPedidos}</code> para el Radar en vivo.
+                </small>
+            </div>
+
+            <div class="cw-form-section">
+                <span class="cw-sec-lbl">⚡ OPTIMIZACIÓN AUTOMÁTICA DE IMÁGENES (WEBP)</span>
+                <div class="cw-form-grid-2">
+                    <label class="cw-switch-row">
+                        <input type="checkbox" id="cw-fb-webp-activo" checked>
+                        <span><strong>Comprimir fotos a WebP antes de sincronizar</strong> (reduce hasta 85% el peso).</span>
+                    </label>
+                    <div class="cw-field">
+                        <label for="cw-fb-webp-maxkb">Peso objetivo máximo por foto (KB)</label>
+                        <input type="number" id="cw-fb-webp-maxkb" class="cw-input" min="25" max="250" step="5" value="80">
+                    </div>
+                </div>
+            </div>
+
+            <div class="cw-cloud-log" id="cw-cloud-status-box">
+                Estado: Modo Local-First (sin credenciales Firebase configuradas).
+            </div>
+
+            <footer class="cw-modal-footer">
+                <button type="button" class="cw-btn cw-btn-danger-soft" id="btn-cw-fb-desconectar" style="margin-right:auto;">Desconectar</button>
+                <button type="button" class="cw-btn cw-btn-light" id="btn-cw-cancelar-nube">Cerrar</button>
+                <button type="submit" class="cw-btn cw-btn-primary">💾 Guardar y Conectar Radar</button>
+            </footer>
+        </form>
+    </div>
+</div>
+
