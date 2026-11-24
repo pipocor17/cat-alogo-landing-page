@@ -542,6 +542,46 @@
             @media (max-width: 520px) {
                 .auth-plan-select-grid, .auth-plans-features { grid-template-columns: 1fr; }
             }
+
+            /* --- MODAL LEGAL (TÉRMINOS Y PRIVACIDAD) --- */
+            #cat-auth-legal-overlay { z-index: 100030 !important; }
+            .auth-legal-card {
+                max-width: 580px !important;
+                width: 94%;
+                position: relative;
+                text-align: left;
+            }
+            .auth-legal-body {
+                max-height: 55vh;
+                overflow-y: auto;
+                padding: 14px 16px;
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 12px;
+                font-size: 0.78rem;
+                color: #334155;
+                line-height: 1.52;
+                margin: 10px 0 14px;
+            }
+            .auth-legal-body h4 {
+                margin: 13px 0 4px;
+                font-size: 0.84rem;
+                color: #0f172a;
+            }
+            .auth-legal-body h4:first-child { margin-top: 0; }
+            .auth-legal-body p { margin: 0 0 8px; }
+            .auth-spam-alert {
+                background: #fffbeb;
+                border: 1px solid #fcd34d;
+                color: #92400e;
+                border-radius: 12px;
+                padding: 11px 13px;
+                font-size: 0.78rem;
+                line-height: 1.45;
+                text-align: left;
+                margin-bottom: 14px;
+            }
+            .auth-spam-alert strong { color: #78350f; }
         `;
         document.head.appendChild(st);
     }
@@ -561,7 +601,9 @@
             <div class="auth-overlay" id="cat-auth-login-overlay" aria-hidden="true">
                 <div class="auth-card" role="dialog" aria-labelledby="auth-login-title">
                     <div class="auth-brand">
-                        <div class="auth-logo-badge">🐾</div>
+                        <div class="auth-logo-badge" style="background:transparent; box-shadow:none; padding:0;">
+                            <img src="../img/logo-app.png" alt="Logo Cat-Alogo" style="width:58px; height:58px; object-fit:contain; border-radius:14px;">
+                        </div>
                         <h2 id="auth-login-title">Iniciar Sesión en Cat-Alogo Web</h2>
                         <p id="auth-login-subtitle">Accede con tu cuenta de <strong>Cat-Alogo</strong> (Web o App Android) para sincronizar inventario, caja, clientes y suscripción.</p>
                     </div>
@@ -592,10 +634,10 @@
                             <button type="button" class="auth-link-btn" id="btn-auth-forgot-pass">¿Olvidaste tu contraseña?</button>
                         </div>
 
-                        <label class="auth-terms-box" id="auth-terms-wrap" style="display:none;">
+                        <label class="auth-terms-box" id="auth-terms-wrap">
                             <input type="checkbox" id="auth-chk-terms">
                             <span>
-                                Acepto los <button type="button" class="auth-link-btn" id="btn-auth-ver-terminos">Términos de Servicio</button> y la
+                                He leído y acepto los <button type="button" class="auth-link-btn" id="btn-auth-ver-terminos">Términos y Condiciones</button> y la
                                 <button type="button" class="auth-link-btn" id="btn-auth-ver-privacidad">Política de Privacidad</button> de Cat-Alogo.
                             </span>
                         </label>
@@ -627,7 +669,12 @@
                     <div class="auth-brand">
                         <div class="auth-logo-badge">✉️</div>
                         <h2 id="auth-verify-title">Verifica tu correo electrónico</h2>
-                        <p>Enviamos un enlace de confirmación a <strong id="auth-verify-email-lbl">—</strong>. Abrí tu casilla (revisá también Spam/Promociones) y hacé clic en el enlace para activar tus <strong>14 días gratis</strong>.</p>
+                        <p>Enviamos un enlace de confirmación a <strong id="auth-verify-email-lbl">—</strong>. Abrí tu casilla y hacé clic en el enlace para activar tus <strong>14 días gratis</strong>.</p>
+                    </div>
+
+                    <div class="auth-spam-alert">
+                        ⚠️ <strong>¡Importante! Revisá tu Correo no deseado (Spam):</strong><br>
+                        El correo de verificación suele llegar a la carpeta de <strong>Spam, Correo no deseado o Promociones</strong>. Si no lo ves en tu bandeja principal en 1 minuto, buscalo allí, marcalo como <em>"No es spam"</em> y hacé clic en el enlace de confirmación.
                     </div>
 
                     <div class="auth-error" id="auth-verify-error"></div>
@@ -790,6 +837,21 @@
                     </div>
                 </div>
             </div>
+
+            <!-- OVERLAY 4: MODAL DE TÉRMINOS Y CONDICIONES / PRIVACIDAD -->
+            <div class="auth-overlay" id="cat-auth-legal-overlay" aria-hidden="true">
+                <div class="auth-card auth-legal-card" role="dialog" aria-labelledby="auth-legal-title">
+                    <button type="button" class="auth-plans-close-x" id="btn-auth-legal-close" title="Cerrar">✕</button>
+                    <h2 id="auth-legal-title" style="margin:0 0 4px; font-size:1.1rem; color:#0f172a;">Términos y Condiciones de Cat-Alogo</h2>
+                    <p style="margin:0; font-size:0.75rem; color:#64748b;">Titular: Alberto Gonzalo Cortabarria • Córdoba, Argentina</p>
+                    <div class="auth-legal-body" id="auth-legal-body"></div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button type="button" class="auth-btn auth-btn-primary" id="btn-auth-legal-accept" style="width:auto; padding:9px 18px;">
+                            ✅ Entendido y Aceptar
+                        </button>
+                    </div>
+                </div>
+            </div>
         `;
 
         document.body.appendChild(wrapper);
@@ -918,7 +980,6 @@
         if (btnPaddle) btnPaddle.textContent = `🌎 Pagar Plan ${etiquetaPlan} con Tarjeta / PayPal (${fmtUsdAuth(precioUsd)} • Global)`;
         if (btnMp) btnMp.textContent = `🇦🇷 Pagar Plan ${etiquetaPlan} con Mercado Pago — Solo Argentina${estimadoArs}`;
 
-        // Prevención de doble cobro si el usuario ya paga activamente por Google Play
         const sub = state.subscripcion;
         const activoEnPlay = Boolean(
             sub?.activa && !esPlanTrial(sub.plan) && String(sub.source || '').toLowerCase() === 'google_play'
@@ -979,7 +1040,6 @@
         try {
             if (btn) { btn.disabled = true; btn.textContent = '⏳ Preparando checkout seguro…'; }
 
-            // 1. MERCADO PAGO (SOLO ARGENTINA • ARS) vía Cloud Function
             if (gateway === 'mercadopago') {
                 if (!bill.endpointMercadoPago) {
                     if (okBox) {
@@ -990,7 +1050,6 @@
                     return;
                 }
 
-                // Abrir pestaña antes del await para que Chrome/Edge no bloquee el popup
                 const popup = window.open('', '_blank');
 
                 try {
@@ -1034,7 +1093,6 @@
                 }
             }
 
-            // 2. PADDLE / TARJETA INTERNACIONAL (GLOBAL • USD / MONEDA LOCAL)
             if (gateway === 'paddle') {
                 const priceId = bill.paddlePriceIds?.[plan];
                 if (window.Paddle && bill.paddleClientToken && priceId) {
@@ -1132,7 +1190,6 @@
             if (el) el.style.display = show ? (flex ? 'flex' : 'block') : 'none';
         };
         setDisp('auth-confirm-pass-wrap', esReg);
-        setDisp('auth-terms-wrap', esReg, true);
         setDisp('auth-forgot-wrap', !esReg, true);
 
         const titulo = document.getElementById('auth-login-title');
@@ -1315,7 +1372,6 @@
         );
         if (yaTienePlan) return false;
 
-        // Vía principal (blindada en servidor): Cloud Function activarPruebaGratis
         const endpointTrial = obtenerEndpointActivarPrueba();
         if (endpointTrial && typeof user.getIdToken === 'function') {
             try {
@@ -1334,7 +1390,6 @@
                         try { localStorage.setItem(STORAGE_KEY_TRIAL_FP, user.uid); } catch { /* ignore */ }
                         return true;
                     }
-                    // El servidor respondió (ej. alias_blocked o already_exists): respetar decisión del servidor
                     return false;
                 }
             } catch (err) {
@@ -1342,7 +1397,6 @@
             }
         }
 
-        // Respaldo solo si no hay endpoint configurado
         if (endpointTrial) return false;
 
         const emailNorm = normalizarEmailAntiAlias(user.email || '');
@@ -1477,7 +1531,6 @@
         }
         localStorage.setItem(STORAGE_KEY_LAST_UID, user.uid);
 
-        // Asegurar token actualizado con email_verified: true para Firestore Rules y Cloud Functions
         try {
             if (typeof user.getIdToken === 'function') await user.getIdToken(true);
         } catch { /* ignore */ }
@@ -1524,24 +1577,87 @@
             btn.addEventListener('click', () => setAuthTab(btn.getAttribute('data-authtab')));
         });
 
+        const TEXTO_TERMINOS = `
+            <h4>1. Aceptación de los Términos</h4>
+            <p>Al descargar, acceder, navegar o utilizar la aplicación móvil y/o plataforma web <strong>Cat-Alogo</strong> (en adelante, la "Aplicación" o el "Servicio"), usted (en adelante, el "Usuario") acepta estar legalmente vinculado por estos Términos y Condiciones de Uso. El Servicio es propiedad y está operado por <strong>Alberto Gonzalo Cortabarria</strong> (en adelante, el "Titular"), con base de operaciones en la Provincia de Córdoba, República Argentina.</p>
+
+            <h4>2. Requisitos de Edad y Registro de Cuenta</h4>
+            <p>Para utilizar la Aplicación, el Usuario debe tener al menos 18 años de edad; los menores de entre 13 y 17 años podrán utilizarla únicamente bajo supervisión y consentimiento expreso de sus padres o tutores legales. El registro puede realizarse por correo y contraseña o mediante autenticación de terceros (Google Auth). El Usuario es responsable de mantener la confidencialidad de sus credenciales y de toda actividad realizada bajo su cuenta, incluyendo la verificación de su correo electrónico.</p>
+
+            <h4>3. Planes, Suscripciones, Renovación y Reembolsos</h4>
+            <p>Cat-Alogo ofrece una <strong>prueba gratuita única de 14 días</strong> y planes de pago (mensual de 30 días y anual de 365 días). Queda prohibida la creación de múltiples cuentas o el uso de alias/correos temporales para extender la prueba gratuita. Al abonar un plan mientras ya tenés días vigentes, se acumulan los días correspondientes sobre tu vencimiento actual; al vencer un período sin renovación, el acceso operativo se pausa conservando tus datos intactos hasta que renueves.</p>
+            <p>Los pagos se procesan mediante pasarelas seguras de terceros (Mercado Pago, Paddle y Google Play Billing), sin que el Titular almacene datos de tarjetas. Los precios de referencia en USD o ARS pueden estar sujetos a impuestos locales, comisiones o conversiones de moneda de cada pasarela/país. No se emiten reembolsos una vez procesado el pago de un período, salvo disposición legal aplicable o políticas de la pasarela correspondiente.</p>
+
+            <h4>4. Uso Aceptable y Tienda Pública (Cat-Web)</h4>
+            <p>Está estrictamente prohibido utilizar Cat-Alogo para publicar, promocionar o vender bienes o servicios ilegales, armas de fuego, municiones o explosivos, drogas o sustancias controladas, material sexualmente explícito, o productos robados, falsificados o que infrinjan propiedad intelectual. El Titular puede suspender o bloquear cuentas de forma permanente y sin previo aviso ante infracciones a esta cláusula.</p>
+            <p>El Usuario es exclusivo responsable por el contenido que publique en su tienda pública <strong>Cat-Web</strong> y por los mensajes o recordatorios de cobranza que envíe a sus clientes.</p>
+
+            <h4>5. Exención de Responsabilidad y Herramientas de Gestión</h4>
+            <p>Cat-Alogo es una herramienta de asistencia administrativa (catálogos, inventario/stock, ventas, apertura y cierre de caja, clientes y reportes financieros). El Titular no interviene en las transacciones entre el Usuario y sus clientes ni asume responsabilidad por disputas comerciales, errores de tipeo, descuadres de caja física, diferencias de inventario ni obligaciones contables, tributarias o fiscales del Usuario. Los comprobantes o tickets internos no revisten carácter de factura fiscal.</p>
+
+            <h4>6. Modo Sin Conexión, Disponibilidad y Pérdida de Datos</h4>
+            <p>El Servicio se ofrece "tal cual" y "según disponibilidad". En modo sin conexión los cambios se registran localmente hasta contar con red y sesión válida, y la sincronización en la nube depende de servicios de terceros (como Firebase). El Titular no se responsabiliza por pérdidas accidentales de datos, imágenes o registros por fallos de red, interrupciones o fuerza mayor; se recomienda realizar copias de seguridad periódicas.</p>
+
+            <h4>7. Propiedad Intelectual, Ley Aplicable y Contacto</h4>
+            <p>El código, diseño, logotipo y marca <strong>Cat-Alogo</strong> son propiedad exclusiva de <strong>Alberto Gonzalo Cortabarria</strong>; el Usuario conserva los derechos sobre el contenido comercial que cargue. Estos Términos se rigen por las leyes de la República Argentina y quedan sometidos a los Tribunales Ordinarios de la ciudad de Córdoba, Provincia de Córdoba. Consultas legales o de soporte: <a href="mailto:algoncor85@gmail.com">algoncor85@gmail.com</a>.</p>
+        `;
+
+        const TEXTO_PRIVACIDAD = `
+            <h4>1. Información que Recopilamos y Permisos</h4>
+            <p>Operada por <strong>Alberto Gonzalo Cortabarria</strong> (Córdoba, Argentina). Recopilamos datos de registro (nombre y correo electrónico, manual o mediante Google Auth) y datos comerciales o de catálogo que cargues (incluyendo información opcional pública de tu negocio o redes sociales).</p>
+            <p>En la aplicación móvil se solicita permiso explícito para <strong>Cámara y Galería</strong> (fotografías de productos) y <strong>Almacenamiento Local</strong> (guardar y descargar PDFs de catálogos). Cat-Alogo <strong>no</strong> recopila ni rastrea ubicación geográfica (GPS).</p>
+
+            <h4>2. Uso de la Información y Terceros</h4>
+            <p>Utilizamos la información para gestionar tu cuenta, crear y exportar catálogos, validar suscripciones y brindar soporte. No vendemos ni alquilamos tus datos con fines publicitarios. Los pagos son procesados directamente por pasarelas de terceros (Mercado Pago, Paddle, Google Play Billing) y utilizamos Firebase para autenticación, base de datos y analíticas/diagnóstico técnico.</p>
+
+            <h4>3. Eliminación de Datos, Seguridad y Contacto</h4>
+            <p>Podés solicitar la eliminación de tu cuenta y datos asociados desde la configuración o escribiendo a <a href="mailto:algoncor85@gmail.com">algoncor85@gmail.com</a>. Aplicamos medidas razonables de seguridad (sin que ningún sistema en internet sea infalible). Servicio dirigido a mayores de 18 años (o menores de 13 a 17 años con autorización y supervisión de padres/tutores; no destinado a menores de 13 años).</p>
+        `;
+
+        const abrirModalLegal = (tipo) => {
+            const ov = document.getElementById('cat-auth-legal-overlay');
+            const title = document.getElementById('auth-legal-title');
+            const body = document.getElementById('auth-legal-body');
+            if (!ov || !body) return;
+            if (title) {
+                title.textContent = tipo === 'privacidad'
+                    ? 'Política de Privacidad – Cat-Alogo'
+                    : 'Términos y Condiciones de Uso – Cat-Alogo';
+            }
+            body.innerHTML = tipo === 'privacidad' ? TEXTO_PRIVACIDAD : TEXTO_TERMINOS;
+            body.scrollTop = 0;
+            ov.classList.add('active');
+            ov.setAttribute('aria-hidden', 'false');
+        };
+
+        const cerrarModalLegal = () => {
+            const ov = document.getElementById('cat-auth-legal-overlay');
+            if (ov) {
+                ov.classList.remove('active');
+                ov.setAttribute('aria-hidden', 'true');
+            }
+        };
+
         document.getElementById('btn-auth-ver-terminos')?.addEventListener('click', (e) => {
             e.preventDefault();
-            alert(
-                '📄 Términos de Servicio de Cat-Alogo\n\n' +
-                '• La prueba gratuita de 14 días es válida una única vez por comercio/persona.\n' +
-                '• Tus datos comerciales te pertenecen y se almacenan en tu bóveda local y nube privada.\n' +
-                '• Al finalizar la prueba o suscripción, tus datos se conservan intactos hasta que renueves.'
-            );
+            e.stopPropagation();
+            abrirModalLegal('terminos');
         });
 
         document.getElementById('btn-auth-ver-privacidad')?.addEventListener('click', (e) => {
             e.preventDefault();
-            alert(
-                '🛡️ Política de Privacidad de Cat-Alogo\n\n' +
-                '• Nunca vendemos ni compartimos tu inventario, precios de costo, clientes ni ventas.\n' +
-                '• La información privada se guarda bajo tu cuenta autenticada en Firebase.\n' +
-                '• Solo los productos que tú publiques en Cat-Web son visibles en tu enlace público.'
-            );
+            e.stopPropagation();
+            abrirModalLegal('privacidad');
+        });
+
+        document.getElementById('btn-auth-legal-close')?.addEventListener('click', cerrarModalLegal);
+        document.getElementById('btn-auth-legal-accept')?.addEventListener('click', () => {
+            const chk = document.getElementById('auth-chk-terms');
+            if (chk) chk.checked = true;
+            cerrarModalLegal();
+        });
+        document.getElementById('cat-auth-legal-overlay')?.addEventListener('click', (e) => {
+            if (e.target.id === 'cat-auth-legal-overlay') cerrarModalLegal();
         });
 
         document.getElementById('btn-auth-forgot-pass')?.addEventListener('click', async () => {
@@ -1570,13 +1686,18 @@
             }
             const email = (document.getElementById('auth-inp-email')?.value || '').trim();
             const pass = document.getElementById('auth-inp-pass')?.value || '';
+            const aceptaTerminos = !!document.getElementById('auth-chk-terms')?.checked;
             const btn = document.getElementById('btn-auth-email-submit');
             mostrarErrorLogin('');
             mostrarExitoLogin('');
 
+            if (!aceptaTerminos) {
+                mostrarErrorLogin('Debes aceptar los Términos y Condiciones y la Política de Privacidad para ingresar.');
+                return;
+            }
+
             if (state.authTab === 'register') {
                 const passConfirm = document.getElementById('auth-inp-pass-confirm')?.value || '';
-                const aceptaTerminos = !!document.getElementById('auth-chk-terms')?.checked;
 
                 if (esEmailDescartable(email)) {
                     mostrarErrorLogin('No se permiten correos temporales o descartables. Usa tu correo real para proteger tu comercio.');
@@ -1588,10 +1709,6 @@
                 }
                 if (pass !== passConfirm) {
                     mostrarErrorLogin('Las contraseñas no coinciden.');
-                    return;
-                }
-                if (!aceptaTerminos) {
-                    mostrarErrorLogin('Debes aceptar los Términos de Servicio y la Política de Privacidad para continuar.');
                     return;
                 }
 
@@ -1633,8 +1750,8 @@
                 mostrarErrorLogin('Firebase no está configurado todavía en app/js/firebase-config.js.');
                 return;
             }
-            if (state.authTab === 'register' && !document.getElementById('auth-chk-terms')?.checked) {
-                mostrarErrorLogin('Marca la casilla de Términos de Servicio y Política de Privacidad antes de crear tu cuenta con Google.');
+            if (!document.getElementById('auth-chk-terms')?.checked) {
+                mostrarErrorLogin('Marca la casilla de Términos y Condiciones y Política de Privacidad antes de continuar con Google.');
                 return;
             }
             mostrarErrorLogin('');
@@ -1691,7 +1808,6 @@
             abrirModalPlanes('anual');
         });
 
-        // Eventos Lock Overlay
         document.getElementById('btn-auth-lock-pagar-web')?.addEventListener('click', () => abrirModalPlanes('anual'));
         document.getElementById('btn-auth-revalidar-sub')?.addEventListener('click', () => {
             if (!state.uid) { alert('En Modo Local esto es solo una vista previa.'); return; }
@@ -1701,7 +1817,6 @@
         document.getElementById('btn-auth-cerrar-sim-login')?.addEventListener('click', ocultarLoginOverlay);
         document.getElementById('btn-auth-cerrar-sim-lock')?.addEventListener('click', ocultarLockOverlay);
 
-        // Eventos Modal "⭐ Mejorar Plan"
         document.getElementById('btn-auth-plans-close')?.addEventListener('click', cerrarModalPlanes);
         document.getElementById('cat-auth-plans-overlay')?.addEventListener('click', (e) => {
             if (e.target.id === 'cat-auth-plans-overlay') cerrarModalPlanes();
@@ -1903,3 +2018,4 @@
         abrirBloqueoPreview: () => mostrarLockOverlay({ plan: 'trial_14', expiresAtMs: Date.now() - 3600000 }, true)
     });
 })();
+
