@@ -59,6 +59,7 @@
                     <li><a href="#funciones">Funciones</a></li>
                     <li><a href="#como-funciona">Cómo Funciona</a></li>
                     <li><a href="#detalles">Características</a></li>
+                    <li><a href="#precios">Precios</a></li>
                 </ul>
 
                 <div class="nav-actions">
@@ -453,6 +454,215 @@
         </section>
 
         <!-- ==========================================
+             SECCIÓN: PRECIOS PÚBLICOS (WEB PC + ANDROID)
+             ========================================== -->
+        <style>
+            .pricing-section {
+                padding: 80px 20px;
+                background: #0b1120;
+                color: #f8fafc;
+            }
+            .pricing-container {
+                max-width: 960px;
+                margin: 0 auto;
+                text-align: center;
+            }
+            .pricing-subtitle {
+                max-width: 640px;
+                margin: 10px auto 38px;
+                color: #94a3b8;
+                font-size: 1rem;
+                line-height: 1.55;
+            }
+            .pricing-grid {
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 24px;
+                align-items: stretch;
+            }
+            .pricing-card {
+                position: relative;
+                background: #0f172a;
+                border: 1px solid rgba(148, 163, 184, 0.22);
+                border-radius: 20px;
+                padding: 30px 26px;
+                text-align: left;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }
+            .pricing-card.featured {
+                border: 2px solid #10b981;
+                background: linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, #0f172a 45%);
+                box-shadow: 0 18px 45px rgba(16, 185, 129, 0.14);
+            }
+            .pricing-save-badge {
+                position: absolute;
+                top: -13px;
+                right: 22px;
+                background: #f59e0b;
+                color: #0f172a;
+                font-size: 0.74rem;
+                font-weight: 800;
+                padding: 4px 12px;
+                border-radius: 999px;
+                text-transform: uppercase;
+                letter-spacing: 0.03em;
+            }
+            .pricing-plan-name {
+                font-size: 1.15rem;
+                font-weight: 800;
+                color: #ffffff;
+                margin: 0 0 8px;
+            }
+            .pricing-amount {
+                font-size: 2.35rem;
+                font-weight: 800;
+                color: #34d399;
+                line-height: 1.1;
+                margin: 0;
+            }
+            .pricing-amount span {
+                font-size: 0.95rem;
+                font-weight: 600;
+                color: #94a3b8;
+            }
+            .pricing-equiv {
+                margin: 6px 0 14px;
+                font-size: 0.84rem;
+                color: #a7f3d0;
+                font-weight: 600;
+            }
+            .pricing-desc {
+                margin: 0 0 18px;
+                font-size: 0.9rem;
+                color: #cbd5e1;
+                line-height: 1.45;
+            }
+            .pricing-features {
+                list-style: none;
+                padding: 0;
+                margin: 0 0 24px;
+                display: flex;
+                flex-direction: column;
+                gap: 9px;
+            }
+            .pricing-features li {
+                font-size: 0.88rem;
+                color: #e2e8f0;
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            .pricing-cta {
+                display: block;
+                text-align: center;
+                text-decoration: none;
+                font-weight: 700;
+                font-size: 0.94rem;
+                padding: 13px 18px;
+                border-radius: 12px;
+                transition: filter 0.15s ease, background 0.15s ease;
+            }
+            .pricing-cta-outline {
+                background: #1e293b;
+                color: #ffffff;
+                border: 1px solid rgba(148, 163, 184, 0.35);
+            }
+            .pricing-cta-outline:hover { background: #334155; }
+            .pricing-cta-primary {
+                background: linear-gradient(135deg, #10b981, #059669);
+                color: #ffffff;
+            }
+            .pricing-cta-primary:hover { filter: brightness(1.08); }
+            .pricing-note {
+                margin-top: 26px;
+                font-size: 0.84rem;
+                color: #94a3b8;
+                line-height: 1.55;
+            }
+            .pricing-pay-pills {
+                display: flex;
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 12px;
+            }
+            .pricing-pay-pill {
+                background: #1e293b;
+                border: 1px solid rgba(148, 163, 184, 0.22);
+                color: #cbd5e1;
+                border-radius: 999px;
+                padding: 5px 12px;
+                font-size: 0.78rem;
+                font-weight: 600;
+            }
+            @media (max-width: 768px) {
+                .pricing-grid { grid-template-columns: 1fr; }
+            }
+        </style>
+
+        <section class="pricing-section" id="precios">
+            <div class="pricing-container">
+                <span class="badge-amber">PLANES TRANSPARENTES • 14 DÍAS GRATIS SIN TARJETA</span>
+                <h2 class="section-title">Un solo plan para tu PC y tu celular</h2>
+                <p class="pricing-subtitle">
+                    Empezá con <strong>14 días de prueba gratuita</strong> con todas las funciones desbloqueadas. Al finalizar, elegí el plan que mejor se adapte a tu comercio.
+                </p>
+
+                <div class="pricing-grid">
+                    <!-- Plan Mensual -->
+                    <div class="pricing-card">
+                        <div>
+                            <h3 class="pricing-plan-name">📅 Plan Mensual (30 días)</h3>
+                            <p class="pricing-amount">US$ 9.99 <span>USD / mes</span></p>
+                            <p class="pricing-equiv">Sin permanencia • Pagás mes a mes</p>
+                            <p class="pricing-desc">Ideal para comenzar a ordenar tu stock, caja y catálogo online con total flexibilidad.</p>
+                            <ul class="pricing-features">
+                                <li><span>✅</span><span>Acceso simultáneo a Web PC + App Android.</span></li>
+                                <li><span>✅</span><span>Inventario, POS, Clientes y Finanzas en 7 niveles.</span></li>
+                                <li><span>✅</span><span>Catálogo PDF ilimitado y Tienda Cat-Web sin comisiones.</span></li>
+                                <li><span>✅</span><span>Sincronización en tiempo real enntre PC y App.</span></li>
+                            </ul>
+                        </div>
+                        <a href="app/dashboard.html?tab=register" class="pricing-cta pricing-cta-outline">
+                            ✨ Empezar 14 días gratis
+                        </a>
+                    </div>
+
+                    <!-- Plan Anual -->
+                    <div class="pricing-card featured">
+                        <span class="pricing-save-badge">Ahorrás 26%</span>
+                        <div>
+                            <h3 class="pricing-plan-name">⭐ Plan Anual (365 días)</h3>
+                            <p class="pricing-amount">US$ 89 <span>USD / año</span></p>
+                            <p class="pricing-equiv">Equivale a US$ 7.41 USD / mes</p>
+                            <p class="pricing-desc">Un año completo al mejor precio, protegiendo tu tarifa y manteniendo tu negocio siempre activo.</p>
+                            <ul class="pricing-features">
+                                <li><span>✅</span><span>Todo lo incluido en el Plan Mensual.</span></li>
+                                <li><span>✅</span><span>365 días de acceso ininterrumpido en PC y celular.</span></li>
+                                <li><span>✅</span><span>Actualizaciones y mejoras de la plataforma incluidas.</span></li>
+                                <li><span>✅</span><span>Ahorra tiempo en tu negocio.</span></li>
+                            </ul>
+                        </div>
+                        <a href="app/dashboard.html?tab=register" class="pricing-cta pricing-cta-primary">
+                            🚀 Probar 14 días gratis y elegir Anual
+                        </a>
+                    </div>
+                </div>
+
+                <div class="pricing-note">
+                    Precios expresados en dólares estadounidenses (USD). Al pagar, la pasarela aplica automáticamente la conversión a tu moneda local e impuestos correspondientes.
+                    <div class="pricing-pay-pills">
+                        <span class="pricing-pay-pill">🌎 Tarjeta / PayPal (Global)</span>
+                        <span class="pricing-pay-pill">🇦🇷 Mercado Pago (Argentina ARS)</span>
+                        <span class="pricing-pay-pill">📱 Google Play</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==========================================
             MODAL DE INICIO DE SESIÓN (LOGIN / REGISTRO)
             ========================================== -->
         <div class="auth-modal-overlay" id="auth-modal">
@@ -526,28 +736,30 @@
                 <div class="link-column">
                     <h4>Plataforma</h4>
                     <ul>
-                        <li><a href="#">Punto de Venta (POS)</a></li>
-                        <li><a href="#">Catálogo Web sin Comisión</a></li>
-                        <li><a href="#">Diseño de catálogos PDF</a></li>
-                        <li><a href="#">Importador Express Excel</a></li>
+                        <li><a href="#funciones">Punto de Venta (POS)</a></li>
+                        <li><a href="#funciones">Catálogo Web sin Comisión</a></li>
+                        <li><a href="#detalles">Diseño de catálogos PDF</a></li>
+                        <li><a href="#precios">Planes y Precios</a></li>
                     </ul>
                 </div>
                 <div class="link-column">
                     <h4>Soporte y Legal</h4>
                     <ul>
-                        <li><a href="#">Comunidad WhatsApp</a></li>
-                        <li><a href="#">Términos de Servicio</a></li>
-                        <li><a href="#">Política de Privacidad</a></li>
-                        <li><a href="#">Preguntas Frecuentes</a></li>
+                        <li><a href="https://pipocor17.github.io/cat-alogo-legal-/terminos.html" target="_blank" rel="noopener">Términos de Servicio</a></li>
+                        <li><a href="https://pipocor17.github.io/cat-alogo-legal-/" target="_blank" rel="noopener">Política de Privacidad</a></li>
+                        <li><a href="mailto:algoncor85@gmail.com">Soporte: algoncor85@gmail.com</a></li>
+                        <li><a href="app/dashboard.html">Acceso Web PC</a></li>
                     </ul>
                 </div>
             </div>
-        </div>
         
         <div class="footer-bottom">
             <p>&copy; 2026 Cat-Alogo. Tu negocio, en todas partes. Todos los derechos reservados.</p>
             <div class="footer-badge">🛡️ Arquitectura 100% Soberana Local-First</div>
         </div>
+
+        
+
     </footer>
 
     <!-- Enlace al archivo de JavaScript -->

@@ -859,6 +859,9 @@
         iniciarProteccionDomAntiDevTools();
     }
 
+    const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('tab') === 'register') setAuthTab('register');
+
     function iniciarProteccionDomAntiDevTools() {
         if (state.observerDom || typeof MutationObserver === 'undefined') return;
         state.observerDom = new MutationObserver(() => {
@@ -1097,7 +1100,23 @@
                 const priceId = bill.paddlePriceIds?.[plan];
                 if (window.Paddle && bill.paddleClientToken && priceId) {
                     if (!window._catPaddleInit) {
-                        window.Paddle.Initialize({ token: bill.paddleClientToken });
+                        const esSandbox = bill.paddleEnvironment === 'sandbox' || String(bill.paddleClientToken).startsWith('test_');
+                        if (esSandbox && window.Paddle.Environment?.set) {
+                            window.Paddle.Environment.set('sandbox');
+                        }
+                        window.Paddle.Initialize({
+                            token: bill.paddleClientToken,
+                            eventCallback: (ev) => {
+                                if (ev?.name === 'checkout.completed') {
+                                    const boxOk = document.getElementById('auth-plans-success');
+                                    if (boxOk) {
+                                        boxOk.textContent = '✅ ¡Pago recibido! Acreditando tu plan en segundos…';
+                                        boxOk.style.display = 'block';
+                                    }
+                                    setTimeout(() => refrescarSuscripcionManual(true), 3000);
+                                }
+                            }
+                        });
                         window._catPaddleInit = true;
                     }
                     window.Paddle.Checkout.open({
@@ -1586,7 +1605,7 @@
 
             <h4>3. Planes, Suscripciones, Renovación y Reembolsos</h4>
             <p>Cat-Alogo ofrece una <strong>prueba gratuita única de 14 días</strong> y planes de pago (mensual de 30 días y anual de 365 días). Queda prohibida la creación de múltiples cuentas o el uso de alias/correos temporales para extender la prueba gratuita. Al abonar un plan mientras ya tenés días vigentes, se acumulan los días correspondientes sobre tu vencimiento actual; al vencer un período sin renovación, el acceso operativo se pausa conservando tus datos intactos hasta que renueves.</p>
-            <p>Los pagos se procesan mediante pasarelas seguras de terceros (Mercado Pago, Paddle y Google Play Billing), sin que el Titular almacene datos de tarjetas. Los precios de referencia en USD o ARS pueden estar sujetos a impuestos locales, comisiones o conversiones de moneda de cada pasarela/país. No se emiten reembolsos una vez procesado el pago de un período, salvo disposición legal aplicable o políticas de la pasarela correspondiente.</p>
+            <p>Los pagos se procesan mediante pasarelas seguras de terceros (Mercado Pago, Paddle y Google Play Billing), sin que el Titular almacene datos de tarjetas. Los precios de referencia en USD o ARS pueden estar sujetos a impuestos locales, comisiones o conversiones de moneda de cada pasarela/país. Las compras procesadas mediante Paddle cuentan con garantía de reembolso de 14 días calendario desde la compra; en Google Play y Mercado Pago aplican las políticas de cada pasarela y la normativa vigente. Solicitudes a <a href="mailto:algoncor85@gmail.com">algoncor85@gmail.com</a>.</p>
 
             <h4>4. Uso Aceptable y Tienda Pública (Cat-Web)</h4>
             <p>Está estrictamente prohibido utilizar Cat-Alogo para publicar, promocionar o vender bienes o servicios ilegales, armas de fuego, municiones o explosivos, drogas o sustancias controladas, material sexualmente explícito, o productos robados, falsificados o que infrinjan propiedad intelectual. El Titular puede suspender o bloquear cuentas de forma permanente y sin previo aviso ante infracciones a esta cláusula.</p>

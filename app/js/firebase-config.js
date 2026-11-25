@@ -36,12 +36,15 @@ window.CAT_ALOGO_CLOUD_CONFIG = {
         // Si lo dejás en 0, toma automáticamente config_global/billing.cotizacionArs desde Firestore (si existe)
         cotizacionArsReferencia: 0,
         endpointMercadoPago: "https://southamerica-east1-cat-alogo.cloudfunctions.net/crearCheckoutMercadoPago",
-        // Completar cuando actives Paddle Billing
+
+        // Paddle Billing v2 (cambiar a "production" y claves live_... al salir en vivo)
         endpointPaddle: "",
-        paddleClientToken: "",
+        paddleEnvironment: "sandbox",
+        paddleClientToken: "test_d90426b03ea7556c308b42c8343",
         paddlePriceIds: {
-            mensual: "",
-            anual: ""
+            mensual: "pri_01m87xq0wssdp8p242etctn8y2",
+            anual: "pri_01m87xvsarpt3h7x4257kwrata"
         }
     }
 };
+
