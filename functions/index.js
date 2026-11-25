@@ -9,7 +9,8 @@ const db = admin.firestore();
 // Secretos seguros (cargados con: firebase functions:secrets:set NOMBRE)
 const MP_ACCESS_TOKEN = defineSecret('MP_ACCESS_TOKEN');
 const RC_WEBHOOK_AUTH = defineSecret('RC_WEBHOOK_AUTH');
-const RC_SECRET_API_KEY = defineSecret('RC_SECRET_API_KEY'); // Opcional: reflejar pagos MP en RevenueCat
+const RC_SECRET_API_KEY = defineSecret('RC_SECRET_API_KEY'); // Opcional: reflejar pagos MP/Paddle en RevenueCat
+const PADDLE_WEBHOOK_SECRET = defineSecret('PADDLE_WEBHOOK_SECRET');
 
 const PRECIOS_USD = {
     mensual: { usd: 9.99, dias: 30, titulo: 'Cat-Alogo Pro — Plan 30 Días' },
@@ -24,7 +25,7 @@ const DOMINIOS_DESCARTABLES = new Set([
     'throwawaymail.com', 'mailnesia.com', 'getairmail.com', 'burnermail.io'
 ]);
 
-const FALLBACK_RETURN_URL = 'https://cat-alogo-landing-page.vercel.app/';
+const FALLBACK_RETURN_URL = 'https://cat-alogo-landing-page.vercel.app/app/dashboard.html';
 
 /* --- HELPERS --- */
 function normalizarEmail(email) {
@@ -52,6 +53,34 @@ function parsearFechaMs(val) {
     if (typeof val?.seconds === 'number') return val.seconds * 1000;
     const parsed = Date.parse(String(val));
     return isNaN(parsed) ? 0 : parsed;
+}
+
+function verificarFirmaPaddle(rawBody, signatureHeader, secret) {
+    if (!rawBody || !signatureHeader || !secret) return false;
+    const partes = String(signatureHeader).split(';').map(p => p.trim());
+    let ts = '';
+    const firmasH1 = [];
+    for (const p of partes) {
+        if (p.startsWith('ts=')) ts = p.slice(3);
+        if (p.startsWith('h1=')) firmasH1.push(p.slice(3));
+    }
+    if (!ts || firmasH1.length === 0) return false;
+
+    const rawStr = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody);
+    const esperadoHex = crypto
+        .createHmac('sha256', secret)
+        .update(`${ts}:${rawStr}`)
+        .digest('hex');
+
+    const esperadoBuf = Buffer.from(esperadoHex, 'hex');
+    return firmasH1.some((h1) => {
+        try {
+            const recibidoBuf = Buffer.from(h1, 'hex');
+            return recibidoBuf.length === esperadoBuf.length && crypto.timingSafeEqual(recibidoBuf, esperadoBuf);
+        } catch {
+            return false;
+        }
+    });
 }
 
 async function verificarTokenUsuario(req) {
@@ -87,7 +116,7 @@ async function escribirLicenciaEnFirestore(uid, payload) {
 }
 
 /* ==========================================================================
-   1. ACTIVAR PRUEBA GRATIS (14 DÍAS) DESDE EL SERVIDOR (ANTI-TRAMPAS)
+1. ACTIVAR PRUEBA GRATIS (14 DÍAS) DESDE EL SERVIDOR (ANTI-TRAMPAS)
    ========================================================================== */
 exports.activarPruebaGratis = onRequest({ cors: true, region: 'southamerica-east1' }, async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
@@ -170,7 +199,7 @@ exports.activarPruebaGratis = onRequest({ cors: true, region: 'southamerica-east
 });
 
 /* ==========================================================================
-   2. CREAR CHECKOUT DE MERCADO PAGO (ARGENTINA • PESOS ARS)
+2. CREAR CHECKOUT DE MERCADO PAGO (ARGENTINA • PESOS ARS)
    ========================================================================== */
 exports.crearCheckoutMercadoPago = onRequest(
     { cors: true, region: 'southamerica-east1', secrets: [MP_ACCESS_TOKEN] },
@@ -182,7 +211,6 @@ exports.crearCheckoutMercadoPago = onRequest(
             const uid = decoded.uid;
             const plan = req.body?.plan === 'mensual' ? 'mensual' : 'anual';
 
-            // Mercado Pago exige URLs https:// cuando auto_return está activo
             const rawReturnUrl = String(req.body?.returnUrl || '').trim();
             const returnUrl = rawReturnUrl.startsWith('https://')
                 ? rawReturnUrl
@@ -258,7 +286,7 @@ exports.crearCheckoutMercadoPago = onRequest(
 );
 
 /* ==========================================================================
-   3. WEBHOOK MERCADO PAGO (VERIFICA PAGO REAL Y ACTIVA LICENCIA EN FIRESTORE)
+3. WEBHOOK MERCADO PAGO (VERIFICA PAGO REAL Y ACTIVA LICENCIA EN FIRESTORE)
    ========================================================================== */
 exports.webhookMercadoPago = onRequest(
     { region: 'southamerica-east1', secrets: [MP_ACCESS_TOKEN, RC_SECRET_API_KEY] },
@@ -273,7 +301,6 @@ exports.webhookMercadoPago = onRequest(
 
             const mpToken = String(MP_ACCESS_TOKEN.value() || '').trim();
 
-            // Consultar el pago real a la API de Mercado Pago (anti-spoofing)
             const mpResp = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}`, {
                 headers: { Authorization: `Bearer ${mpToken}` }
             });
@@ -291,7 +318,6 @@ exports.webhookMercadoPago = onRequest(
             const plan = refParts[1] === 'mensual' ? 'mensual' : 'anual';
             if (!uid) return res.status(200).send('Sin UID');
 
-            // Idempotencia: no acreditar dos veces el mismo paymentId
             const pagoRef = db.collection('pagos_procesados').doc(`mp_${paymentId}`);
             const yaProcesado = await pagoRef.get();
             if (yaProcesado.exists) {
@@ -324,7 +350,6 @@ exports.webhookMercadoPago = onRequest(
                 procesadoEnMs: Date.now()
             });
 
-            // Opcional: reflejar el acceso en RevenueCat si configuraste RC_SECRET_API_KEY
             const rcKey = String(RC_SECRET_API_KEY.value() || '').trim();
             if (rcKey && rcKey.startsWith('sk_')) {
                 try {
@@ -351,7 +376,7 @@ exports.webhookMercadoPago = onRequest(
 );
 
 /* ==========================================================================
-   4. WEBHOOK REVENUECAT (UNIFICA GOOGLE PLAY ANDROID + PADDLE WEB GLOBAL)
+4. WEBHOOK REVENUECAT (UNIFICA GOOGLE PLAY ANDROID + PADDLE WEB GLOBAL)
    ========================================================================== */
 exports.webhookRevenueCat = onRequest(
     { region: 'southamerica-east1', secrets: [RC_WEBHOOK_AUTH] },
@@ -407,6 +432,109 @@ exports.webhookRevenueCat = onRequest(
             return res.status(200).send('OK');
         } catch (err) {
             console.error('Error en webhookRevenueCat:', err);
+            return res.status(500).send('Error interno');
+        }
+    }
+);
+
+/* ==========================================================================
+5. WEBHOOK PADDLE BILLING v2 (PAGOS INTERNACIONALES EN USD / MONEDA LOCAL)
+   ========================================================================== */
+exports.webhookPaddle = onRequest(
+    { region: 'southamerica-east1', secrets: [PADDLE_WEBHOOK_SECRET, RC_SECRET_API_KEY] },
+    async (req, res) => {
+        if (req.method !== 'POST') return res.status(405).send('Método no permitido');
+
+        try {
+            const secret = String(PADDLE_WEBHOOK_SECRET.value() || '').trim();
+            const sigHdr = req.headers['paddle-signature'] || req.headers['Paddle-Signature'] || '';
+
+            if (!verificarFirmaPaddle(req.rawBody, sigHdr, secret)) {
+                console.warn('Firma Paddle-Signature inválida o faltante.');
+                return res.status(401).send('Firma inválida');
+            }
+
+            const eventType = String(req.body?.event_type || '');
+            if (eventType !== 'transaction.completed') {
+                return res.status(200).send(`OK (ignorado: ${eventType})`);
+            }
+
+            const tx = req.body?.data || {};
+            const txId = String(tx.id || '').trim();
+            const custom = tx.custom_data || {};
+            const uid = String(custom.uid || custom.app_user_id || '').trim();
+
+            if (!uid || !txId) {
+                return res.status(200).send('Sin UID o ID de transacción');
+            }
+
+            // Determinar el plan (prioriza custom_data.plan; fallback por descripción/precio)
+            let plan = custom.plan === 'mensual' ? 'mensual' : (custom.plan === 'anual' ? 'anual' : '');
+            if (!plan) {
+                const desc = String(tx.items?.[0]?.price?.description || tx.items?.[0]?.price?.name || '').toLowerCase();
+                plan = (desc.includes('anual') || desc.includes('365') || desc.includes('year')) ? 'anual' : 'mensual';
+            }
+
+            // Idempotencia: no acreditar dos veces la misma transacción
+            const pagoRef = db.collection('pagos_procesados').doc(`paddle_${txId}`);
+            const yaProcesado = await pagoRef.get();
+            if (yaProcesado.exists) {
+                return res.status(200).send('Ya procesado');
+            }
+
+            const dias = PRECIOS_USD[plan].dias;
+            const userSnap = await db.collection('users').doc(uid).get();
+            const expActualMs = parsearFechaMs(userSnap.data()?.fecha_expiracion);
+            const baseMs = Math.max(Date.now(), expActualMs);
+            const nuevaExpiraMs = baseMs + (dias * 24 * 60 * 60 * 1000);
+
+            const totalCentavos = Number(tx.details?.totals?.total || 0);
+            const monto = totalCentavos > 0 ? totalCentavos / 100 : PRECIOS_USD[plan].usd;
+            const moneda = String(tx.currency_code || 'USD');
+
+            await escribirLicenciaEnFirestore(uid, {
+                plan,
+                plan_actual: plan,
+                status: 'active',
+                activePlan: true,
+                fecha_expiracion: nuevaExpiraMs,
+                source: 'paddle',
+                ultimoPagoId: txId,
+                ultimoPagoMonto: monto,
+                ultimoPagoMoneda: moneda
+            });
+
+            await pagoRef.set({
+                uid,
+                plan,
+                gateway: 'paddle',
+                transactionId: txId,
+                monto,
+                moneda,
+                procesadoEnMs: Date.now()
+            });
+
+            // Opcional: reflejar el acceso en RevenueCat si configuraste RC_SECRET_API_KEY
+            const rcKey = String(RC_SECRET_API_KEY.value() || '').trim();
+            if (rcKey && rcKey.startsWith('sk_')) {
+                try {
+                    const duracionRc = plan === 'anual' ? 'yearly' : 'monthly';
+                    await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(uid)}/entitlements/pro/promotional`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${rcKey}`
+                        },
+                        body: JSON.stringify({ duration: duracionRc })
+                    });
+                } catch (rcErr) {
+                    console.warn('No se pudo reflejar Paddle en RevenueCat (Firestore sí actualizado):', rcErr);
+                }
+            }
+
+            return res.status(200).send('OK');
+        } catch (err) {
+            console.error('Error en webhookPaddle:', err);
             return res.status(500).send('Error interno');
         }
     }
