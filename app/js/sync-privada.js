@@ -309,6 +309,59 @@
         });
     }
 
+    function construirPayloadsCobrosClienteCompat(cli) {
+        const movs = Array.isArray(cli?.movimientos) ? cli.movimientos : [];
+        if (movs.length === 0) return [];
+        const myDeviceId = getPcDeviceId();
+        const nombreCli = String(cli.nombre || cli.nombre_apellido || 'Cliente').trim();
+
+        return movs
+            .filter((m) => {
+                if (!m || m.tipo !== 'credito') return false;
+                if ((Number(m.monto) || 0) <= 0) return false;
+                const mId = String(m.id || '');
+                // No re-emitir cobros que ya vinieron desde la App Android
+                if (mId.startsWith('cobro_') || mId.startsWith('mov-app-')) return false;
+                return true;
+            })
+            .map((m) => {
+                const monto = Math.max(0, Math.round((Number(m.monto) || 0) * 100) / 100);
+                const medio = String(m.medio || 'Efectivo').trim();
+                const fecha = m.fecha || new Date().toISOString();
+                const cajaId = obtenerTurnoActivoIdParaFecha(fecha);
+                const docId = `cobro_pc_${cli.id}_${m.id}`;
+                const concepto = `Cobro Cta. Cte.: ${nombreCli} • ${m.concepto || 'Abono ' + medio}`;
+
+                return {
+                    docId,
+                    data: sanitizarParaFirestore({
+                        id: docId,
+                        cajaId,
+                        turnoId: cajaId,
+                        tipo: 'ingreso',
+                        tipoApp: 'ingreso_cobro_deuda',
+                        esCobroDeuda: true,
+                        monto,
+                        montoTotal: monto,
+                        medio,
+                        metodoPago: medio,
+                        categoria: 'Cobro Cuenta Corriente',
+                        concepto,
+                        nota: concepto,
+                        fecha,
+                        estadoPago: 'Completado',
+                        clienteId: String(cli.id),
+                        clienteNombre: nombreCli,
+                        origen: 'pc',
+                        _deleted: false,
+                        updatedAtMs: Date.now(),
+                        updatedBy: 'web_pc',
+                        deviceId: myDeviceId
+                    })
+                };
+            });
+    }
+
     function normalizarClienteRemotoAPc(docId, remoto, localPrev = null) {
         const esDesdeApp = remoto.updatedBy === 'app_android';
         const nombre = String(remoto.nombre || remoto.nombre_apellido || localPrev?.nombre || 'Cliente').trim();
@@ -1064,7 +1117,11 @@
                         data = await subirImagenesBase64SiAplica(op.subcol, op.docId, data);
                         data = construirPayloadProductoCompat(data);
                     } else if (op.subcol === 'clientes') {
+                        const cobrosDocs = construirPayloadsCobrosClienteCompat(data);
                         data = construirPayloadClienteCompat(data);
+                        for (const cob of cobrosDocs) {
+                            await userDoc.collection('finanzas_gastos').doc(cob.docId).set(cob.data, { merge: true });
+                        }
                     } else if (op.subcol === 'proveedores') {
                         data = construirPayloadProveedorCompat(data);
                     } else if (op.subcol === 'pedidos_proveedores') {
@@ -1245,7 +1302,11 @@
         const movId = `cobro_${docId}`;
 
         if (remoto._deleted) {
-            const filtrados = cli.movimientos.filter(m => String(m.id) !== movId && String(m.id) !== String(docId));
+            const filtrados = cli.movimientos.filter(m =>
+                String(m.id) !== movId &&
+                String(m.id) !== String(docId) &&
+                !(String(docId).startsWith('cobro_pc_') && String(docId).endsWith(`_${m.id}`))
+            );
             if (filtrados.length !== cli.movimientos.length) {
                 cli.movimientos = filtrados;
                 escribirLocalSilencioso('cat_alogo_clientes_v1', clientes, 'id');
@@ -1263,7 +1324,11 @@
         const fecha = remoto.fecha || new Date().toISOString();
         const tsNuevo = new Date(fecha).getTime() || Date.now();
 
-        const idxExist = cli.movimientos.findIndex(m => String(m.id) === movId || String(m.id) === String(docId));
+        const idxExist = cli.movimientos.findIndex(m =>
+            String(m.id) === movId ||
+            String(m.id) === String(docId) ||
+            (String(docId).startsWith('cobro_pc_') && String(docId).endsWith(`_${m.id}`))
+        );
         if (idxExist >= 0) {
             cli.movimientos[idxExist] = { ...cli.movimientos[idxExist], monto, medio, fecha, concepto: `Abono ${medio}` };
         } else {
@@ -1562,6 +1627,7 @@
             let recibidos = 0;
 
             const keysPush = [
+                { key: 'cat_alogo_clientes_v1', subcol: 'clientes', build: construirPayloadClienteCompat, siempre: true },
                 { key: 'cat_alogo_proveedores_v1', subcol: 'proveedores', build: construirPayloadProveedorCompat, siempre: true, omitirDemo: true },
                 { key: 'cat_alogo_pedidos_v1', subcol: 'pedidos_proveedores', build: construirPayloadPedidoCompat, siempre: true },
                 { key: 'cat_alogo_pos_turnos_v1', subcol: 'turnos_caja', build: construirPayloadTurnoCompat, siempre: true },
@@ -1590,6 +1656,13 @@
                         construirPayloadsAdelantosCxpCompat(it).forEach((ad) => {
                             const adRef = userDoc.collection('cuentas_pagar').doc(ad.docId);
                             batch.set(adRef, ad.data, { merge: true });
+                            subidos++;
+                        });
+                    }
+                    if (cfg.subcol === 'clientes') {
+                        construirPayloadsCobrosClienteCompat(it).forEach((cob) => {
+                            const cobRef = userDoc.collection('finanzas_gastos').doc(cob.docId);
+                            batch.set(cobRef, cob.data, { merge: true });
                             subidos++;
                         });
                     }
@@ -1668,7 +1741,7 @@
                 const items = leerJson(storageKey, []);
                 if (!Array.isArray(items) || items.length === 0) continue;
 
-                const chunkSize = meta.subcol === 'cuentas_pagar' ? 150 : 400;
+                const chunkSize = (meta.subcol === 'cuentas_pagar' || meta.subcol === 'clientes') ? 150 : 400;
                 for (let i = 0; i < items.length; i += chunkSize) {
                     const chunk = items.slice(i, i + chunkSize);
                     const batch = state.db.batch();
@@ -1682,6 +1755,11 @@
                             payload = await subirImagenesBase64SiAplica(meta.subcol, docId, item);
                             payload = construirPayloadProductoCompat(payload);
                         } else if (meta.subcol === 'clientes') {
+                            construirPayloadsCobrosClienteCompat(item).forEach((cob) => {
+                                const cobRef = userDoc.collection('finanzas_gastos').doc(cob.docId);
+                                batch.set(cobRef, cob.data, { merge: true });
+                                totalDocs++;
+                            });
                             payload = construirPayloadClienteCompat(item);
                         } else if (meta.subcol === 'proveedores') {
                             payload = construirPayloadProveedorCompat(item);
@@ -2048,4 +2126,3 @@
     window.addEventListener('cat-alogo:suscripcion-actualizada', renderizarSemaforoTopbar);
     window.addEventListener('cat-alogo:turno-actualizado', () => setTimeout(renderizarSemaforoTopbar, 250));
 })();
-
