@@ -1628,10 +1628,35 @@ function actualizarBadgeEstadoNubeCw(conectado, textoExtra = '') {
 
 function conectarPuenteFirebaseCw() {
     const authCtx = obtenerAuthContextoCw();
+    const authState = window.CatAlogoAuth?.getState?.();
+    const usaAuthUnificado = Boolean(
+        window.CAT_ALOGO_CLOUD_CONFIG?.firebaseConfig?.apiKey ||
+        (authState && !authState.modoLocalSinFirebase)
+    );
+
     if (authCtx.db && authCtx.uid) {
+        if (typeof cwRadarUnsubscribe === 'function') {
+            cwRadarUnsubscribe();
+            cwRadarUnsubscribe = null;
+        }
+        cwFirestoreDb = authCtx.db;
         iniciarEscuchaVendorCatWebCw();
         actualizarBadgeEstadoNubeCw(true);
         return true;
+    }
+
+    // Esperar a Firebase Auth sin abrir una instancia secundaria sin autenticar
+    if (usaAuthUnificado) {
+        if (typeof cwRadarUnsubscribe === 'function') {
+            cwRadarUnsubscribe();
+            cwRadarUnsubscribe = null;
+        }
+        if (typeof cwVendorUnsubscribe === 'function') {
+            cwVendorUnsubscribe();
+            cwVendorUnsubscribe = null;
+        }
+        actualizarBadgeEstadoNubeCw(false);
+        return false;
     }
 
     const fbCfg = obtenerConfigFirebaseCw();
