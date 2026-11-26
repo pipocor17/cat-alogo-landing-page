@@ -23,6 +23,8 @@
         trial_14: 'Prueba Gratis (14 días)',
         trial: 'Prueba Gratis (14 días)',
         prueba: 'Prueba Gratis (14 días)',
+        gratis: 'Prueba Gratis (14 días)',
+        free: 'Prueba Gratis (14 días)',
         mensual: 'Plan Mensual (30 días)',
         mensual_30: 'Plan Mensual (30 días)',
         monthly: 'Plan Mensual (30 días)',
@@ -66,6 +68,7 @@
             cotizacionArsReferencia: 0,
             endpointMercadoPago: '',
             endpointPaddle: '',
+            paddleEnvironment: 'production',
             paddleClientToken: '',
             paddlePriceIds: { mensual: '', anual: '' }
         };
@@ -110,8 +113,8 @@
     }
 
     function esPlanTrial(planStr) {
-        const p = String(planStr || '').toLowerCase();
-        return p.includes('trial') || p.includes('prueba') || p === 'sin_plan' || p === '';
+        const p = String(planStr || '').toLowerCase().trim();
+        return p.includes('trial') || p.includes('prueba') || p === 'gratis' || p === 'free' || p === 'sin_plan' || p === '';
     }
 
     function normalizarEmailAntiAlias(email) {
@@ -856,11 +859,13 @@
 
         document.body.appendChild(wrapper);
         enlazarEventosOverlays();
+
+        // Respetar ?tab=register una vez que el DOM del modal ya existe
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('tab') === 'register') setAuthTab('register');
+
         iniciarProteccionDomAntiDevTools();
     }
-
-    const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('tab') === 'register') setAuthTab('register');
 
     function iniciarProteccionDomAntiDevTools() {
         if (state.observerDom || typeof MutationObserver === 'undefined') return;
@@ -1376,7 +1381,7 @@
             status: activa ? (statusRaw || 'active') : 'expired',
             expiresAtMs,
             diasRestantes: Math.max(0, diasRestantes),
-            source: d.source || 'google_play',
+            source: d.source || (esPlanTrial(plan) ? 'trial' : 'google_play'),
             raw: d
         };
     }

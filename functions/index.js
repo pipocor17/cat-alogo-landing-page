@@ -161,6 +161,7 @@ exports.activarPruebaGratis = onRequest({ cors: true, region: 'southamerica-east
                     status: 'expired',
                     activePlan: false,
                     trialUsed: true,
+                    usedTrial: true,
                     trialBlockedReason: 'email_alias_already_used',
                     createdFrom: 'web_pc',
                     createdAtMs: ahoraMs
@@ -179,6 +180,7 @@ exports.activarPruebaGratis = onRequest({ cors: true, region: 'southamerica-east
                 activePlan: true,
                 fecha_expiracion: expiraMs,
                 trialUsed: true,
+                usedTrial: true,
                 termsAcceptedAt: new Date(ahoraMs).toISOString(),
                 createdFrom: 'web_pc',
                 source: 'web_trial',
@@ -376,7 +378,7 @@ exports.webhookMercadoPago = onRequest(
 );
 
 /* ==========================================================================
-4. WEBHOOK REVENUECAT (UNIFICA GOOGLE PLAY ANDROID + PADDLE WEB GLOBAL)
+4. WEBHOOK REVENUECAT (UNIFICA GOOGLE PLAY ANDROID • PROTEGE PLANES WEB)
    ========================================================================== */
 exports.webhookRevenueCat = onRequest(
     { region: 'southamerica-east1', secrets: [RC_WEBHOOK_AUTH] },
@@ -410,17 +412,37 @@ exports.webhookRevenueCat = onRequest(
             const eventosActivos = new Set(['INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION', 'PRODUCT_CHANGE', 'NON_RENEWING_PURCHASE']);
             const eventosVencidos = new Set(['EXPIRATION', 'BILLING_ISSUE']);
 
+            const userSnap = await db.collection('users').doc(uid).get();
+            const uData = userSnap.exists ? (userSnap.data() || {}) : {};
+            const expActualMs = parsearFechaMs(uData.fecha_expiracion);
+            const fuenteActual = String(uData.source || '').toLowerCase();
+
             if (eventosActivos.has(tipo)) {
+                // Nunca acortar una fecha de vencimiento futura ya pagada
+                const expEventoMs = expiraMs > 0 ? expiraMs : (Date.now() + (esAnual ? 365 : 30) * 86400000);
+                const expFinalMs = Math.max(expActualMs, expEventoMs);
+
                 await escribirLicenciaEnFirestore(uid, {
                     plan,
                     plan_actual: plan,
                     status: 'active',
                     activePlan: true,
-                    fecha_expiracion: expiraMs > 0 ? expiraMs : (Date.now() + (esAnual ? 365 : 30) * 86400000),
+                    fecha_expiracion: expFinalMs,
                     source,
                     rcProductId: ev.product_id || ''
                 });
             } else if (eventosVencidos.has(tipo)) {
+                // Proteger planes Web vigentes (Paddle / Mercado Pago) frente a expiraciones tardías de RC/Play
+                if ((fuenteActual === 'paddle' || fuenteActual === 'mercadopago') && expActualMs > Date.now()) {
+                    console.info(`Ignorando ${tipo} de RevenueCat para ${uid}: posee plan ${fuenteActual} vigente.`);
+                    return res.status(200).send('OK (plan web vigente protegido)');
+                }
+
+                // Ignorar eventos de expiración viejos si Firestore ya tiene una renovación más reciente
+                if (expiraMs > 0 && expActualMs > expiraMs && expActualMs > Date.now()) {
+                    return res.status(200).send('OK (expiración obsoleta ignorada)');
+                }
+
                 await escribirLicenciaEnFirestore(uid, {
                     status: 'expired',
                     activePlan: false,
@@ -539,4 +561,3 @@ exports.webhookPaddle = onRequest(
         }
     }
 );
-
