@@ -1,6 +1,7 @@
 /* ==========================================================================
    ETAPA 4+: MOTOR DE SINCRONIZACIÓN PRIVADA APP ↔ PC (FIRESTORE)
    (FORZAR SYNC, CAJA ÚNICA, FIADOS, CXP + ADELANTOS, PROVEEDORES, PEDIDOS, WEBP)
+   * Visibilidad en Catálogo PDF (incluirPdf/visiblePdf/enCatalogo) 100% LOCAL
    ========================================================================== */
 (function () {
     const STORAGE_KEY_SYNC_CFG = 'cat_alogo_sync_cfg_v1';
@@ -186,34 +187,28 @@
     }
 
     function construirPayloadProductoCompat(prod) {
-        const imgPrincipal = (Array.isArray(prod.imagenes) && prod.imagenes[0]) ? prod.imagenes[0] : (prod.imagen_url || '');
-        const enWeb = prod.publicarWeb !== undefined
-            ? !!prod.publicarWeb
-            : (prod.visibleWeb !== undefined
-                ? !!prod.visibleWeb
-                : (prod.visible !== undefined ? !!prod.visible : Boolean(prod.publicado)));
-        const enPdf = prod.incluirPdf !== undefined
-            ? !!prod.incluirPdf
-            : (prod.visiblePdf !== undefined
-                ? !!prod.visiblePdf
-                : (prod.enCatalogo !== undefined ? !!prod.enCatalogo : true));
+        // Excluir siempre campos de visibilidad en Catálogo PDF (son locales por dispositivo)
+        const { incluirPdf, visiblePdf, enCatalogo, ...prodSinPdf } = prod || {};
+        const imgPrincipal = (Array.isArray(prodSinPdf.imagenes) && prodSinPdf.imagenes[0]) ? prodSinPdf.imagenes[0] : (prodSinPdf.imagen_url || '');
+        const enWeb = prodSinPdf.publicarWeb !== undefined
+            ? !!prodSinPdf.publicarWeb
+            : (prodSinPdf.visibleWeb !== undefined
+                ? !!prodSinPdf.visibleWeb
+                : (prodSinPdf.visible !== undefined ? !!prodSinPdf.visible : Boolean(prodSinPdf.publicado)));
 
         return sanitizarParaFirestore({
-            ...prod,
-            precio: Number(prod.precioNormal) || 0,
-            precio_costo: Number(prod.precioCosto) || 0,
-            umbralCritico: Number(prod.stockMinimo) || 5,
-            descripcionCorta: prod.descripcion || '',
-            incluirPdf: enPdf,
-            enCatalogo: enPdf,
-            visiblePdf: enPdf,
+            ...prodSinPdf,
+            precio: Number(prodSinPdf.precioNormal) || 0,
+            precio_costo: Number(prodSinPdf.precioCosto) || 0,
+            umbralCritico: Number(prodSinPdf.stockMinimo) || 5,
+            descripcionCorta: prodSinPdf.descripcion || '',
             visible: enWeb,
             visibleWeb: enWeb,
             publicarWeb: enWeb,
             publicado: enWeb,
             imagen_url: imgPrincipal,
             imagen: imgPrincipal,
-            unidadVenta: prod.unidadMedida || 'U',
+            unidadVenta: prodSinPdf.unidadMedida || 'U',
             _deleted: false,
             updatedAtMs: Date.now(),
             updatedBy: 'web_pc',
@@ -221,41 +216,46 @@
         });
     }
 
-    function normalizarProductoRemotoAPc(docId, remoto) {
-        let base = { ...remoto, id: String(docId) };
+    function normalizarProductoRemotoAPc(docId, remoto, localPrev = null) {
+        // Ignorar campos de visibilidad PDF que vengan de la nube
+        const { incluirPdf: _rInc, visiblePdf: _rVis, enCatalogo: _rEnCat, ...remotoSinPdf } = remoto || {};
+        let base = { ...remotoSinPdf, id: String(docId) };
 
-        if (remoto.precio !== undefined && remoto.precioNormal === undefined && window.ImportadorAppJson?.mapearProductoAppAPc) {
-            base = window.ImportadorAppJson.mapearProductoAppAPc({ ...remoto, id: docId }, state.uid).producto;
+        if (remotoSinPdf.precio !== undefined && remotoSinPdf.precioNormal === undefined && window.ImportadorAppJson?.mapearProductoAppAPc) {
+            base = window.ImportadorAppJson.mapearProductoAppAPc({ ...remotoSinPdf, id: docId }, state.uid).producto;
         }
 
-        const esDesdeApp = remoto.updatedBy === 'app_android' || (remoto.precio !== undefined && remoto.precioNormal === undefined);
+        const esDesdeApp = remotoSinPdf.updatedBy === 'app_android' || (remotoSinPdf.precio !== undefined && remotoSinPdf.precioNormal === undefined);
         const precioNorm = esDesdeApp
-            ? (Number(remoto.precio ?? remoto.precioNormal) || 0)
-            : (Number(remoto.precioNormal ?? remoto.precio) || 0);
-        const precioOf = Number(remoto.precioOferta) || 0;
+            ? (Number(remotoSinPdf.precio ?? remotoSinPdf.precioNormal) || 0)
+            : (Number(remotoSinPdf.precioNormal ?? remotoSinPdf.precio) || 0);
+        const precioOf = Number(remotoSinPdf.precioOferta) || 0;
         const precioCost = esDesdeApp
-            ? (Number(remoto.precio_costo ?? remoto.precioCosto) || 0)
-            : (Number(remoto.precioCosto ?? remoto.precio_costo) || 0);
+            ? (Number(remotoSinPdf.precio_costo ?? remotoSinPdf.precioCosto) || 0)
+            : (Number(remotoSinPdf.precioCosto ?? remotoSinPdf.precio_costo) || 0);
 
-        const enWeb = remoto.publicarWeb !== undefined
-            ? !!remoto.publicarWeb
-            : (remoto.visibleWeb !== undefined
-                ? !!remoto.visibleWeb
-                : (remoto.publicado !== undefined ? !!remoto.publicado : (remoto.visible !== false)));
+        const enWeb = remotoSinPdf.publicarWeb !== undefined
+            ? !!remotoSinPdf.publicarWeb
+            : (remotoSinPdf.visibleWeb !== undefined
+                ? !!remotoSinPdf.visibleWeb
+                : (remotoSinPdf.publicado !== undefined ? !!remotoSinPdf.publicado : (remotoSinPdf.visible !== false)));
 
-        const enPdf = remoto.incluirPdf !== undefined
-            ? !!remoto.incluirPdf
-            : (remoto.visiblePdf !== undefined
-                ? !!remoto.visiblePdf
-                : (remoto.enCatalogo !== undefined ? !!remoto.enCatalogo : true));
+        // Conservar la selección PDF local si el producto ya existe; si es nuevo desde App, llega oculto en PDF
+        const enPdfLocal = localPrev
+            ? (localPrev.incluirPdf !== undefined
+                ? !!localPrev.incluirPdf
+                : (localPrev.visiblePdf !== undefined
+                    ? !!localPrev.visiblePdf
+                    : (localPrev.enCatalogo !== undefined ? !!localPrev.enCatalogo : true)))
+            : false;
 
         const descVal = esDesdeApp
-            ? (remoto.descripcionCorta !== undefined ? String(remoto.descripcionCorta) : String(remoto.descripcion || ''))
-            : (remoto.descripcion !== undefined ? String(remoto.descripcion) : String(remoto.descripcionCorta || ''));
+            ? (remotoSinPdf.descripcionCorta !== undefined ? String(remotoSinPdf.descripcionCorta) : String(remotoSinPdf.descripcion || ''))
+            : (remotoSinPdf.descripcion !== undefined ? String(remotoSinPdf.descripcion) : String(remotoSinPdf.descripcionCorta || ''));
 
-        const imgRemota = (Array.isArray(remoto.imagenes) && remoto.imagenes[0])
-            ? remoto.imagenes[0]
-            : (remoto.imagen_url || remoto.imagen || '');
+        const imgRemota = (Array.isArray(remotoSinPdf.imagenes) && remotoSinPdf.imagenes[0])
+            ? remotoSinPdf.imagenes[0]
+            : (remotoSinPdf.imagen_url || remotoSinPdf.imagen || '');
         const imgValida = (typeof imgRemota === 'string' && (imgRemota.startsWith('http://') || imgRemota.startsWith('https://') || imgRemota.startsWith('data:image/')))
             ? imgRemota
             : '';
@@ -263,23 +263,23 @@
         return {
             ...base,
             id: String(docId),
-            nombre: String(remoto.nombre || base.nombre || 'Producto').trim(),
-            sku: String(remoto.sku ?? base.sku ?? '').trim(),
-            categoria: String(remoto.categoria || base.categoria || 'General').trim() || 'General',
+            nombre: String(remotoSinPdf.nombre || base.nombre || 'Producto').trim(),
+            sku: String(remotoSinPdf.sku ?? base.sku ?? '').trim(),
+            categoria: String(remotoSinPdf.categoria || base.categoria || 'General').trim() || 'General',
             descripcion: descVal,
             precioNormal: precioNorm,
             precioOferta: precioOf,
             precioCosto: precioCost,
-            stock: Math.max(0, Math.round((Number(remoto.stock ?? base.stock) || 0) * 1000) / 1000),
-            stockMinimo: Number(remoto.stockMinimo ?? remoto.umbralCritico ?? base.stockMinimo ?? 5) || 5,
-            unidadMedida: String(remoto.unidadMedida || remoto.unidadVenta || base.unidadMedida || 'Unidad').trim(),
+            stock: Math.max(0, Math.round((Number(remotoSinPdf.stock ?? base.stock) || 0) * 1000) / 1000),
+            stockMinimo: Number(remotoSinPdf.stockMinimo ?? remotoSinPdf.umbralCritico ?? base.stockMinimo ?? 5) || 5,
+            unidadMedida: String(remotoSinPdf.unidadMedida || remotoSinPdf.unidadVenta || base.unidadMedida || 'Unidad').trim(),
             visible: enWeb,
             visibleWeb: enWeb,
             publicarWeb: enWeb,
             publicado: enWeb,
-            incluirPdf: enPdf,
-            visiblePdf: enPdf,
-            enCatalogo: enPdf,
+            incluirPdf: enPdfLocal,
+            visiblePdf: enPdfLocal,
+            enCatalogo: enPdfLocal,
             imagenes: imgValida ? [imgValida] : (Array.isArray(base.imagenes) ? base.imagenes : []),
             imagen_url: imgValida || base.imagen_url || ''
         };
@@ -844,8 +844,6 @@
             : Math.max(0, Math.round((total - costoEnvio) * 100) / 100);
         const saldado = deuda <= 0 || cxp.estado === 'pagado';
 
-        // El documento padre conserva SOLO el pago inicial y su medio original;
-        // los adelantos posteriores viajan como documentos 'pago_deuda_proveedor' aparte.
         const { pagoInicial, adelantos } = separarPagosCxpCompat(cxp);
         const montoInicial = pagoInicial
             ? Math.max(0, Math.round((Number(pagoInicial.monto) || 0) * 100) / 100)
@@ -1196,13 +1194,24 @@
         });
     }
 
+    function detectarCambioSoloPdfLocal(prev, next) {
+        if (!prev || !next) return false;
+        const soloLocales = new Set(['incluirPdf', 'visiblePdf', 'enCatalogo', 'actualizadoEn', 'updatedAtMs', '_forzarActualizacion']);
+        const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
+        for (const k of keys) {
+            if (soloLocales.has(k)) continue;
+            if (JSON.stringify(prev[k]) !== JSON.stringify(next[k])) return false;
+        }
+        return true;
+    }
+
     function detectarCambioSoloCampoAtomico(prev, next, atomicField) {
         if (!prev || !next || !atomicField) return null;
         const valPrev = Number(prev[atomicField]);
         const valNext = Number(next[atomicField]);
         if (isNaN(valPrev) || isNaN(valNext) || valPrev === valNext) return null;
 
-        const ignorar = new Set([atomicField, 'actualizadoEn', 'updatedAtMs', '_forzarActualizacion', 'movimientos']);
+        const ignorar = new Set([atomicField, 'actualizadoEn', 'updatedAtMs', '_forzarActualizacion', 'movimientos', 'incluirPdf', 'visiblePdf', 'enCatalogo']);
         const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
         for (const k of keys) {
             if (ignorar.has(k)) continue;
@@ -1231,6 +1240,9 @@
                     return;
                 }
                 if (JSON.stringify(prev) === JSON.stringify(item)) return;
+
+                // Si en Inventario solo cambió la visibilidad de Catálogo PDF, NO sincronizar con la nube
+                if (key === 'cat_alogo_productos_v1' && detectarCambioSoloPdfLocal(prev, item)) return;
 
                 const deltaAtomico = detectarCambioSoloCampoAtomico(prev, item, meta.atomicField);
                 if (deltaAtomico !== null && deltaAtomico !== 0) {
@@ -1429,7 +1441,7 @@
 
         const localPrev = idx >= 0 ? arr[idx] : null;
         const normalizado = storageKey === 'cat_alogo_productos_v1'
-            ? normalizarProductoRemotoAPc(docId, remoto)
+            ? normalizarProductoRemotoAPc(docId, remoto, localPrev)
             : (storageKey === 'cat_alogo_clientes_v1'
                 ? normalizarClienteRemotoAPc(docId, remoto, localPrev)
                 : (storageKey === 'cat_alogo_proveedores_v1'
@@ -1672,7 +1684,6 @@
 
             await publicarPunteroEstadoCajaMaestra();
 
-            // Descargar y fusionar (proveedores y cuentas por pagar antes de pedidos para enlazar pagos y datos)
             const colsPull = [
                 'cat_alogo_clientes_v1',
                 'cat_alogo_proveedores_v1',
@@ -2126,3 +2137,4 @@
     window.addEventListener('cat-alogo:suscripcion-actualizada', renderizarSemaforoTopbar);
     window.addEventListener('cat-alogo:turno-actualizado', () => setTimeout(renderizarSemaforoTopbar, 250));
 })();
+
