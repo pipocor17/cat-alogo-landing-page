@@ -2,11 +2,13 @@
    ETAPA 4+: MOTOR DE SINCRONIZACIÓN PRIVADA APP ↔ PC (FIRESTORE)
    (FORZAR SYNC, CAJA ÚNICA, FIADOS, CXP + ADELANTOS, PROVEEDORES, PEDIDOS, WEBP)
    * Visibilidad en Catálogo PDF (incluirPdf/visiblePdf/enCatalogo) 100% LOCAL
+   * Modelo Unificado de Variantes/Talles (Padre + variantesDetalle[])
    ========================================================================== */
 (function () {
     const STORAGE_KEY_SYNC_CFG = 'cat_alogo_sync_cfg_v1';
     const STORAGE_KEY_SYNC_QUEUE = 'cat_alogo_sync_queue_v1';
     const DEVICE_ID_KEY = 'cat_alogo_pc_device_id_v1';
+    const COLORES_VARIANTES_SYNC = ['#1e3a8a', '#0f766e', '#d97706', '#6366f1', '#be185d', '#4d7c0f'];
 
     function getPcDeviceId() {
         let id = localStorage.getItem(DEVICE_ID_KEY);
@@ -139,9 +141,15 @@
 
     async function subirImagenesBase64SiAplica(subcol, docId, payload) {
         if (subcol !== 'inventario' || !state.storage || !state.uid) return payload;
-        if (!Array.isArray(payload.imagenes) || payload.imagenes.length === 0) return payload;
 
-        const copia = { ...payload, imagenes: [...payload.imagenes] };
+        const copia = {
+            ...payload,
+            imagenes: Array.isArray(payload.imagenes) ? [...payload.imagenes] : [],
+            variantesDetalle: Array.isArray(payload.variantesDetalle)
+                ? payload.variantesDetalle.map(v => ({ ...v }))
+                : []
+        };
+
         let huboSubida = false;
 
         for (let i = 0; i < copia.imagenes.length; i++) {
@@ -162,6 +170,23 @@
             } catch (err) {
                 console.warn('No se pudo subir imagen a Storage, omitiendo Base64 en Firestore:', err);
                 if (src.length > 180000) copia.imagenes[i] = '';
+            }
+        }
+
+        // Subir también fotos propias de variantes si vienen en Base64
+        for (let idx = 0; idx < copia.variantesDetalle.length; idx++) {
+            const v = copia.variantesDetalle[idx];
+            const src = v?.imagen_url || '';
+            if (typeof src !== 'string' || !src.startsWith('data:image/') || src.startsWith('data:image/svg+xml')) continue;
+            try {
+                const blob = await comprimirDataUrlAWebpBlob(src, 900, 0.8);
+                const ruta = `users/${state.uid}/inventario/${docId}_var_${idx}.webp`;
+                const ref = state.storage.ref().child(ruta);
+                await ref.put(blob, { contentType: 'image/webp' });
+                v.imagen_url = await ref.getDownloadURL();
+            } catch (err) {
+                console.warn(`No se pudo subir imagen de variante ${idx} a Storage:`, err);
+                if (src.length > 180000) v.imagen_url = '';
             }
         }
 
@@ -186,15 +211,77 @@
         return obj;
     }
 
+    function normalizarVariantesDetalleSync(rawDetalle, rawNombres, prodBase) {
+        const precioBase = (Number(prodBase?.precioOferta) > 0 && Number(prodBase?.precioOferta) < Number(prodBase?.precioNormal ?? prodBase?.precio))
+            ? Number(prodBase.precioOferta)
+            : (Number(prodBase?.precioNormal ?? prodBase?.precio) || 0);
+        const skuBase = String(prodBase?.sku || 'PRD').trim();
+
+        let fuente = [];
+        if (Array.isArray(rawDetalle) && rawDetalle.length > 0) {
+            fuente = rawDetalle;
+        } else if (Array.isArray(rawNombres) && rawNombres.length > 0) {
+            fuente = rawNombres.map(n => ({ nombre: n }));
+        }
+
+        return fuente
+            .filter(v => v && String(v.nombre || '').trim() !== '')
+            .map((v, idx) => {
+                const nombre = String(v.nombre).trim();
+                const sufijo = nombre.toUpperCase().replace(/[^A-Z0-9]/g, '') || String(idx + 1);
+                const precio = (v.precio !== undefined && v.precio !== null && !isNaN(Number(v.precio)))
+                    ? Math.max(0, Number(v.precio))
+                    : precioBase;
+                const precioOferta = (v.precioOferta !== undefined && v.precioOferta !== null && !isNaN(Number(v.precioOferta)))
+                    ? Math.max(0, Number(v.precioOferta))
+                    : 0;
+                const precioCosto = (v.precioCosto !== undefined && v.precioCosto !== null && !isNaN(Number(v.precioCosto)))
+                    ? Math.max(0, Number(v.precioCosto))
+                    : null;
+                const stock = Math.max(0, Math.round((Number(v.stock) || 0) * 1000) / 1000);
+                const imgVar = typeof v.imagen_url === 'string' ? v.imagen_url.trim() : '';
+
+                return {
+                    nombre,
+                    sku: String(v.sku || `${skuBase}-${sufijo}`).trim(),
+                    stock,
+                    precio,
+                    precioOferta,
+                    precioCosto,
+                    color: String(v.color || COLORES_VARIANTES_SYNC[idx % COLORES_VARIANTES_SYNC.length]),
+                    imagen_url: imgVar
+                };
+            });
+    }
+
+    function filtrarUrlsImagenesValidas(arr, fallbackSingle = '') {
+        const esValida = (s) => typeof s === 'string' && (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image/')) && !s.startsWith('data:image/svg+xml');
+        const lista = Array.isArray(arr) ? arr.filter(esValida) : [];
+        if (lista.length === 0 && esValida(fallbackSingle)) {
+            lista.push(fallbackSingle);
+        }
+        return Array.from(new Set(lista));
+    }
+
     function construirPayloadProductoCompat(prod) {
         // Excluir siempre campos de visibilidad en Catálogo PDF (son locales por dispositivo)
         const { incluirPdf, visiblePdf, enCatalogo, ...prodSinPdf } = prod || {};
-        const imgPrincipal = (Array.isArray(prodSinPdf.imagenes) && prodSinPdf.imagenes[0]) ? prodSinPdf.imagenes[0] : (prodSinPdf.imagen_url || '');
+        const imagenesLimpias = filtrarUrlsImagenesValidas(prodSinPdf.imagenes, prodSinPdf.imagen_url || prodSinPdf.imagen || '');
+        const imgPrincipal = imagenesLimpias[0] || '';
         const enWeb = prodSinPdf.publicarWeb !== undefined
             ? !!prodSinPdf.publicarWeb
             : (prodSinPdf.visibleWeb !== undefined
                 ? !!prodSinPdf.visibleWeb
                 : (prodSinPdf.visible !== undefined ? !!prodSinPdf.visible : Boolean(prodSinPdf.publicado)));
+
+        const variantesDetalle = normalizarVariantesDetalleSync(prodSinPdf.variantesDetalle, prodSinPdf.variantes, prodSinPdf);
+        const tieneVariantes = variantesDetalle.length > 0;
+        const familiaFinal = tieneVariantes
+            ? 'variantes'
+            : (prodSinPdf.familiaMedicion || prodSinPdf.familia || 'unidad');
+        const stockFinal = tieneVariantes
+            ? Math.round(variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000
+            : Math.max(0, Math.round((Number(prodSinPdf.stock) || 0) * 1000) / 1000);
 
         return sanitizarParaFirestore({
             ...prodSinPdf,
@@ -202,10 +289,16 @@
             precio_costo: Number(prodSinPdf.precioCosto) || 0,
             umbralCritico: Number(prodSinPdf.stockMinimo) || 5,
             descripcionCorta: prodSinPdf.descripcion || '',
+            familia: familiaFinal,
+            familiaMedicion: familiaFinal,
+            stock: stockFinal,
+            variantes: variantesDetalle.map(v => v.nombre),
+            variantesDetalle,
             visible: enWeb,
             visibleWeb: enWeb,
             publicarWeb: enWeb,
             publicado: enWeb,
+            imagenes: imagenesLimpias,
             imagen_url: imgPrincipal,
             imagen: imgPrincipal,
             unidadVenta: prodSinPdf.unidadMedida || 'U',
@@ -253,12 +346,23 @@
             ? (remotoSinPdf.descripcionCorta !== undefined ? String(remotoSinPdf.descripcionCorta) : String(remotoSinPdf.descripcion || ''))
             : (remotoSinPdf.descripcion !== undefined ? String(remotoSinPdf.descripcion) : String(remotoSinPdf.descripcionCorta || ''));
 
-        const imgRemota = (Array.isArray(remotoSinPdf.imagenes) && remotoSinPdf.imagenes[0])
-            ? remotoSinPdf.imagenes[0]
-            : (remotoSinPdf.imagen_url || remotoSinPdf.imagen || '');
-        const imgValida = (typeof imgRemota === 'string' && (imgRemota.startsWith('http://') || imgRemota.startsWith('https://') || imgRemota.startsWith('data:image/')))
-            ? imgRemota
-            : '';
+        const imgsValidas = filtrarUrlsImagenesValidas(remotoSinPdf.imagenes, remotoSinPdf.imagen_url || remotoSinPdf.imagen || '');
+        const imagenesFinal = imgsValidas.length > 0
+            ? imgsValidas
+            : (Array.isArray(localPrev?.imagenes) ? localPrev.imagenes : (Array.isArray(base.imagenes) ? base.imagenes : []));
+
+        const variantesDetalle = normalizarVariantesDetalleSync(
+            remotoSinPdf.variantesDetalle,
+            remotoSinPdf.variantes,
+            { sku: remotoSinPdf.sku ?? base.sku, precioNormal: precioNorm, precioOferta: precioOf }
+        );
+        const tieneVariantes = variantesDetalle.length > 0;
+        const familiaFinal = tieneVariantes
+            ? 'variantes'
+            : (remotoSinPdf.familiaMedicion || remotoSinPdf.familia || base.familiaMedicion || 'unidad');
+        const stockFinal = tieneVariantes
+            ? Math.round(variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000
+            : Math.max(0, Math.round((Number(remotoSinPdf.stock ?? base.stock) || 0) * 1000) / 1000);
 
         return {
             ...base,
@@ -267,12 +371,16 @@
             sku: String(remotoSinPdf.sku ?? base.sku ?? '').trim(),
             categoria: String(remotoSinPdf.categoria || base.categoria || 'General').trim() || 'General',
             descripcion: descVal,
+            familia: familiaFinal,
+            familiaMedicion: familiaFinal,
             precioNormal: precioNorm,
             precioOferta: precioOf,
             precioCosto: precioCost,
-            stock: Math.max(0, Math.round((Number(remotoSinPdf.stock ?? base.stock) || 0) * 1000) / 1000),
+            stock: stockFinal,
             stockMinimo: Number(remotoSinPdf.stockMinimo ?? remotoSinPdf.umbralCritico ?? base.stockMinimo ?? 5) || 5,
             unidadMedida: String(remotoSinPdf.unidadMedida || remotoSinPdf.unidadVenta || base.unidadMedida || 'Unidad').trim(),
+            variantes: variantesDetalle.map(v => v.nombre),
+            variantesDetalle,
             visible: enWeb,
             visibleWeb: enWeb,
             publicarWeb: enWeb,
@@ -280,8 +388,8 @@
             incluirPdf: enPdfLocal,
             visiblePdf: enPdfLocal,
             enCatalogo: enPdfLocal,
-            imagenes: imgValida ? [imgValida] : (Array.isArray(base.imagenes) ? base.imagenes : []),
-            imagen_url: imgValida || base.imagen_url || ''
+            imagenes: imagenesFinal,
+            imagen_url: imagenesFinal[0] || base.imagen_url || ''
         };
     }
 
@@ -320,7 +428,6 @@
                 if (!m || m.tipo !== 'credito') return false;
                 if ((Number(m.monto) || 0) <= 0) return false;
                 const mId = String(m.id || '');
-                // No re-emitir cobros que ya vinieron desde la App Android
                 if (mId.startsWith('cobro_') || mId.startsWith('mov-app-')) return false;
                 return true;
             })
@@ -1469,13 +1576,20 @@
                     ? normalizado.imagenes
                     : (normalizado.imagen_url ? [normalizado.imagen_url] : []);
 
+                // Si el remoto trae explícitamente variantesDetalle (aunque sea vacío por quitar variantes), respetarlo
+                const tieneCampoVarRemoto = Array.isArray(remoto.variantesDetalle);
+                const variantesFinal = tieneCampoVarRemoto
+                    ? normalizado.variantesDetalle
+                    : (Array.isArray(normalizado.variantesDetalle) && normalizado.variantesDetalle.length > 0
+                        ? normalizado.variantesDetalle
+                        : (local.variantesDetalle || []));
+
                 arr[idx] = {
                     ...local,
                     ...normalizado,
                     id: String(docId),
-                    variantesDetalle: (Array.isArray(normalizado.variantesDetalle) && normalizado.variantesDetalle.length > 0)
-                        ? normalizado.variantesDetalle
-                        : (local.variantesDetalle || []),
+                    variantesDetalle: variantesFinal,
+                    variantes: variantesFinal.map(v => v.nombre),
                     imagenes: imgsRemotas.length > 0 ? imgsRemotas : (local.imagenes || []),
                     imagen_url: imgsRemotas[0] || local.imagen_url || ''
                 };
