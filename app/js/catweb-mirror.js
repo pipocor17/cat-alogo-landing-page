@@ -1,6 +1,6 @@
 /* ==========================================================================
    ETAPA 5 (UNIFICADA): ESPEJO BIDIRECCIONAL CAT-WEB & RADAR EN TIEMPO REAL
-   (vendors/{uid}, vendors/{uid}/products, vendors/{uid}/orders + PAGA CON/VUELTO)
+   (vendors/{uid}, vendors/{uid}/products, vendors/{uid}/orders + VARIANTES)
    ========================================================================== */
 (function () {
     const STORAGE_KEY_WEB_CFG = 'cat_alogo_web_config_v1';
@@ -98,6 +98,7 @@
         if (low.includes('litro') || low === 'l') return 'L';
         if (low.includes('ml')) return 'ml';
         if (low.includes('metro') || low === 'm') return 'm';
+        if (low === 'par') return 'Par';
         return 'U';
     }
 
@@ -148,12 +149,32 @@
     }
 
     /* --- 2. PUBLICACIÓN ESPEJO PC -> NUBE (vendors/{uid} + products SIN COSTOS) --- */
-    function construirDocumentoPublicoProducto(prod, imgUrlPublica, ocultarSinStock) {
-        const stockNum = Math.max(0, Math.round((Number(prod.stock) || 0) * 1000) / 1000);
-        const visibleProd = prod.visible !== false;
+    function sanitizarVariantesPublicas(variantesDetalle, precioBase) {
+        if (!Array.isArray(variantesDetalle) || variantesDetalle.length === 0) return [];
+        return variantesDetalle
+            .filter(v => v && String(v.nombre || '').trim() !== '')
+            .map(v => ({
+                nombre: String(v.nombre).trim(),
+                sku: String(v.sku || '').trim(),
+                precio: (Number(v.precio) > 0) ? Number(v.precio) : precioBase,
+                precioOferta: Math.max(0, Number(v.precioOferta) || 0),
+                stock: Math.max(0, Math.round((Number(v.stock) || 0) * 1000) / 1000),
+                color: String(v.color || ''),
+                imagen_url: esImagenWebValida(v.imagen_url) ? v.imagen_url.trim() : ''
+            }));
+    }
+
+    function construirDocumentoPublicoProducto(prod, imagenesPublicas, variantesPublicas, ocultarSinStock) {
+        const tieneVariantes = Array.isArray(variantesPublicas) && variantesPublicas.length > 0;
+        const stockNum = tieneVariantes
+            ? Math.round(variantesPublicas.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000
+            : Math.max(0, Math.round((Number(prod.stock) || 0) * 1000) / 1000);
+        const visibleProd = prod.publicarWeb !== undefined ? !!prod.publicarWeb : prod.visible !== false;
         const publicado = visibleProd && (!ocultarSinStock || stockNum > 0);
         const unidad = unidadCortaPublica(prod);
-        const esDec = aceptaDecimalesPublico(prod);
+        const esDec = !tieneVariantes && aceptaDecimalesPublico(prod);
+        const imgPrincipal = imagenesPublicas[0] || '';
+        const familia = tieneVariantes ? 'variantes' : (prod.familiaMedicion || prod.familia || 'unidad');
 
         return {
             id: String(prod.id),
@@ -165,11 +186,16 @@
             precioOferta: Math.max(0, Number(prod.precioOferta) || 0),
             stock: stockNum,
             controlarStock: true,
+            familia,
+            familiaMedicion: familia,
             unidadVenta: unidad,
             unidadMedida: unidad,
             aceptaDecimales: esDec,
-            imagen_url: imgUrlPublica || '',
-            imagen: imgUrlPublica || '',
+            imagenes: imagenesPublicas,
+            imagen_url: imgPrincipal,
+            imagen: imgPrincipal,
+            variantes: variantesPublicas.map(v => v.nombre),
+            variantesDetalle: variantesPublicas,
             publicado,
             publicarWeb: publicado,
             enCatalogo: publicado,
@@ -268,17 +294,41 @@
                 const p = productos[i];
                 const prodId = String(p.id || `prod-${i}`);
                 const stockNum = Math.max(0, Math.round((Number(p.stock) || 0) * 1000) / 1000);
-                const debePublicarse = (p.visible !== false) && (!ocultarSinStock || stockNum > 0);
+                const visibleWeb = p.publicarWeb !== undefined ? !!p.publicarWeb : p.visible !== false;
+                const debePublicarse = visibleWeb && (!ocultarSinStock || stockNum > 0);
 
                 if (!debePublicarse) continue;
 
-                const rawImg = (Array.isArray(p.imagenes) && p.imagenes[0]) ? p.imagenes[0] : (p.imagen_url || '');
-                const imgUrl = await subirImagenPublicaStorage(
-                    rawImg,
-                    `vendors/${state.uid}/products/${prodId}.webp`,
-                    900
-                );
-                const docPublico = construirDocumentoPublicoProducto(p, imgUrl, ocultarSinStock);
+                // Subir galería principal (hasta 5 fotos)
+                const rawImgs = Array.isArray(p.imagenes) && p.imagenes.length > 0
+                    ? p.imagenes
+                    : (p.imagen_url ? [p.imagen_url] : []);
+                const imagenesPublicas = [];
+                for (let imgIdx = 0; imgIdx < Math.min(5, rawImgs.length); imgIdx++) {
+                    const urlPub = await subirImagenPublicaStorage(
+                        rawImgs[imgIdx],
+                        `vendors/${state.uid}/products/${prodId}_${imgIdx}.webp`,
+                        900
+                    );
+                    if (urlPub) imagenesPublicas.push(urlPub);
+                }
+
+                // Subir fotos propias de variantes si existen (y limpiar costos internos)
+                const precioBase = Math.max(0, Number(p.precioNormal) || 0);
+                const variantesRaw = Array.isArray(p.variantesDetalle) ? p.variantesDetalle.map(v => ({ ...v })) : [];
+                for (let vIdx = 0; vIdx < variantesRaw.length; vIdx++) {
+                    const vImg = variantesRaw[vIdx]?.imagen_url || '';
+                    if (vImg && !esImagenWebValida(vImg)) {
+                        variantesRaw[vIdx].imagen_url = await subirImagenPublicaStorage(
+                            vImg,
+                            `vendors/${state.uid}/products/${prodId}_var_${vIdx}.webp`,
+                            800
+                        );
+                    }
+                }
+                const variantesPublicas = sanitizarVariantesPublicas(variantesRaw, precioBase);
+
+                const docPublico = construirDocumentoPublicoProducto(p, imagenesPublicas, variantesPublicas, ocultarSinStock);
                 idsPublicados.add(prodId);
                 operaciones.push({ tipo: 'set', ref: productsCol.doc(prodId), data: docPublico });
             }
@@ -339,7 +389,6 @@
         if (!d || typeof d !== 'object') return;
         const actual = leerJson(STORAGE_KEY_WEB_CFG, {}) || {};
 
-        // Resolver costo de envío desde cualquier formato (App Android o PC)
         const tipoRemoto = String(d.tipoEnvio || d.envioTipo || d.appSettings?.tipoEnvio || '').toLowerCase();
         const valRaw = d.valorEnvio ?? d.envioValor ?? d.costoEnvio ?? d.appSettings?.valorEnvio;
         const valNum = valRaw !== undefined && valRaw !== '' ? (Number(valRaw) || 0) : null;
@@ -354,7 +403,6 @@
             envioValor = valNum;
         }
 
-        // Resolver grupos de menú (agrupacionesWeb de App <-> gruposMenu de PC)
         let gruposMenu = Array.isArray(actual.gruposMenu) ? actual.gruposMenu : [];
         if (Array.isArray(d.gruposMenu) && d.gruposMenu.length > 0) {
             gruposMenu = d.gruposMenu;
@@ -393,7 +441,6 @@
         if (!state.db || !state.uid) return;
         const vendorRef = state.db.collection('vendors').doc(state.uid);
 
-        // A. Escucha en vivo de la configuración pública (color, envío, nombre, logo, grupos)
         state.unsubVendor = vendorRef.onSnapshot((snap) => {
             if (!snap.exists || snap.metadata.hasPendingWrites) return;
             const d = snap.data() || {};
@@ -401,7 +448,6 @@
             aplicarVendorRemotoEnLocal(d);
         }, (err) => console.warn('Error escuchando vendors/{uid}:', err));
 
-        // B. Escucha en vivo de productos públicos (visibilidad, precio, oferta y stock desde la App)
         state.unsubProducts = vendorRef.collection('products').onSnapshot((snap) => {
             const cambios = snap.docChanges().filter(ch => !ch.doc.metadata.hasPendingWrites && ch.type !== 'removed');
             if (cambios.length === 0) return;
@@ -441,6 +487,7 @@
                             stock: nuevoStock,
                             visible: visibleRemoto,
                             publicarWeb: visibleRemoto,
+                            visibleWeb: visibleRemoto,
                             imagenes: imgRemota ? [imgRemota, ...(p.imagenes || []).slice(1)] : (p.imagenes || [])
                         };
                         huboCambio = true;
@@ -456,7 +503,7 @@
         }, (err) => console.warn('Error escuchando vendors/{uid}/products:', err));
     }
 
-    /* --- 4. RADAR DE PEDIDOS CON PAGA CON, VUELTO, TIPO Y REFERENCIAS --- */
+    /* --- 4. RADAR DE PEDIDOS CON VARIANTES, PAGA CON, VUELTO, TIPO Y REFERENCIAS --- */
     function normalizarEstadoPedidoRemoto(estRaw) {
         const s = String(estRaw || 'nuevo').toLowerCase();
         if (s === 'pendiente' || s === 'nuevo' || s === 'pending') return 'nuevo';
@@ -473,7 +520,11 @@
             : (Array.isArray(d.productos) ? d.productos : (Array.isArray(d.carrito) ? d.carrito : []));
 
         const items = itemsRaw.map((it) => ({
-            prodId: String(it.prodId || it.id || ''),
+            prodId: String(it.prodId || it.parentId || it.id || ''),
+            varIdx: it.varIdx !== undefined ? it.varIdx : null,
+            varNombre: String(it.varNombre || it.variante || ''),
+            varSku: String(it.varSku || ''),
+            sku: String(it.varSku || it.sku || ''),
             nombre: String(it.nombre || 'Producto'),
             cantidad: Number(it.cantidad) || 1,
             precioUnit: Number(it.precioUnit ?? it.precioFinal ?? it.precio) || 0,
@@ -482,9 +533,8 @@
 
         const subtotalItems = items.reduce((acc, it) => acc + it.cantidad * it.precioUnit, 0);
         const costoEnvio = Number(d.costoEnvio ?? d.valorEnvio ?? d.envio ?? 0) || 0;
-        const total = Number(d.total) > 0 ? Number(d.total) : (subtotalItems + costoEnvio);
+        const total = Number(d.total ?? d.totalLiquidado) > 0 ? Number(d.total ?? d.totalLiquidado) : (subtotalItems + costoEnvio);
 
-        // Paga con y Vuelto (igual que App Android)
         const pagaConRaw = d.pagoCon ?? d.pagaCon ?? d.abonaCon ?? d.montoPago ?? d.efectivoRecibido;
         const pagaCon = Number(String(pagaConRaw ?? '').replace(/[^\d.]/g, '')) || 0;
         const vueltoRaw = Number(d.vuelto ?? d.cambio ?? 0) || 0;
@@ -495,6 +545,7 @@
         else if (typeof d.createdAt?.toDate === 'function') fechaIso = d.createdAt.toDate().toISOString();
         else if (typeof d.timestamp?.toDate === 'function') fechaIso = d.timestamp.toDate().toISOString();
         else if (typeof d.createdAt === 'number') fechaIso = new Date(d.createdAt).toISOString();
+        else if (typeof d.timestamp === 'number') fechaIso = new Date(d.timestamp).toISOString();
 
         const modalidadRaw = String(d.modalidad || d.metodoEntrega || 'retiro').toLowerCase();
         const modalidad = modalidadRaw.includes('envio') || modalidadRaw.includes('delivery') ? 'envio' : 'retiro';
@@ -629,7 +680,7 @@
         body.appendChild(bar);
     }
 
-    /* --- 6. ESPEJO DE ESTADO DE PEDIDOS Y DESCUENTO ATÓMICO --- */
+    /* --- 6. ESPEJO DE ESTADO DE PEDIDOS Y DESCUENTO PÚBLICO (CON VARIANTES) --- */
     async function sincronizarEstadoPedidoPublico(pedido) {
         if (!state.db || !state.uid || !pedido?.id) return;
         try {
@@ -663,24 +714,44 @@
         if (!state.db || !state.uid || !Array.isArray(items) || items.length === 0) return;
         const FieldValue = firebase.firestore.FieldValue;
         const productsCol = state.db.collection('vendors').doc(state.uid).collection('products');
+        const productosLocales = leerJson(STORAGE_KEY_PRODUCTOS, []);
+
+        const padresProcesados = new Set();
 
         for (const it of items) {
             const prodId = String(it.prodId || it.id || '');
             const cant = Number(it.cantidad) || 0;
             if (!prodId || cant <= 0) continue;
+
+            const prodLocal = productosLocales.find(p => String(p.id) === prodId);
+            const tieneVariantes = Array.isArray(prodLocal?.variantesDetalle) && prodLocal.variantesDetalle.length > 0;
+
             try {
-                await productsCol.doc(prodId).set({
-                    stock: FieldValue.increment(-cant),
-                    updatedAtMs: Date.now(),
-                    updatedBy: 'web_pc'
-                }, { merge: true });
+                if (tieneVariantes) {
+                    if (padresProcesados.has(prodId)) continue;
+                    padresProcesados.add(prodId);
+                    const varPub = sanitizarVariantesPublicas(prodLocal.variantesDetalle, Number(prodLocal.precioNormal) || 0);
+                    const stockTotal = Math.round(varPub.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000;
+                    await productsCol.doc(prodId).set({
+                        stock: stockTotal,
+                        variantes: varPub.map(v => v.nombre),
+                        variantesDetalle: varPub,
+                        updatedAtMs: Date.now(),
+                        updatedBy: 'web_pc'
+                    }, { merge: true });
+                } else {
+                    await productsCol.doc(prodId).set({
+                        stock: FieldValue.increment(-cant),
+                        updatedAtMs: Date.now(),
+                        updatedBy: 'web_pc'
+                    }, { merge: true });
+                }
             } catch { /* producto no publicado */ }
         }
     }
 
     /* --- 7. UNIFICAR BOTÓN VERDE EN CAT-WEB (SIN BARRA DUPLICADA) --- */
     function unificarBotonPublicarCatWeb() {
-        // Quitar barra oscura vieja si hubiera quedado
         document.getElementById('cw-mirror-live-bar')?.remove();
 
         const btnSync = document.getElementById('btn-cw-sincronizar');
@@ -712,7 +783,6 @@
     window.addEventListener('cat-alogo:suscripcion-actualizada', conectarEspejoConAuth);
 
     document.addEventListener('DOMContentLoaded', () => {
-        // Desactivar el puente manual antiguo de cat-web.js para evitar doble listener en orders
         window.conectarPuenteFirebaseCw = () => {
             actualizarBadgeEstadoUnificado();
             return Boolean(state.db && state.uid);
@@ -720,7 +790,6 @@
         window.sincronizarEstadoPedidoEnNubeCw = sincronizarEstadoPedidoPublico;
         window.borrarDocumentoPedidoNubeCw = borrarPedidoPublico;
 
-        // Envolver render del Radar y Modal Ticket Web para mostrar "Paga con / Vuelto"
         if (typeof window.renderizarRadarPedidosCw === 'function' && !window.renderizarRadarPedidosCw._conCash) {
             const _radOrig = window.renderizarRadarPedidosCw;
             window.renderizarRadarPedidosCw = function (...args) {
@@ -752,7 +821,6 @@
             window.inicializarCatWeb._conMirror = true;
         }
 
-        // Al facturar un pedido desde el Radar, sincronizar estado y descontar stock público atómico
         document.addEventListener('click', (e) => {
             const btnFact = e.target.closest('#cw-radar-list [data-oact="facturar"]');
             if (!btnFact || !state.db || !state.uid) return;
@@ -804,7 +872,7 @@
         });
     }
 
-function aplicarValorUnificado(p, val) {
+    function aplicarValorUnificado(p, val) {
         p.visible = val;
         p.visibleWeb = val;
         p.publicarWeb = val;
@@ -834,7 +902,6 @@ function aplicarValorUnificado(p, val) {
             let elegido = undefined;
 
             if (esInicial || !prev) {
-                // Prioriza el campo del modal/tarjeta de Inventario si difiere
                 elegido =
                     cur.visibleWeb ??
                     cur.webVisible ??
@@ -844,7 +911,6 @@ function aplicarValorUnificado(p, val) {
                     cur.visible ??
                     true;
             } else {
-                // Detecta desde qué pantalla se accionó el interruptor
                 const claves = ['visibleWeb', 'webVisible', 'publicadoWeb', 'enWeb', 'publicarWeb', 'visible'];
                 for (const k of claves) {
                     if (cur[k] !== undefined && cur[k] !== prev[k]) {
@@ -858,8 +924,7 @@ function aplicarValorUnificado(p, val) {
                 if (
                     p.visible !== elegido ||
                     p.visibleWeb !== elegido ||
-                    p.publicarWeb !== elegido ||
-                    p.enCatalogo !== elegido
+                    p.publicarWeb !== elegido
                 ) {
                     aplicarValorUnificado(p, elegido);
                     cambio = true;
@@ -871,7 +936,6 @@ function aplicarValorUnificado(p, val) {
         return { lista, cambio };
     }
 
-    // Intercepta cualquier escritura de productos para mantener Inventario y Cat-Web en espejo
     if (!window._catWebVisBridgeBound) {
         const _origSetItemVis = Storage.prototype.setItem;
         Storage.prototype.setItem = function (key, value) {
@@ -892,7 +956,6 @@ function aplicarValorUnificado(p, val) {
         window._catWebVisBridgeBound = true;
     }
 
-    // Alinea automáticamente productos que ya quedaron desfasados al abrir la web
     function reconciliarAlInicio() {
         try {
             const raw = localStorage.getItem(PROD_KEY);

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MÓDULO: CAT-WEB • VIDRIERA ONLINE, PERSONALIZACIÓN Y VISTA PREVIA (ETAPA 1)
+   MÓDULO: CAT-WEB • VIDRIERA ONLINE, PERSONALIZACIÓN Y VISTA PREVIA (ETAPAS 1-4)
    ========================================================================== */
 
 const STORAGE_KEY_CW_CONFIG = 'cat_alogo_web_config_v1';
@@ -132,6 +132,33 @@ function esProductoVisibleWebCw(prod, cfg) {
     if (!vis) return false;
     if (cfg.ocultarSinStock && (Number(prod.stock) || 0) <= 0) return false;
     return true;
+}
+
+function resolverIndiceVarianteCw(prod, item) {
+    if (!prod || !Array.isArray(prod.variantesDetalle) || prod.variantesDetalle.length === 0) return -1;
+    const det = prod.variantesDetalle;
+
+    const skuBuscado = String(item?.varSku || item?.sku || '').trim().toLowerCase();
+    if (skuBuscado) {
+        const porSku = det.findIndex(v => String(v?.sku || '').trim().toLowerCase() === skuBuscado);
+        if (porSku !== -1) return porSku;
+    }
+
+    const idx = item?.varIdx;
+    const nomBuscado = String(item?.varNombre || item?.variante || '').trim().toLowerCase();
+    if (idx !== null && idx !== undefined && det[idx]) {
+        if (!nomBuscado || String(det[idx].nombre || '').trim().toLowerCase() === nomBuscado) {
+            return idx;
+        }
+    }
+
+    if (nomBuscado) {
+        const porNom = det.findIndex(v => String(v?.nombre || '').trim().toLowerCase() === nomBuscado);
+        if (porNom !== -1) return porNom;
+    }
+
+    if (idx !== null && idx !== undefined && det[idx]) return idx;
+    return -1;
 }
 
 /* ==========================================================================
@@ -269,6 +296,36 @@ function renderizarResumenMarcaBlancaCw(cfg) {
 /* ==========================================================================
    VISTA PREVIA INTERACTIVA DE LA TIENDA WEB (MÓVIL / DESKTOP)
    ========================================================================== */
+function renderizarCardPreviewProductoCw(p) {
+    const fotoRaw = (p.imagenes && p.imagenes[0]) ? p.imagenes[0] : '';
+    const foto = (fotoRaw && !fotoRaw.includes('producto.png')) ? fotoRaw : CW_PLACEHOLDER_SVG;
+    const pNorm = Number(p.precioNormal) || 0;
+    const pOfe = Number(p.precioOferta) || 0;
+    const hayOferta = pOfe > 0 && pOfe < pNorm;
+    const precioFinal = hayOferta ? pOfe : pNorm;
+    const cantVar = Array.isArray(p.variantesDetalle) ? p.variantesDetalle.length : 0;
+
+    return `
+        <article class="cw-sprod-card">
+            <div class="cw-sprod-img">
+                ${hayOferta ? '<span class="cw-sprod-offer">OFERTA</span>' : ''}
+                ${cantVar > 0 ? `<span style="position:absolute; top:6px; left:6px; background:rgba(15,23,42,0.84); color:#fff; font-size:0.62rem; font-weight:800; padding:2px 6px; border-radius:6px;">🧩 ${cantVar} talles</span>` : ''}
+                <img src="${foto}" alt="${escaparHtmlCw(p.nombre)}">
+            </div>
+            <div class="cw-sprod-body">
+                <span class="cw-sprod-name">${escaparHtmlCw(p.nombre)}</span>
+                <div>
+                    <span class="cw-sprod-price">${formatearArsCw(precioFinal)}</span>
+                    ${hayOferta ? `<span class="cw-sprod-old">${formatearArsCw(pNorm)}</span>` : ''}
+                </div>
+                <button type="button" class="cw-sprod-add" data-prev-add="${escaparHtmlCw(p.id)}" data-prev-price="${precioFinal}">
+                    ${cantVar > 0 ? '🧩 Ver talles' : '+ Agregar'}
+                </button>
+            </div>
+        </article>
+    `;
+}
+
 function renderizarVistaPreviaTiendaCw(cfg, visibles) {
     const frame = document.getElementById('cw-device-frame');
     if (!frame) return;
@@ -322,8 +379,13 @@ function renderizarVistaPreviaTiendaCw(cfg, visibles) {
         if (window.cwState.previewCat !== 'todos' && ((p.categoria || 'General').trim() || 'General') !== window.cwState.previewCat) {
             return false;
         }
-        if (q && !`${p.nombre || ''} ${p.sku || ''} ${p.categoria || ''}`.toLowerCase().includes(q)) {
-            return false;
+        if (q) {
+            const varTxt = Array.isArray(p.variantesDetalle)
+                ? p.variantesDetalle.map(v => `${v.nombre || ''} ${v.sku || ''}`).join(' ')
+                : '';
+            if (!`${p.nombre || ''} ${p.sku || ''} ${p.categoria || ''} ${varTxt}`.toLowerCase().includes(q)) {
+                return false;
+            }
         }
         return true;
     });
@@ -333,31 +395,7 @@ function renderizarVistaPreviaTiendaCw(cfg, visibles) {
         if (filtrados.length === 0) {
             gridEl.innerHTML = `<div style="grid-column:1 / -1; text-align:center; padding:2rem 0.6rem; color:#64748b; font-size:0.76rem;">No hay productos visibles para mostrar con este filtro.</div>`;
         } else {
-            gridEl.innerHTML = filtrados.slice(0, 24).map(p => {
-                const fotoRaw = (p.imagenes && p.imagenes[0]) ? p.imagenes[0] : '';
-                const foto = (fotoRaw && !fotoRaw.includes('producto.png')) ? fotoRaw : CW_PLACEHOLDER_SVG;
-                const pNorm = Number(p.precioNormal) || 0;
-                const pOfe = Number(p.precioOferta) || 0;
-                const hayOferta = pOfe > 0 && pOfe < pNorm;
-                const precioFinal = hayOferta ? pOfe : pNorm;
-
-                return `
-                    <article class="cw-sprod-card">
-                        <div class="cw-sprod-img">
-                            ${hayOferta ? '<span class="cw-sprod-offer">OFERTA</span>' : ''}
-                            <img src="${foto}" alt="${escaparHtmlCw(p.nombre)}">
-                        </div>
-                        <div class="cw-sprod-body">
-                            <span class="cw-sprod-name">${escaparHtmlCw(p.nombre)}</span>
-                            <div>
-                                <span class="cw-sprod-price">${formatearArsCw(precioFinal)}</span>
-                                ${hayOferta ? `<span class="cw-sprod-old">${formatearArsCw(pNorm)}</span>` : ''}
-                            </div>
-                            <button type="button" class="cw-sprod-add" data-prev-add="${escaparHtmlCw(p.id)}" data-prev-price="${precioFinal}">+ Agregar</button>
-                        </div>
-                    </article>
-                `;
-            }).join('');
+            gridEl.innerHTML = filtrados.slice(0, 24).map(renderizarCardPreviewProductoCw).join('');
         }
     }
 
@@ -902,22 +940,29 @@ function simularPedidoWebPruebaCw() {
     const elegidos = productos.length > 0 ? productos.slice(0, Math.min(2, productos.length)) : [];
     const items = elegidos.length > 0
         ? elegidos.map(p => {
-            const pNorm = Number(p.precioNormal) || 0;
-            const pOfe = Number(p.precioOferta) || 0;
+            const tieneVar = Array.isArray(p.variantesDetalle) && p.variantesDetalle.length > 0;
+            const vDispIdx = tieneVar ? Math.max(0, p.variantesDetalle.findIndex(v => (Number(v.stock) || 0) > 0)) : null;
+            const vObj = tieneVar ? p.variantesDetalle[vDispIdx] : null;
+            const pNorm = vObj && Number(vObj.precio) > 0 ? Number(vObj.precio) : (Number(p.precioNormal) || 0);
+            const pOfe = vObj ? (Number(vObj.precioOferta) || 0) : (Number(p.precioOferta) || 0);
             const precioUnit = (pOfe > 0 && pOfe < pNorm) ? pOfe : pNorm;
+            const costoUnit = vObj && Number(vObj.precioCosto) > 0 ? Number(vObj.precioCosto) : Math.max(0, Number(p.precioCosto) || 0);
+
             return {
-                prodId: p.id,
-                varIdx: null,
-                nombre: p.nombre,
-                sku: p.sku || '',
+                prodId: String(p.id),
+                varIdx: vDispIdx,
+                varNombre: vObj ? String(vObj.nombre || '') : '',
+                varSku: vObj ? String(vObj.sku || '') : '',
+                nombre: vObj ? `${p.nombre} (${vObj.nombre})` : p.nombre,
+                sku: vObj ? (vObj.sku || p.sku || '') : (p.sku || ''),
                 precioUnit,
-                costoUnit: Math.max(0, Number(p.precioCosto) || 0),
+                costoUnit,
                 cantidad: 1,
                 unidadMedida: p.unidadMedida || 'Unidad',
                 familiaMedicion: p.familiaMedicion || 'unidad'
             };
         })
-        : [{ prodId: null, varIdx: null, nombre: 'Producto de Prueba Web', sku: 'DEMO-01', precioUnit: 8500, costoUnit: 5000, cantidad: 2, unidadMedida: 'Unidad', familiaMedicion: 'unidad' }];
+        : [{ prodId: null, varIdx: null, varNombre: '', varSku: '', nombre: 'Producto de Prueba Web', sku: 'DEMO-01', precioUnit: 8500, costoUnit: 5000, cantidad: 2, unidadMedida: 'Unidad', familiaMedicion: 'unidad' }];
 
     const subtotal = Math.round(items.reduce((a, i) => a + i.precioUnit * i.cantidad, 0) * 100) / 100;
     let costoEnvio = 0;
@@ -1030,7 +1075,7 @@ function facturarPedidoWebEnPosCw(pedidoId) {
 
     const ok = confirm(
         `🏪 ¿Confirmar y Facturar ${pedido.codigo} por ${formatearArsCw(pedido.total)}?\n\n` +
-        `• Se descontará el stock automáticamente en Inventario.\n` +
+        `• Se descontará el stock automáticamente en Inventario (incluyendo variantes/talles).\n` +
         `• ${avisoTurno}\n` +
         `• Aparecerá en Finanzas bajo el filtro "🌐 Ventas Cat-Web".`
     );
@@ -1038,15 +1083,35 @@ function facturarPedidoWebEnPosCw(pedidoId) {
 
     const productos = obtenerProductosCatWeb();
     let costoTotal = 0;
+
     (pedido.items || []).forEach(it => {
-        costoTotal += (Number(it.costoUnit) || 0) * (Number(it.cantidad) || 1);
-        if (!it.prodId) return;
-        const prod = productos.find(p => String(p.id) === String(it.prodId));
-        if (!prod) return;
-        const actual = Number(prod.stock) || 0;
-        prod.stock = Math.round(Math.max(0, actual - (Number(it.cantidad) || 1)) * 1000) / 1000;
-        prod.actualizadoEn = new Date().toISOString();
+        const cant = Math.max(0, Number(it.cantidad) || 1);
+        const prod = it.prodId ? productos.find(p => String(p.id) === String(it.prodId)) : null;
+
+        let costoUnit = Number(it.costoUnit) || 0;
+        if (prod) {
+            const vIdxReal = resolverIndiceVarianteCw(prod, it);
+            if (vIdxReal !== -1 && Array.isArray(prod.variantesDetalle) && prod.variantesDetalle[vIdxReal]) {
+                const vObj = prod.variantesDetalle[vIdxReal];
+                const actualVar = Number(vObj.stock) || 0;
+                vObj.stock = Math.round(Math.max(0, actualVar - cant) * 1000) / 1000;
+                prod.stock = Math.round(prod.variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000;
+                if (costoUnit <= 0) {
+                    costoUnit = (Number(vObj.precioCosto) > 0) ? Number(vObj.precioCosto) : (Number(prod.precioCosto) || 0);
+                }
+            } else {
+                const actual = Number(prod.stock) || 0;
+                prod.stock = Math.round(Math.max(0, actual - cant) * 1000) / 1000;
+                if (costoUnit <= 0) {
+                    costoUnit = Number(prod.precioCosto) || 0;
+                }
+            }
+            prod.actualizadoEn = new Date().toISOString();
+        }
+
+        costoTotal += costoUnit * cant;
     });
+    // Dispara sync-privada.js -> sincroniza variantesDetalle[] y stock total a Firestore
     guardarProductosCatWeb(productos);
 
     const ventas = JSON.parse(localStorage.getItem('cat_alogo_pos_ventas_v1') || '[]');
@@ -1165,24 +1230,7 @@ renderizarVistaPreviaTiendaCw = function (cfg, visibles) {
             if (gridEl) {
                 gridEl.innerHTML = filtrados.length === 0
                     ? `<div style="grid-column:1/-1; text-align:center; padding:2rem 0.6rem; color:#64748b; font-size:0.76rem;">No hay productos visibles en este grupo.</div>`
-                    : filtrados.slice(0, 24).map(p => {
-                        const fotoRaw = (p.imagenes && p.imagenes[0]) ? p.imagenes[0] : '';
-                        const foto = (fotoRaw && !fotoRaw.includes('producto.png')) ? fotoRaw : CW_PLACEHOLDER_SVG;
-                        const pNorm = Number(p.precioNormal) || 0;
-                        const pOfe = Number(p.precioOferta) || 0;
-                        const hayOferta = pOfe > 0 && pOfe < pNorm;
-                        const precioFinal = hayOferta ? pOfe : pNorm;
-                        return `
-                            <article class="cw-sprod-card">
-                                <div class="cw-sprod-img">${hayOferta ? '<span class="cw-sprod-offer">OFERTA</span>' : ''}<img src="${foto}" alt="${escaparHtmlCw(p.nombre)}"></div>
-                                <div class="cw-sprod-body">
-                                    <span class="cw-sprod-name">${escaparHtmlCw(p.nombre)}</span>
-                                    <div><span class="cw-sprod-price">${formatearArsCw(precioFinal)}</span>${hayOferta ? `<span class="cw-sprod-old">${formatearArsCw(pNorm)}</span>` : ''}</div>
-                                    <button type="button" class="cw-sprod-add" data-prev-add="${escaparHtmlCw(p.id)}" data-prev-price="${precioFinal}">+ Agregar</button>
-                                </div>
-                            </article>
-                        `;
-                    }).join('');
+                    : filtrados.slice(0, 24).map(renderizarCardPreviewProductoCw).join('');
             }
         }
     }
@@ -1472,14 +1520,12 @@ async function subirDataUrlAStorageVendorCw(storage, uid, nombreArchivo, dataUrl
     }
 }
 
-/* --- PUBLICAR PERSONALIZACIÓN EN VENDORS/{UID} (IMPACTA EN CATÁLOGO WEB Y APP) --- */
 async function publicarPersonalizacionEnVendorsCw(cfgInput) {
     const { db, storage, uid } = obtenerAuthContextoCw();
     if (!db || !uid) return false;
 
     const cfg = { ...(cfgInput || obtenerConfigCatWeb()) };
 
-    // Subir logo y banner si son imágenes locales Base64
     if (cfg.bannerImg && cfg.bannerImg.startsWith('data:image/')) {
         cfg.bannerImg = await subirDataUrlAStorageVendorCw(storage, uid, 'portadaNegocio.webp', cfg.bannerImg, 1200, 120);
     }
@@ -1538,7 +1584,6 @@ async function publicarPersonalizacionEnVendorsCw(cfgInput) {
     return true;
 }
 
-/* --- ESCUCHA EN TIEMPO REAL DE VENDORS/{UID} (APP MÓVIL → WEB PC) --- */
 function iniciarEscuchaVendorCatWebCw() {
     if (typeof cwVendorUnsubscribe === 'function') {
         cwVendorUnsubscribe();
@@ -1645,7 +1690,6 @@ function conectarPuenteFirebaseCw() {
         return true;
     }
 
-    // Esperar a Firebase Auth sin abrir una instancia secundaria sin autenticar
     if (usaAuthUnificado) {
         if (typeof cwRadarUnsubscribe === 'function') {
             cwRadarUnsubscribe();
@@ -1779,8 +1823,11 @@ async function sincronizarEstadoPedidoEnNubeCw(pedido) {
     }
 }
 
-/* --- SINCRONIZAR BÓVEDA → NUBE (VENDORS/{UID} + VENDORS/{UID}/PRODUCTS) --- */
 async function ejecutarSincronizacionBovedaNubeCw() {
+    if (window.CatWebMirror?.publicarCatalogo) {
+        return window.CatWebMirror.publicarCatalogo();
+    }
+
     const btn = document.getElementById('btn-cw-sincronizar');
     const txtOrig = btn ? btn.textContent : '☁️ Sincronizar Bóveda → Nube';
 
@@ -1800,10 +1847,8 @@ async function ejecutarSincronizacionBovedaNubeCw() {
     }
 
     try {
-        // 1. Publicar toda la personalización de tienda en vendors/{uid}
         await publicarPersonalizacionEnVendorsCw(cfg);
 
-        // 2. Publicar productos visibles y despublicar los ocultos en vendors/{uid}/products
         const productsCol = authCtx.db.collection('vendors').doc(authCtx.uid).collection('products');
         const ahoraIso = new Date().toISOString();
 
@@ -1825,15 +1870,34 @@ async function ejecutarSincronizacionBovedaNubeCw() {
                     imgUrl = await subirDataUrlAStorageVendorCw(authCtx.storage, authCtx.uid, `products/${p.id}.webp`, imgUrl, 800, 80);
                 }
 
-                const fam = String(p.familiaMedicion || '').toLowerCase();
+                const variantesPublicas = Array.isArray(p.variantesDetalle)
+                    ? p.variantesDetalle
+                        .filter(v => v && String(v.nombre || '').trim() !== '')
+                        .map(v => ({
+                            nombre: String(v.nombre).trim(),
+                            sku: String(v.sku || '').trim(),
+                            precio: Number(v.precio) > 0 ? Number(v.precio) : (Number(p.precioNormal) || 0),
+                            precioOferta: Math.max(0, Number(v.precioOferta) || 0),
+                            stock: Math.max(0, Math.round((Number(v.stock) || 0) * 1000) / 1000),
+                            color: String(v.color || ''),
+                            imagen_url: (typeof v.imagen_url === 'string' && v.imagen_url.startsWith('http')) ? v.imagen_url.trim() : ''
+                        }))
+                    : [];
+
+                const fam = variantesPublicas.length > 0 ? 'variantes' : String(p.familiaMedicion || 'unidad').toLowerCase();
                 batch.set(pRef, {
                     id: String(p.id),
+                    sku: String(p.sku || '').trim(),
                     nombre: p.nombre || 'Producto',
                     descripcion: p.descripcion || '',
                     precio: Number(p.precioNormal) || 0,
                     precioOferta: Number(p.precioOferta) || 0,
                     stock: Number(p.stock) || 0,
                     categoria: (p.categoria || 'General').trim() || 'General',
+                    familia: fam,
+                    familiaMedicion: fam,
+                    variantes: variantesPublicas.map(v => v.nombre),
+                    variantesDetalle: variantesPublicas,
                     imagen_url: imgUrl,
                     imagenUrl: imgUrl,
                     unidadMedida: p.unidadMedida || 'Unidad',
@@ -2325,7 +2389,6 @@ function enlazarEventosRadarProCw() {
     });
 }
 
-// Conectar escucha en vivo apenas inicia sesión o carga la página
 const _renderizarTodoCwBase = renderizarTodoCatWeb;
 renderizarTodoCatWeb = function () {
     _renderizarTodoCwBase();
