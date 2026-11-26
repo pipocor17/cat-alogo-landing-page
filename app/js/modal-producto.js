@@ -1,6 +1,7 @@
 /* ==========================================================================
    MÓDULO: MODAL DE CREACIÓN, EDICIÓN, VARIANTES Y ELIMINACIÓN DE PRODUCTOS
-   (CON PEGADO CTRL+V, DRAG & DROP, COMPRESIÓN, DECIMALES EXACTOS Y UNIDADES)
+   (CON PEGADO CTRL+V, DRAG & DROP, COMPRESIÓN, DECIMALES EXACTOS, UNIDADES,
+    FOTO Y PRECIO OFERTA OPCIONALES POR VARIANTE)
    ========================================================================== */
 
 const MAX_IMAGENES_WEB = 5;
@@ -13,6 +14,7 @@ let familiaActiva = 'unidad';
 let galeriaImagenes = [];
 let productoEditandoId = null;
 let varianteEditandoRef = { prodId: null, varIdx: null };
+let varianteImagenActual = '';
 let pasteListenerRegistrado = false;
 
 // Carga inicial desde localStorage (bóveda temporal antes de IndexedDB)
@@ -48,7 +50,7 @@ function obtenerPrecioBaseProducto(prod) {
 }
 
 /**
- * Traduce la unidad de medida guardada a su abreviatura comercial corta
+- Traduce la unidad de medida guardada a su abreviatura comercial corta
  */
 window.obtenerAbrevUnidad = function(unidadMedida) {
     const raw = String(unidadMedida || 'Unidad').trim().toLowerCase();
@@ -67,7 +69,7 @@ window.obtenerAbrevUnidad = function(unidadMedida) {
 };
 
 /**
- * Formatea el stock respetando decimales exactos (evita errores flotantes y conserva ceros como 0.150 o 0.875)
+- Formatea el stock respetando decimales exactos (evita errores flotantes y conserva ceros como 0.150 o 0.875)
  */
 window.formatearStockProducto = function(valor, familiaMedicion = 'unidad', unidadMedida = 'Unidad') {
     const num = Math.round((Number(valor) || 0) * 1000) / 1000;
@@ -76,12 +78,10 @@ window.formatearStockProducto = function(valor, familiaMedicion = 'unidad', unid
 
     if (num === 0) return '0';
 
-    // Si tiene decimales en unidades fraccionables (kg, L, m, m²), mantiene los 3 decimales (ej: 0.150, 0.875, 0.175)
     if (esFraccionable3Dec && !Number.isInteger(num)) {
         return num.toFixed(3);
     }
 
-    // Si tiene decimales en g, ml o cm (ej: 123.5 g), limpia ceros sobrantes sin romper enteros como 123
     if (!Number.isInteger(num)) {
         return String(num);
     }
@@ -90,8 +90,8 @@ window.formatearStockProducto = function(valor, familiaMedicion = 'unidad', unid
 };
 
 /**
- * Selecciona automáticamente el contenido al hacer clic en el texto de un campo numérico,
- * sin interferir con las flechas nativas de subir/bajar (spinbuttons)
+- Selecciona automáticamente el contenido al hacer clic en el texto de un campo numérico,
+- sin interferir con las flechas nativas de subir/bajar (spinbuttons)
  */
 (function activarAutoSeleccionCamposNumericos() {
     if (window.__autoSelectNumericReady) return;
@@ -101,7 +101,6 @@ window.formatearStockProducto = function(valor, familiaMedicion = 'unidad', unid
         const el = e.target;
         if (!el || el.tagName !== 'INPUT' || el.type !== 'number' || el.readOnly || el.disabled) return;
 
-        // Detecta si el clic cayó sobre la zona derecha donde están las flechas ▲▼ (~26px)
         const rect = el.getBoundingClientRect();
         const clicEnFlechas = (rect.right - e.clientX) <= 26;
 
@@ -131,7 +130,6 @@ window.formatearStockProducto = function(valor, familiaMedicion = 'unidad', unid
         if (!el || el.tagName !== 'INPUT' || el.type !== 'number' || el.readOnly || el.disabled) return;
         if (el.dataset.skipAutoSelect === '1' || el.dataset.selectOnMouseUp === '1') return;
 
-        // Navegación con teclado (Tab)
         el.select();
     });
 })();
@@ -140,8 +138,8 @@ window.formatearStockProducto = function(valor, familiaMedicion = 'unidad', unid
 /* ==========================================================================
    MOTOR DE OPTIMIZACIÓN Y AUTO-LOCALIZACIÓN DE IMÁGENES (ETAPA B)
    ========================================================================== */
-function mostrarEstadoCargaImagen(tipo, mensaje) {
-    const box = document.getElementById('img-upload-status');
+function mostrarEstadoCargaImagen(tipo, mensaje, targetId = 'img-upload-status') {
+    const box = document.getElementById(targetId);
     if (!box) return;
 
     if (!mensaje) {
@@ -166,8 +164,8 @@ function mostrarEstadoCargaImagen(tipo, mensaje) {
 }
 
 /**
- * Convierte un File o Blob de imagen en DataURL comprimido (máx. 900px, WebP liviano)
- * manteniendo proporciones y transparencia, 100% libre de CORS.
+- Convierte un File o Blob de imagen en DataURL comprimido (máx. 900px, WebP liviano)
+- manteniendo proporciones y transparencia, 100% libre de CORS.
  */
 function comprimirBlobImagenALocal(blob, maxLado = 900, calidad = 0.84) {
     return new Promise((resolve, reject) => {
@@ -282,8 +280,44 @@ async function intentarLocalizarUrlExterna(url) {
     return null;
 }
 
+function registrarListenerPegadoGlobal() {
+    if (pasteListenerRegistrado) return;
+    document.addEventListener('paste', async (e) => {
+        const modalVarAbierto = document.getElementById('modal-editar-variante')?.classList.contains('active');
+        const modalProdAbierto = document.getElementById('modal-nuevo-producto')?.classList.contains('active');
+        if (!modalVarAbierto && !modalProdAbierto) return;
+
+        const items = Array.from(e.clipboardData?.items || []);
+        const archivosImg = items
+            .filter(it => it.type && it.type.startsWith('image/'))
+            .map(it => it.getAsFile())
+            .filter(Boolean);
+
+        if (archivosImg.length === 0) return;
+        e.preventDefault();
+
+        if (modalVarAbierto) {
+            mostrarEstadoCargaImagen('info', '⏳ Optimizando foto pegada para esta variante...', 'var-img-status');
+            try {
+                varianteImagenActual = await comprimirBlobImagenALocal(archivosImg[0]);
+                renderizarPreviewFotoVariante();
+                mostrarEstadoCargaImagen('success', '✅ Foto de variante pegada desde portapapeles (Ctrl + V).', 'var-img-status');
+            } catch (err) {
+                console.warn('Error pegando imagen en variante:', err);
+                mostrarEstadoCargaImagen('error', '❌ No se pudo procesar la imagen pegada.', 'var-img-status');
+            }
+            return;
+        }
+
+        if (modalProdAbierto) {
+            await procesarArchivosImagenParaGaleria(archivosImg, 'portapapeles (Ctrl + V)');
+        }
+    });
+    pasteListenerRegistrado = true;
+}
+
 /**
- * Asegura que cada variante tenga nombre, sku, stock, precio propio y color propio
+- Asegura que cada variante tenga nombre, sku, stock, precio, oferta, costo, color y foto opcional
  */
 function asegurarVariantesDetalle(prod) {
     if (!Array.isArray(prod.variantes) || prod.variantes.length === 0) {
@@ -301,7 +335,10 @@ function asegurarVariantesDetalle(prod) {
             sku: `${prod.sku}-${String(nombreVar).toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
             stock: stockBase,
             precio: precioBase,
-            color: COLORES_VARIANTES_DEFAULT[idx % COLORES_VARIANTES_DEFAULT.length]
+            precioOferta: 0,
+            precioCosto: Number(prod.precioCosto) > 0 ? Number(prod.precioCosto) : null,
+            color: COLORES_VARIANTES_DEFAULT[idx % COLORES_VARIANTES_DEFAULT.length],
+            imagen_url: ''
         }));
         prod.stock = prod.variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
         huboCambios = true;
@@ -311,8 +348,16 @@ function asegurarVariantesDetalle(prod) {
                 v.precio = precioBase;
                 huboCambios = true;
             }
+            if (v.precioOferta === undefined || v.precioOferta === null || isNaN(Number(v.precioOferta))) {
+                v.precioOferta = 0;
+                huboCambios = true;
+            }
             if (!v.color) {
                 v.color = COLORES_VARIANTES_DEFAULT[idx % COLORES_VARIANTES_DEFAULT.length];
+                huboCambios = true;
+            }
+            if (typeof v.imagen_url !== 'string') {
+                v.imagen_url = '';
                 huboCambios = true;
             }
         });
@@ -361,8 +406,27 @@ async function asegurarModalVarianteCargado() {
     }
 }
 
+function renderizarPreviewFotoVariante() {
+    const imgEl = document.getElementById('var-img-preview');
+    const emptyEl = document.getElementById('var-img-empty');
+    const btnQuitar = document.getElementById('btn-var-quitar-img');
+    if (!imgEl || !emptyEl || !btnQuitar) return;
+
+    if (varianteImagenActual) {
+        imgEl.src = varianteImagenActual;
+        imgEl.style.display = 'block';
+        emptyEl.style.display = 'none';
+        btnQuitar.style.display = 'inline-flex';
+    } else {
+        imgEl.src = '';
+        imgEl.style.display = 'none';
+        emptyEl.style.display = 'block';
+        btnQuitar.style.display = 'none';
+    }
+}
+
 /* ==========================================================================
-   MODAL DE EDICIÓN DE VARIANTE INDIVIDUAL (PRECIO, COLOR, SKU Y STOCK)
+   MODAL DE EDICIÓN DE VARIANTE INDIVIDUAL (PRECIO, OFERTA, COSTO, FOTO, COLOR, SKU Y STOCK)
    ========================================================================== */
 async function abrirModalEditarVariante(prodId, varIdx) {
     const prod = window.bovedaProductos.find(p => String(p.id) === String(prodId));
@@ -382,7 +446,26 @@ async function abrirModalEditarVariante(prodId, varIdx) {
     document.getElementById('var-edit-nombre').value = variante.nombre || '';
     document.getElementById('var-edit-sku').value = variante.sku || '';
     document.getElementById('var-edit-precio').value = variante.precio ?? obtenerPrecioBaseProducto(prod);
+
+    const inpOferta = document.getElementById('var-edit-precio-oferta');
+    if (inpOferta) {
+        inpOferta.value = Number(variante.precioOferta) > 0 ? Number(variante.precioOferta) : '';
+    }
+
+    const inpCosto = document.getElementById('var-edit-costo');
+    if (inpCosto) {
+        inpCosto.value = (variante.precioCosto !== null && variante.precioCosto !== undefined && Number(variante.precioCosto) > 0)
+            ? Number(variante.precioCosto)
+            : '';
+    }
+
     document.getElementById('var-edit-stock').value = variante.stock ?? 0;
+
+    varianteImagenActual = typeof variante.imagen_url === 'string' ? variante.imagen_url.trim() : '';
+    const inpVarUrl = document.getElementById('input-var-img-url');
+    if (inpVarUrl) inpVarUrl.value = '';
+    mostrarEstadoCargaImagen('', '', 'var-img-status');
+    renderizarPreviewFotoVariante();
 
     const colorActual = (variante.color || '#1e3a8a').toLowerCase();
     document.getElementById('var-edit-color').value = colorActual;
@@ -402,6 +485,7 @@ function cerrarModalEditarVariante() {
     if (overlay) overlay.classList.remove('active');
     document.body.style.overflow = '';
     varianteEditandoRef = { prodId: null, varIdx: null };
+    varianteImagenActual = '';
 }
 
 function inicializarEventosModalVariante() {
@@ -413,11 +497,76 @@ function inicializarEventosModalVariante() {
     const inputColor = document.getElementById('var-edit-color');
     const hexLabel = document.getElementById('var-color-hex');
 
+    registrarListenerPegadoGlobal();
+
     btnCerrar.addEventListener('click', cerrarModalEditarVariante);
     btnCancelar.addEventListener('click', cerrarModalEditarVariante);
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) cerrarModalEditarVariante();
     });
+
+    // Subir foto de variante desde equipo
+    const inputVarFile = document.getElementById('input-var-img-file');
+    if (inputVarFile) {
+        inputVarFile.addEventListener('change', async (e) => {
+            const file = e.target.files?.[0];
+            inputVarFile.value = '';
+            if (!file) return;
+            mostrarEstadoCargaImagen('info', '⏳ Optimizando foto de variante...', 'var-img-status');
+            try {
+                varianteImagenActual = await comprimirBlobImagenALocal(file);
+                renderizarPreviewFotoVariante();
+                mostrarEstadoCargaImagen('success', '✅ Foto cargada y lista para guardar.', 'var-img-status');
+            } catch (err) {
+                console.warn('Error cargando foto de variante:', err);
+                mostrarEstadoCargaImagen('error', '❌ No se pudo leer la imagen seleccionada.', 'var-img-status');
+            }
+        });
+    }
+
+    // Aplicar URL externa a la variante con auto-localización
+    const btnAplicarUrlVar = document.getElementById('btn-var-aplicar-url');
+    if (btnAplicarUrlVar) {
+        btnAplicarUrlVar.addEventListener('click', async () => {
+            const inp = document.getElementById('input-var-img-url');
+            const url = (inp?.value || '').trim();
+            if (!url) return;
+
+            const txtOrig = btnAplicarUrlVar.textContent;
+            btnAplicarUrlVar.disabled = true;
+            btnAplicarUrlVar.textContent = '⏳...';
+            mostrarEstadoCargaImagen('info', '⏳ Descargando imagen...', 'var-img-status');
+
+            try {
+                const dataUrlLocal = await intentarLocalizarUrlExterna(url);
+                if (dataUrlLocal) {
+                    varianteImagenActual = dataUrlLocal;
+                    if (inp) inp.value = '';
+                    renderizarPreviewFotoVariante();
+                    mostrarEstadoCargaImagen('success', '✅ Foto guardada en tu Bóveda Local.', 'var-img-status');
+                } else {
+                    mostrarEstadoCargaImagen(
+                        'error',
+                        '🚫 Esta web bloquea descargas externas. Haz clic derecho → "Copiar imagen" y pégala aquí con <strong>Ctrl + V</strong>.',
+                        'var-img-status'
+                    );
+                }
+            } finally {
+                btnAplicarUrlVar.disabled = false;
+                btnAplicarUrlVar.textContent = txtOrig;
+            }
+        });
+    }
+
+    // Quitar foto propia de variante
+    const btnQuitarVarImg = document.getElementById('btn-var-quitar-img');
+    if (btnQuitarVarImg) {
+        btnQuitarVarImg.addEventListener('click', () => {
+            varianteImagenActual = '';
+            renderizarPreviewFotoVariante();
+            mostrarEstadoCargaImagen('info', 'ℹ️ Se quitará la foto propia (usará la portada del producto).', 'var-img-status');
+        });
+    }
 
     inputColor.addEventListener('input', (e) => {
         const val = e.target.value.toLowerCase();
@@ -446,10 +595,26 @@ function inicializarEventosModalVariante() {
         const nombre = document.getElementById('var-edit-nombre').value.trim();
         const sku = document.getElementById('var-edit-sku').value.trim();
         const precio = Math.max(0, parseFloat(document.getElementById('var-edit-precio').value) || 0);
+        const ofertaRaw = document.getElementById('var-edit-precio-oferta')?.value;
+        const precioOferta = ofertaRaw ? Math.max(0, parseFloat(ofertaRaw) || 0) : 0;
+        const costoRaw = document.getElementById('var-edit-costo')?.value;
+        const precioCosto = (costoRaw !== undefined && costoRaw !== '' && !isNaN(parseFloat(costoRaw)))
+            ? Math.max(0, parseFloat(costoRaw))
+            : null;
         const stock = Math.max(0, parseInt(document.getElementById('var-edit-stock').value, 10) || 0);
         const color = document.getElementById('var-edit-color').value || '#1e3a8a';
 
-        prod.variantesDetalle[varIdx] = { nombre, sku, precio, stock, color };
+        prod.variantesDetalle[varIdx] = {
+            ...prod.variantesDetalle[varIdx],
+            nombre,
+            sku,
+            precio,
+            precioOferta,
+            precioCosto,
+            stock,
+            color,
+            imagen_url: varianteImagenActual || ''
+        };
         prod.variantes = prod.variantesDetalle.map(v => v.nombre);
         prod.stock = prod.variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
         prod.actualizadoEn = new Date().toISOString();
@@ -553,7 +718,6 @@ async function abrirModalEditarProducto(idProducto) {
     renderizarGaleriaSlots();
     calcularRentabilidadEnVivo();
 
-    // Avisa si este producto aún tiene alguna foto externa sin guardar localmente
     const tieneUrlExterna = galeriaImagenes.some(src => /^https?:\/\//i.test(String(src || '')));
     if (tieneUrlExterna) {
         mostrarEstadoCargaImagen(
@@ -635,7 +799,10 @@ function agregarVarianteRapida(idProducto) {
         sku: `${prod.sku}-${limpio.toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
         stock: stockInicial,
         precio: precioBase,
-        color: colorDefault
+        precioOferta: 0,
+        precioCosto: Number(prod.precioCosto) > 0 ? Number(prod.precioCosto) : null,
+        color: colorDefault,
+        imagen_url: ''
     });
     prod.stock = prod.variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0);
 
@@ -782,14 +949,12 @@ function inicializarEventosModalProducto() {
         });
     });
 
-    // 1. Subir archivos desde PC (comprimidos a Bóveda Local)
     const inputFiles = document.getElementById('input-file-imagenes');
     inputFiles.addEventListener('change', async (e) => {
         await procesarArchivosImagenParaGaleria(e.target.files, 'tu equipo');
         inputFiles.value = '';
     });
 
-    // 2. Arrastrar y soltar en la dropzone
     const dropzone = document.getElementById('dropzone-imagenes');
     if (dropzone) {
         dropzone.addEventListener('dragover', (e) => {
@@ -811,27 +976,8 @@ function inicializarEventosModalProducto() {
         });
     }
 
-    // 3. Pegar imagen directa con Ctrl + V mientras el modal esté abierto
-    if (!pasteListenerRegistrado) {
-        document.addEventListener('paste', async (e) => {
-            const modalAbierto = document.getElementById('modal-nuevo-producto')?.classList.contains('active');
-            if (!modalAbierto) return;
+    registrarListenerPegadoGlobal();
 
-            const items = Array.from(e.clipboardData?.items || []);
-            const archivosImg = items
-                .filter(it => it.type && it.type.startsWith('image/'))
-                .map(it => it.getAsFile())
-                .filter(Boolean);
-
-            if (archivosImg.length > 0) {
-                e.preventDefault();
-                await procesarArchivosImagenParaGaleria(archivosImg, 'portapapeles (Ctrl + V)');
-            }
-        });
-        pasteListenerRegistrado = true;
-    }
-
-    // 4. Agregar por URL Web con auto-localización y validación instantánea
     const btnAgregarUrl = document.getElementById('btn-agregar-url');
     btnAgregarUrl.addEventListener('click', async () => {
         const inputUrl = document.getElementById('input-url-imagen');
@@ -1044,7 +1190,10 @@ function guardarProductoFormulario(e) {
                 sku: match ? match.sku : `${sku}-${nombreVar.toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
                 stock: match ? match.stock : stockInput,
                 precio: (match && typeof match.precio === 'number') ? match.precio : precioBaseNuevo,
-                color: (match && match.color) ? match.color : COLORES_VARIANTES_DEFAULT[idx % COLORES_VARIANTES_DEFAULT.length]
+                precioOferta: (match && Number(match.precioOferta) > 0) ? Number(match.precioOferta) : 0,
+                precioCosto: (match && match.precioCosto !== undefined) ? match.precioCosto : (precioCosto > 0 ? precioCosto : null),
+                color: (match && match.color) ? match.color : COLORES_VARIANTES_DEFAULT[idx % COLORES_VARIANTES_DEFAULT.length],
+                imagen_url: (match && typeof match.imagen_url === 'string') ? match.imagen_url : ''
             };
         });
         stockFinal = Math.round(variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000;
@@ -1056,6 +1205,7 @@ function guardarProductoFormulario(e) {
         nombre,
         categoria,
         descripcion,
+        familia: familiaActiva,
         familiaMedicion: familiaActiva,
         unidadMedida: unidad,
         precioNormal,
@@ -1128,21 +1278,33 @@ function renderizarProductosCreados() {
             const variantesHtml = prod.variantesDetalle.map((v, idx) => {
                 const colorDot = v.color || COLORES_VARIANTES_DEFAULT[idx % COLORES_VARIANTES_DEFAULT.length];
                 const precioVar = typeof v.precio === 'number' ? v.precio : precioFinal;
+                const ofertaVar = Number(v.precioOferta) || 0;
+                const tieneOfertaVar = ofertaVar > 0 && ofertaVar < precioVar;
                 const precioVarTxt = `$${precioVar.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+                const ofertaVarTxt = `$${ofertaVar.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+                const fotoVarHtml = v.imagen_url
+                    ? `<img src="${escaparHtml(v.imagen_url)}" alt="${escaparHtml(v.nombre)}" style="width:28px; height:28px; border-radius:6px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">`
+                    : '';
 
                 return `
                     <div class="variant-card">
                         <div class="variant-top">
-                            <div>
-                                <span class="color-dot" style="background:${escaparHtml(colorDot)};"></span>
-                                <strong>${escaparHtml(v.nombre)}</strong>
-                                <div class="variant-sku">${escaparHtml(v.sku)}</div>
+                            <div style="display:flex; align-items:center; gap:0.45rem; min-width:0;">
+                                ${fotoVarHtml}
+                                <div style="min-width:0;">
+                                    <span class="color-dot" style="background:${escaparHtml(colorDot)};"></span>
+                                    <strong>${escaparHtml(v.nombre)}</strong>
+                                    <div class="variant-sku">${escaparHtml(v.sku)}</div>
+                                </div>
                             </div>
                             <button type="button" class="variant-price btn-editar-variante"
                                 data-prod-id="${prod.id}"
                                 data-var-idx="${idx}"
-                                title="Clic para editar precio, color, código y stock de esta variante">
-                                ${precioVarTxt}
+                                title="Clic para editar precio, oferta, foto, color, código y stock de esta variante"
+                                style="display:flex; flex-direction:column; align-items:flex-end; line-height:1.15;">
+                                ${tieneOfertaVar
+                                    ? `<span style="color:#dc2626; font-weight:800;">${ofertaVarTxt}</span><del style="font-size:0.72em; color:#94a3b8; font-weight:600;">${precioVarTxt}</del>`
+                                    : precioVarTxt}
                             </button>
                         </div>
                         <div class="variant-stock-ctrl">
@@ -1213,7 +1375,7 @@ function renderizarProductosCreados() {
 
                     <div class="variants-drawer">
                         <div class="variants-header">
-                            <span>🧩 <strong>${prod.variantesDetalle.length} Variantes configuradas</strong> (clic en el precio para editar) &nbsp;|&nbsp; Suma: <strong class="prod-variants-sum">${stockFormateado} ${escaparHtml(abrevUnidad)}</strong></span>
+                            <span>🧩 <strong>${prod.variantesDetalle.length} Variantes configuradas</strong> (clic en el precio para editar foto, oferta y stock) &nbsp;|&nbsp; Suma: <strong class="prod-variants-sum">${stockFormateado} ${escaparHtml(abrevUnidad)}</strong></span>
                             <button type="button" class="link-btn btn-add-variante" data-id="${prod.id}">+ Añadir Variante</button>
                         </div>
                         <div class="variants-grid">
@@ -1294,7 +1456,7 @@ function renderizarProductosCreados() {
 }
 
 /**
- * Devuelve una copia ordenada de los productos según el criterio elegido en #inv-sort-select
+- Devuelve una copia ordenada de los productos según el criterio elegido en #inv-sort-select
  */
 function obtenerProductosOrdenados(lista) {
     const copia = Array.isArray(lista) ? [...lista] : [];
@@ -1344,7 +1506,7 @@ window.paginaActualInventario = 1;
 window.productosPorPagina = parseInt(localStorage.getItem(STORAGE_KEY_POR_PAGINA) || '30', 10) || 30;
 
 /**
- * Aplica en conjunto: filtro de categoría/estado + buscador de texto + paginación real.
+- Aplica en conjunto: filtro de categoría/estado + buscador de texto + paginación real.
  */
 function aplicarFiltrosYPaginacionInventario(resetearPagina = false) {
     if (resetearPagina) {
@@ -1508,4 +1670,3 @@ function resetearFormularioProducto() {
 function generarSkuAleatorio() {
     return 'PRD-' + Math.floor(10000 + Math.random() * 90000);
 }
-
