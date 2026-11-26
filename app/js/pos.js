@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MÓDULO: TERMINAL PUNTO DE VENTA (POS) - COMPLETO (ETAPAS 1 A 5)
+   MÓDULO: TERMINAL PUNTO DE VENTA (POS) - COMPLETO (ETAPAS 1 A 5 + VARIANTES)
    (TURNOS, CATÁLOGO, FIADO, COBRO MIXTO, ARQUEO, RETIROS, CORTE X/Z Y TICKETS)
    ========================================================================== */
 
@@ -144,17 +144,94 @@ function formatearCantPos(valor, familia, unidad) {
     return String(Math.round((Number(valor) || 0) * 1000) / 1000);
 }
 
-function obtenerPrecioVentaProdPos(prod, varIdx = null) {
-    if (varIdx !== null && Array.isArray(prod.variantesDetalle) && prod.variantesDetalle[varIdx]) {
-        const pv = Number(prod.variantesDetalle[varIdx].precio);
-        if (!isNaN(pv) && pv > 0) return pv;
+/* --- HELPERS UNIFICADOS DE VARIANTES (PRECIO, OFERTA, COSTO, FOTO Y BÚSQUEDA SEGURA) --- */
+function obtenerIndiceVarianteInicialPos(prod) {
+    if (!Array.isArray(prod?.variantesDetalle) || prod.variantesDetalle.length === 0) return null;
+    const disp = prod.variantesDetalle.findIndex(v => (Number(v?.stock) || 0) > 0);
+    return disp >= 0 ? disp : 0;
+}
+
+function obtenerInfoVariantePos(prod, varIdx = null) {
+    const portadaPadre = (Array.isArray(prod?.imagenes) && prod.imagenes[0])
+        ? prod.imagenes[0]
+        : (prod?.imagen_url || '../img/producto.png');
+    const precioNormPadre = Number(prod?.precioNormal ?? prod?.precio) || 0;
+    const precioOfPadre = Number(prod?.precioOferta) || 0;
+    const costoPadre = Math.max(0, Number(prod?.precioCosto ?? prod?.precio_costo) || 0);
+
+    if (varIdx !== null && varIdx !== undefined && Array.isArray(prod?.variantesDetalle) && prod.variantesDetalle[varIdx]) {
+        const v = prod.variantesDetalle[varIdx];
+        const pvNorm = (v.precio !== undefined && v.precio !== null && !isNaN(Number(v.precio)) && Number(v.precio) > 0)
+            ? Number(v.precio)
+            : precioNormPadre;
+        const pvOf = Number(v.precioOferta) || 0;
+        const tieneOferta = pvOf > 0 && pvOf < pvNorm;
+        const precioFinal = tieneOferta ? pvOf : pvNorm;
+        const costoVar = (v.precioCosto !== undefined && v.precioCosto !== null && !isNaN(Number(v.precioCosto)) && Number(v.precioCosto) > 0)
+            ? Number(v.precioCosto)
+            : costoPadre;
+        const imgVar = (typeof v.imagen_url === 'string' && v.imagen_url.trim()) ? v.imagen_url.trim() : portadaPadre;
+
+        return {
+            variante: v,
+            precioNormal: pvNorm,
+            precioOferta: pvOf,
+            tieneOferta,
+            precioFinal,
+            costoUnit: costoVar,
+            imagen: imgVar
+        };
     }
-    const tieneOferta = Number(prod.precioOferta) > 0 && Number(prod.precioOferta) < Number(prod.precioNormal);
-    return tieneOferta ? Number(prod.precioOferta) : (Number(prod.precioNormal) || 0);
+
+    const tieneOfertaPadre = precioOfPadre > 0 && precioOfPadre < precioNormPadre;
+    return {
+        variante: null,
+        precioNormal: precioNormPadre,
+        precioOferta: precioOfPadre,
+        tieneOferta: tieneOfertaPadre,
+        precioFinal: tieneOfertaPadre ? precioOfPadre : precioNormPadre,
+        costoUnit: costoPadre,
+        imagen: portadaPadre
+    };
+}
+
+function obtenerPrecioVentaProdPos(prod, varIdx = null) {
+    return obtenerInfoVariantePos(prod, varIdx).precioFinal;
+}
+
+function resolverIndiceVarianteEnProductoPos(prod, itemTicket) {
+    if (!prod || !Array.isArray(prod.variantesDetalle) || prod.variantesDetalle.length === 0) return -1;
+    const det = prod.variantesDetalle;
+
+    // 1. Coincidencia exacta por SKU de variante
+    const skuBuscado = String(itemTicket?.varSku || itemTicket?.sku || '').trim().toLowerCase();
+    if (skuBuscado) {
+        const porSku = det.findIndex(v => String(v?.sku || '').trim().toLowerCase() === skuBuscado);
+        if (porSku !== -1) return porSku;
+    }
+
+    // 2. Coincidencia por índice + nombre (si no se reordenaron)
+    const idx = itemTicket?.varIdx;
+    const nomBuscado = String(itemTicket?.varNombre || '').trim().toLowerCase();
+    if (idx !== null && idx !== undefined && det[idx]) {
+        if (!nomBuscado || String(det[idx].nombre || '').trim().toLowerCase() === nomBuscado) {
+            return idx;
+        }
+    }
+
+    // 3. Coincidencia por nombre de variante
+    if (nomBuscado) {
+        const porNom = det.findIndex(v => String(v?.nombre || '').trim().toLowerCase() === nomBuscado);
+        if (porNom !== -1) return porNom;
+    }
+
+    // 4. Fallback al índice original si sigue dentro del rango
+    if (idx !== null && idx !== undefined && det[idx]) return idx;
+    return -1;
 }
 
 function esProductoBalanzaPos(prod) {
-    const fam = (prod.familiaMedicion || '').toLowerCase();
+    const fam = (prod.familiaMedicion || prod.familia || '').toLowerCase();
     return fam === 'peso' || fam === 'longitud';
 }
 
@@ -504,9 +581,11 @@ function renderizarCatalogoPos() {
     }
 
     grid.innerHTML = filtrados.map(p => {
-        const foto = (p.imagenes && p.imagenes[0]) ? p.imagenes[0] : '../img/producto.png';
         const esBalanza = esProductoBalanzaPos(p);
         const tieneVariantes = Array.isArray(p.variantesDetalle) && p.variantesDetalle.length > 0;
+        const defaultVarIdx = tieneVariantes ? obtenerIndiceVarianteInicialPos(p) : null;
+        const infoVar = obtenerInfoVariantePos(p, defaultVarIdx);
+        const foto = infoVar.imagen;
         const abrev = abrevUnidadPos(p.unidadMedida);
 
         const stockTotal = Number(p.stock) || 0;
@@ -514,8 +593,8 @@ function renderizarCatalogoPos() {
         const stockTxt = formatearCantPos(stockTotal, p.familiaMedicion, p.unidadMedida);
         const badgeStockClass = sinStock ? 'out' : (stockTotal <= 5 ? 'low' : '');
 
-        const tieneOferta = Number(p.precioOferta) > 0 && Number(p.precioOferta) < Number(p.precioNormal);
-        const precioBase = obtenerPrecioVentaProdPos(p, tieneVariantes ? 0 : null);
+        const precioBase = infoVar.precioFinal;
+        const tieneOferta = infoVar.tieneOferta;
 
         let controlHtml = '';
         if (esBalanza) {
@@ -535,7 +614,9 @@ function renderizarCatalogoPos() {
                 ? `<select class="pos-var-select" data-prod-id="${p.id}">
                     ${p.variantesDetalle.map((v, idx) => {
                         const vst = Number(v.stock) || 0;
-                        return `<option value="${idx}" ${vst <= 0 ? 'disabled' : ''}>${escaparHtmlPos(v.nombre)} — ${formatearMonedaPos(v.precio ?? precioBase)} (${vst} ${escaparHtmlPos(abrev)})</option>`;
+                        const vInfo = obtenerInfoVariantePos(p, idx);
+                        const tagOf = vInfo.tieneOferta ? ' ★OF' : '';
+                        return `<option value="${idx}" ${idx === defaultVarIdx ? 'selected' : ''} ${vst <= 0 ? 'disabled' : ''}>${escaparHtmlPos(v.nombre)} — ${formatearMonedaPos(vInfo.precioFinal)}${tagOf} (${vst} ${escaparHtmlPos(abrev)})</option>`;
                     }).join('')}
                    </select>`
                 : '';
@@ -568,7 +649,7 @@ function renderizarCatalogoPos() {
                     <div class="pos-prod-price-row">
                         <span class="pos-prod-price">${formatearMonedaPos(precioBase)}</span>
                         <span class="pos-prod-unit">/ ${escaparHtmlPos(abrev)}</span>
-                        ${tieneOferta ? `<span class="pos-prod-old">${formatearMonedaPos(p.precioNormal)}</span>` : ''}
+                        ${tieneOferta ? `<span class="pos-prod-old">${formatearMonedaPos(infoVar.precioNormal)}</span>` : ''}
                     </div>
                     ${controlHtml}
                 </div>
@@ -693,7 +774,7 @@ function agregarProductoAlTicketPos(prodId, cantidad = 1, varIdx = null) {
     if (!prod) return;
 
     const tieneVariantes = Array.isArray(prod.variantesDetalle) && prod.variantesDetalle.length > 0;
-    let vIndex = tieneVariantes ? (varIdx !== null ? parseInt(varIdx, 10) : 0) : null;
+    let vIndex = tieneVariantes ? (varIdx !== null && varIdx !== undefined ? parseInt(varIdx, 10) : obtenerIndiceVarianteInicialPos(prod)) : null;
 
     if (tieneVariantes) {
         const vObj = prod.variantesDetalle[vIndex];
@@ -714,8 +795,9 @@ function agregarProductoAlTicketPos(prodId, cantidad = 1, varIdx = null) {
         return;
     }
 
+    const infoVar = obtenerInfoVariantePos(prod, vIndex);
     const cantAgregar = Math.round(Math.max(0.001, Number(cantidad) || 1) * 1000) / 1000;
-    const key = vSel ? `${prod.id}::${vIndex}` : `${prod.id}::main`;
+    const key = vSel ? `${prod.id}::${vSel.sku || vIndex}` : `${prod.id}::main`;
     const existente = window.posState.carrito.find(it => it.key === key);
 
     if (existente) {
@@ -730,16 +812,19 @@ function agregarProductoAlTicketPos(prodId, cantidad = 1, varIdx = null) {
         const cantFinal = Math.min(stockDisp, cantAgregar);
         window.posState.carrito.push({
             key,
-            prodId: prod.id,
+            prodId: String(prod.id),
             varIdx: vIndex,
+            varNombre: vSel ? String(vSel.nombre || '') : '',
+            varSku: vSel ? String(vSel.sku || '') : '',
             nombre: vSel ? `${prod.nombre} (${vSel.nombre})` : prod.nombre,
             sku: vSel ? (vSel.sku || prod.sku) : prod.sku,
-            imagen: (prod.imagenes && prod.imagenes[0]) ? prod.imagenes[0] : '../img/producto.png',
-            precioUnit: obtenerPrecioVentaProdPos(prod, vIndex),
-            costoUnit: Math.max(0, Number(prod.precioCosto) || 0),
+            imagen: infoVar.imagen,
+            precioUnit: infoVar.precioFinal,
+            costoUnit: infoVar.costoUnit,
+            tieneOferta: infoVar.tieneOferta,
             cantidad: cantFinal,
             unidadMedida: prod.unidadMedida || 'Unidad',
-            familiaMedicion: prod.familiaMedicion || 'unidad',
+            familiaMedicion: prod.familiaMedicion || prod.familia || 'unidad',
             stockDisp
         });
     }
@@ -991,9 +1076,10 @@ function confirmarVentaPos() {
         const prod = productos.find(p => String(p.id) === String(it.prodId));
         if (!prod) return;
 
-        if (it.varIdx !== null && Array.isArray(prod.variantesDetalle) && prod.variantesDetalle[it.varIdx]) {
-            const actualVar = Number(prod.variantesDetalle[it.varIdx].stock) || 0;
-            prod.variantesDetalle[it.varIdx].stock = Math.round(Math.max(0, actualVar - it.cantidad) * 1000) / 1000;
+        const vIdxReal = resolverIndiceVarianteEnProductoPos(prod, it);
+        if (vIdxReal !== -1 && Array.isArray(prod.variantesDetalle) && prod.variantesDetalle[vIdxReal]) {
+            const actualVar = Number(prod.variantesDetalle[vIdxReal].stock) || 0;
+            prod.variantesDetalle[vIdxReal].stock = Math.round(Math.max(0, actualVar - it.cantidad) * 1000) / 1000;
             prod.stock = Math.round(prod.variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000;
         } else {
             const actual = Number(prod.stock) || 0;
@@ -1001,6 +1087,7 @@ function confirmarVentaPos() {
         }
         prod.actualizadoEn = new Date().toISOString();
     });
+    // Dispara sync-privada.js -> sube variantesDetalle[] y stock total actualizados a Firestore
     guardarProductosPos();
 
     const ventas = obtenerVentasPos();
@@ -2012,9 +2099,10 @@ function anularVentaYDevolverStockPos(ventaId) {
         if (!prod) return;
 
         const cant = Math.max(0, Number(it.cantidad) || 0);
-        if (it.varIdx !== null && it.varIdx !== undefined && Array.isArray(prod.variantesDetalle) && prod.variantesDetalle[it.varIdx]) {
-            const actualVar = Number(prod.variantesDetalle[it.varIdx].stock) || 0;
-            prod.variantesDetalle[it.varIdx].stock = Math.round((actualVar + cant) * 1000) / 1000;
+        const vIdxReal = resolverIndiceVarianteEnProductoPos(prod, it);
+        if (vIdxReal !== -1 && Array.isArray(prod.variantesDetalle) && prod.variantesDetalle[vIdxReal]) {
+            const actualVar = Number(prod.variantesDetalle[vIdxReal].stock) || 0;
+            prod.variantesDetalle[vIdxReal].stock = Math.round((actualVar + cant) * 1000) / 1000;
             prod.stock = Math.round(prod.variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000;
         } else {
             const actual = Number(prod.stock) || 0;
@@ -2022,6 +2110,7 @@ function anularVentaYDevolverStockPos(ventaId) {
         }
         prod.actualizadoEn = new Date().toISOString();
     });
+    // Sincroniza stock y variantesDetalle restaurados a Firestore
     guardarProductosPos();
 
     if (montoFiado > 0 && venta.clienteId) {
@@ -2295,9 +2384,9 @@ function inicializarEventosPos() {
 
             const productos = obtenerProductosPos();
             for (const p of productos) {
-                if (String(p.sku || '').toLowerCase() === q) {
+                if (String(p.sku || '').toLowerCase() === q || (p.codigoBarras && String(p.codigoBarras).toLowerCase() === q)) {
                     e.preventDefault();
-                    agregarProductoAlTicketPos(p.id, 1, null);
+                    agregarProductoAlTicketPos(p.id, esProductoBalanzaPos(p) ? 0.5 : 1, null);
                     inpSearch.value = '';
                     window.posState.busqueda = '';
                     renderizarCatalogoPos();
@@ -2320,6 +2409,29 @@ function inicializarEventosPos() {
 
     const grid = document.getElementById('pos-products-grid');
     if (grid) {
+        grid.addEventListener('change', (e) => {
+            if (!e.target.classList.contains('pos-var-select')) return;
+            const prodId = e.target.getAttribute('data-prod-id');
+            const varIdx = parseInt(e.target.value, 10);
+            const card = e.target.closest('.pos-prod-card');
+            const prod = obtenerProductosPos().find(p => String(p.id) === String(prodId));
+            if (!card || !prod || isNaN(varIdx)) return;
+
+            const info = obtenerInfoVariantePos(prod, varIdx);
+            const imgEl = card.querySelector('.pos-prod-img-wrap img');
+            if (imgEl && info.imagen) imgEl.src = info.imagen;
+
+            const priceRow = card.querySelector('.pos-prod-price-row');
+            if (priceRow) {
+                const abrev = abrevUnidadPos(prod.unidadMedida);
+                priceRow.innerHTML = `
+                    <span class="pos-prod-price">${formatearMonedaPos(info.precioFinal)}</span>
+                    <span class="pos-prod-unit">/ ${escaparHtmlPos(abrev)}</span>
+                    ${info.tieneOferta ? `<span class="pos-prod-old">${formatearMonedaPos(info.precioNormal)}</span>` : ''}
+                `;
+            }
+        });
+
         grid.addEventListener('input', (e) => {
             if (!e.target.classList.contains('pos-balanza-qty')) return;
             const card = e.target.closest('.pos-prod-card');
@@ -2839,10 +2951,11 @@ function calcularMontoElegibleSinOfertasPos() {
     let elegible = 0;
 
     (window.posState.carrito || []).forEach(it => {
-        const prod = productos.find(p => String(p.id) === String(it.prodId));
-        const tieneOferta = prod
-            ? (Number(prod.precioOferta) > 0 && Number(prod.precioOferta) < Number(prod.precioNormal))
-            : false;
+        let tieneOferta = Boolean(it.tieneOferta);
+        if (it.tieneOferta === undefined) {
+            const prod = productos.find(p => String(p.id) === String(it.prodId));
+            tieneOferta = prod ? obtenerInfoVariantePos(prod, it.varIdx).tieneOferta : false;
+        }
         if (!tieneOferta) {
             elegible += (Number(it.precioUnit) || 0) * (Number(it.cantidad) || 0);
         }
@@ -3417,10 +3530,17 @@ if (!window._posNotaTicketHooked) {
 
         const freqMap = st.sortBy === 'frecuente' ? calcularMapaFrecuenciaVentasPos() : null;
         const precioDe = (p) => {
-            const tieneVar = Array.isArray(p.variantesDetalle) && p.variantesDetalle.length > 0;
-            return obtenerPrecioVentaProdPos(p, tieneVar ? 0 : null);
+            const defIdx = obtenerIndiceVarianteInicialPos(p);
+            return obtenerPrecioVentaProdPos(p, defIdx);
         };
-        const esOferta = (p) => Number(p.precioOferta) > 0 && Number(p.precioOferta) < Number(p.precioNormal);
+        const esOferta = (p) => {
+            const defIdx = obtenerIndiceVarianteInicialPos(p);
+            if (obtenerInfoVariantePos(p, defIdx).tieneOferta) return true;
+            if (Array.isArray(p.variantesDetalle)) {
+                return p.variantesDetalle.some((_, idx) => obtenerInfoVariantePos(p, idx).tieneOferta);
+            }
+            return false;
+        };
 
         filtrados.sort((a, b) => {
             const pinA = st.pinnedIds.has(String(a.id)) ? 1 : 0;
@@ -3498,9 +3618,11 @@ if (!window._posNotaTicketHooked) {
         }
 
         grid.innerHTML = paginaItems.map(p => {
-            const foto = (p.imagenes && p.imagenes[0]) ? p.imagenes[0] : '../img/producto.png';
             const esBalanza = esProductoBalanzaPos(p);
             const tieneVariantes = Array.isArray(p.variantesDetalle) && p.variantesDetalle.length > 0;
+            const defaultVarIdx = tieneVariantes ? obtenerIndiceVarianteInicialPos(p) : null;
+            const infoVar = obtenerInfoVariantePos(p, defaultVarIdx);
+            const foto = infoVar.imagen;
             const abrev = abrevUnidadPos(p.unidadMedida);
             const isPinned = st.pinnedIds.has(String(p.id));
 
@@ -3509,8 +3631,8 @@ if (!window._posNotaTicketHooked) {
             const stockTxt = formatearCantPos(stockTotal, p.familiaMedicion, p.unidadMedida);
             const badgeStockClass = sinStock ? 'out' : (stockTotal <= 5 ? 'low' : '');
 
-            const tieneOferta = esOferta(p);
-            const precioBase = obtenerPrecioVentaProdPos(p, tieneVariantes ? 0 : null);
+            const tieneOferta = infoVar.tieneOferta;
+            const precioBase = infoVar.precioFinal;
 
             let controlHtml = '';
             if (esBalanza) {
@@ -3530,7 +3652,9 @@ if (!window._posNotaTicketHooked) {
                     ? `<select class="pos-var-select" data-prod-id="${p.id}">
                         ${p.variantesDetalle.map((v, idx) => {
                             const vst = Number(v.stock) || 0;
-                            return `<option value="${idx}" ${vst <= 0 ? 'disabled' : ''}>${escaparHtmlPos(v.nombre)} — ${formatearMonedaPos(v.precio ?? precioBase)} (${vst} ${escaparHtmlPos(abrev)})</option>`;
+                            const vInfo = obtenerInfoVariantePos(p, idx);
+                            const tagOf = vInfo.tieneOferta ? ' ★OF' : '';
+                            return `<option value="${idx}" ${idx === defaultVarIdx ? 'selected' : ''} ${vst <= 0 ? 'disabled' : ''}>${escaparHtmlPos(v.nombre)} — ${formatearMonedaPos(vInfo.precioFinal)}${tagOf} (${vst} ${escaparHtmlPos(abrev)})</option>`;
                         }).join('')}
                        </select>`
                     : '';
@@ -3566,7 +3690,7 @@ if (!window._posNotaTicketHooked) {
                             <div class="pos-prod-price-row">
                                 <span class="pos-prod-price">${formatearMonedaPos(precioBase)}</span>
                                 <span class="pos-prod-unit">/ ${escaparHtmlPos(abrev)}</span>
-                                ${tieneOferta ? `<span class="pos-prod-old">${formatearMonedaPos(p.precioNormal)}</span>` : ''}
+                                ${tieneOferta ? `<span class="pos-prod-old">${formatearMonedaPos(infoVar.precioNormal)}</span>` : ''}
                             </div>
                         </div>
                         ${controlHtml}
@@ -3625,7 +3749,8 @@ if (!window._posNotaTicketHooked) {
                 const vIdx = p.variantesDetalle.findIndex(v => String(v.sku || '').trim().toLowerCase() === q);
                 if (vIdx !== -1) {
                     agregarProductoAlTicketPos(p.id, 1, vIdx);
-                    flashScannerPillPos(`✅ +1 ${String(p.nombre || '').slice(0, 14)}`, false);
+                    const vNom = p.variantesDetalle[vIdx]?.nombre || '';
+                    flashScannerPillPos(`✅ +1 ${String(p.nombre || '').slice(0, 10)} (${vNom})`, false);
                     return true;
                 }
             }
