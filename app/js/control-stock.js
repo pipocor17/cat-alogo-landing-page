@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MÓDULO: CONTROL DE STOCK, REABASTECIMIENTO Y PROVEEDORES (ETAPAS 1 A 4)
+   MÓDULO: CONTROL DE STOCK, REABASTECIMIENTO Y PROVEEDORES (ETAPAS 1 A 4 + VARIANTES)
    ========================================================================== */
 
 const STORAGE_KEY_PROVEEDORES = 'cat_alogo_proveedores_v1';
@@ -47,7 +47,7 @@ window.stockState = {
 let stockF8Registrado = false;
 
 /* ==========================================================================
-   HELPERS DE BÓVEDA LOCAL Y FORMATO
+   HELPERS DE BÓVEDA LOCAL, VARIANTES Y FORMATO
    ========================================================================== */
 function obtenerProductosStock() {
     if (!Array.isArray(window.bovedaProductos) || window.bovedaProductos.length === 0) {
@@ -199,6 +199,88 @@ function evaluarEstadoStock(stock, umbral) {
     return { nivel: 'ok', tag: '', claseTag: '', critico: false };
 }
 
+/**
+ * Evalúa el estado de stock considerando variantes individuales (evita falsos "OK" cuando falta un talle)
+ */
+function evaluarEstadoProductoStock(prod) {
+    const umbral = obtenerUmbralProducto(prod);
+    const tieneVariantes = Array.isArray(prod?.variantesDetalle) && prod.variantesDetalle.length > 0;
+
+    if (!tieneVariantes) {
+        return evaluarEstadoStock(prod?.stock, umbral);
+    }
+
+    const totalStock = Number(prod.stock) || 0;
+    const agotadas = prod.variantesDetalle.filter(v => (Number(v?.stock) || 0) <= 0).length;
+    const criticas = prod.variantesDetalle.filter(v => (Number(v?.stock) || 0) <= umbral).length;
+    const preventivas = prod.variantesDetalle.filter(v => {
+        const s = Number(v?.stock) || 0;
+        return s > umbral && umbral > 0 && s <= umbral * 1.5;
+    }).length;
+
+    if (totalStock <= 0) {
+        return { nivel: 'danger', tag: 'AGOTADO', claseTag: 'tag-agotado', critico: true, agotadas, criticas };
+    }
+    if (agotadas > 0) {
+        return {
+            nivel: 'danger',
+            tag: `${agotadas} ${agotadas === 1 ? 'VAR. AGOTADA' : 'VAR. AGOTADAS'}`,
+            claseTag: 'tag-agotado',
+            critico: true,
+            agotadas,
+            criticas
+        };
+    }
+    if (criticas > 0) {
+        return {
+            nivel: 'danger',
+            tag: `${criticas} ${criticas === 1 ? 'VAR. CRÍTICA' : 'VAR. CRÍTICAS'}`,
+            claseTag: 'tag-critico',
+            critico: true,
+            agotadas: 0,
+            criticas
+        };
+    }
+    if (preventivas > 0) {
+        return {
+            nivel: 'warning',
+            tag: `${preventivas} PREVENT.`,
+            claseTag: 'tag-preventivo',
+            critico: false,
+            agotadas: 0,
+            criticas: 0
+        };
+    }
+    return { nivel: 'ok', tag: '', claseTag: '', critico: false, agotadas: 0, criticas: 0 };
+}
+
+function resolverIndiceVarianteStock(prod, itemPedido) {
+    if (!prod || !Array.isArray(prod.variantesDetalle) || prod.variantesDetalle.length === 0) return -1;
+    const det = prod.variantesDetalle;
+
+    const skuBuscado = String(itemPedido?.varSku || itemPedido?.sku || '').trim().toLowerCase();
+    if (skuBuscado) {
+        const porSku = det.findIndex(v => String(v?.sku || '').trim().toLowerCase() === skuBuscado);
+        if (porSku !== -1) return porSku;
+    }
+
+    const idx = itemPedido?.varIdx;
+    const nomBuscado = String(itemPedido?.varNombre || '').trim().toLowerCase();
+    if (idx !== null && idx !== undefined && det[idx]) {
+        if (!nomBuscado || String(det[idx].nombre || '').trim().toLowerCase() === nomBuscado) {
+            return idx;
+        }
+    }
+
+    if (nomBuscado) {
+        const porNom = det.findIndex(v => String(v?.nombre || '').trim().toLowerCase() === nomBuscado);
+        if (porNom !== -1) return porNom;
+    }
+
+    if (idx !== null && idx !== undefined && det[idx]) return idx;
+    return -1;
+}
+
 function obtenerNombreComercioLocal() {
     try {
         const pdfCfg = JSON.parse(localStorage.getItem('cat_alogo_pdf_config_v1') || 'null');
@@ -237,7 +319,7 @@ function actualizarBadgeTransitoStock() {
 }
 
 /* ==========================================================================
-   KPIs Y TARJETA DE REPOSICIÓN AUTOMÁTICA 1-CLICK
+   KPIs Y TARJETA DE REPOSICIÓN AUTOMÁTICA 1-CLICK (CON VARIANTES)
    ========================================================================== */
 function renderizarKpisYAutoOrdenStock() {
     const productos = obtenerProductosStock();
@@ -252,28 +334,58 @@ function renderizarKpisYAutoOrdenStock() {
     const proveedoresObjetivo = new Set();
 
     productos.forEach(p => {
-        const stock = Math.max(0, Number(p.stock) || 0);
-        const costo = Math.max(0, Number(p.precioCosto) || 0);
-        const tieneOferta = Number(p.precioOferta) > 0 && Number(p.precioOferta) < Number(p.precioNormal);
-        const venta = tieneOferta ? Number(p.precioOferta) : (Number(p.precioNormal) || 0);
         const umbral = obtenerUmbralProducto(p);
+        const costoBase = Math.max(0, Number(p.precioCosto) || 0);
+        const tieneOfertaBase = Number(p.precioOferta) > 0 && Number(p.precioOferta) < Number(p.precioNormal);
+        const ventaBase = tieneOfertaBase ? Number(p.precioOferta) : (Number(p.precioNormal) || 0);
+        const tieneVariantes = Array.isArray(p.variantesDetalle) && p.variantesDetalle.length > 0;
+        const estadoProd = evaluarEstadoProductoStock(p);
 
-        valorizadoDeposito += stock * (costo > 0 ? costo : venta);
-
-        if (costo > 0 && venta > 0) {
-            sumaMargenes += ((venta - costo) / venta) * 100;
-            countConCosto++;
-            gananciaProyectada += Math.max(0, venta - costo) * stock;
-        }
-
-        if (stock <= umbral) {
+        if (estadoProd.critico) {
             criticosCount++;
             const prov = (p.proveedor || 'Sin proveedor').trim();
             if (prov && prov.toLowerCase() !== 'sin proveedor') {
                 proveedoresObjetivo.add(prov);
             }
-            const faltanteSugerido = Math.max(1, Math.ceil((umbral * 2) - stock));
-            costoReordenEstimado += faltanteSugerido * (costo > 0 ? costo : venta * 0.6);
+        }
+
+        if (tieneVariantes) {
+            p.variantesDetalle.forEach(v => {
+                const vStock = Math.max(0, Number(v?.stock) || 0);
+                const vCosto = (v?.precioCosto !== null && v?.precioCosto !== undefined && Number(v.precioCosto) > 0)
+                    ? Number(v.precioCosto)
+                    : costoBase;
+                const vNorm = Number(v?.precio) > 0 ? Number(v.precio) : ventaBase;
+                const vOf = Number(v?.precioOferta) || 0;
+                const vVenta = (vOf > 0 && vOf < vNorm) ? vOf : vNorm;
+
+                valorizadoDeposito += vStock * (vCosto > 0 ? vCosto : vVenta);
+
+                if (vCosto > 0 && vVenta > 0) {
+                    sumaMargenes += ((vVenta - vCosto) / vVenta) * 100;
+                    countConCosto++;
+                    gananciaProyectada += Math.max(0, vVenta - vCosto) * vStock;
+                }
+
+                if (vStock <= umbral) {
+                    const faltanteVar = Math.max(1, Math.ceil((umbral * 2) - vStock));
+                    costoReordenEstimado += faltanteVar * (vCosto > 0 ? vCosto : vVenta * 0.6);
+                }
+            });
+        } else {
+            const stock = Math.max(0, Number(p.stock) || 0);
+            valorizadoDeposito += stock * (costoBase > 0 ? costoBase : ventaBase);
+
+            if (costoBase > 0 && ventaBase > 0) {
+                sumaMargenes += ((ventaBase - costoBase) / ventaBase) * 100;
+                countConCosto++;
+                gananciaProyectada += Math.max(0, ventaBase - costoBase) * stock;
+            }
+
+            if (stock <= umbral) {
+                const faltanteSugerido = Math.max(1, Math.ceil((umbral * 2) - stock));
+                costoReordenEstimado += faltanteSugerido * (costoBase > 0 ? costoBase : ventaBase * 0.6);
+            }
         }
     });
 
@@ -319,7 +431,7 @@ function renderizarDirectorioProveedoresStock() {
 
     grid.innerHTML = proveedores.map(prov => {
         const asignados = productos.filter(p => (p.proveedor || '').toLowerCase() === prov.nombre.toLowerCase());
-        const criticos = asignados.filter(p => (Number(p.stock) || 0) <= obtenerUmbralProducto(p)).length;
+        const criticos = asignados.filter(p => evaluarEstadoProductoStock(p).critico).length;
 
         const entregaLower = (prov.entrega || '').toLowerCase();
         const badgeClass = entregaLower.includes('24') ? 'fast' : (entregaLower.includes('48') ? 'med' : 'prog');
@@ -476,7 +588,10 @@ function renderizarChecklistAsignacionProductos() {
         if (filtro === 'libres' && !sinProv) return false;
 
         if (q) {
-            const txt = `${p.nombre || ''} ${p.sku || ''} ${p.categoria || ''}`.toLowerCase();
+            const varTxt = Array.isArray(p.variantesDetalle)
+                ? p.variantesDetalle.map(v => `${v.nombre || ''} ${v.sku || ''}`).join(' ')
+                : '';
+            const txt = `${p.nombre || ''} ${p.sku || ''} ${p.categoria || ''} ${varTxt}`.toLowerCase();
             if (!txt.includes(q)) return false;
         }
         return true;
@@ -610,29 +725,37 @@ function construirLineasCatalogoParaPedido() {
         if (tieneVariantes) {
             p.variantesDetalle.forEach((v, vIdx) => {
                 const stock = Number(v.stock) || 0;
+                const vCosto = (v?.precioCosto !== null && v?.precioCosto !== undefined && Number(v.precioCosto) > 0)
+                    ? Number(v.precioCosto)
+                    : costoBase;
+                const vSku = v.sku || p.sku || '';
                 lineas.push({
-                    key: `${p.id}::${vIdx}`,
-                    prodId: p.id,
+                    key: `${p.id}::${vSku || vIdx}`,
+                    prodId: String(p.id),
                     varIdx: vIdx,
+                    varNombre: String(v.nombre || ''),
+                    varSku: String(vSku),
                     nombre: `${p.nombre} (${v.nombre})`,
-                    sku: v.sku || p.sku,
+                    sku: vSku,
                     categoria: p.categoria || 'General',
                     proveedor: (p.proveedor || 'Sin proveedor').trim(),
                     unidadMedida: p.unidadMedida || 'Unidad',
                     familiaMedicion: p.familiaMedicion || 'variantes',
                     stock,
                     umbral,
-                    costo: costoBase
+                    costo: vCosto
                 });
             });
         } else {
             const stock = Number(p.stock) || 0;
             lineas.push({
                 key: `${p.id}::main`,
-                prodId: p.id,
+                prodId: String(p.id),
                 varIdx: null,
+                varNombre: '',
+                varSku: '',
                 nombre: p.nombre,
-                sku: p.sku,
+                sku: p.sku || '',
                 categoria: p.categoria || 'General',
                 proveedor: (p.proveedor || 'Sin proveedor').trim(),
                 unidadMedida: p.unidadMedida || 'Unidad',
@@ -675,7 +798,7 @@ function abrirModalPedidoProveedor(opciones = {}) {
 
     if (opciones.modoAuto && !provInicial) {
         const criticoConProv = obtenerProductosStock().find(p =>
-            (Number(p.stock) || 0) <= obtenerUmbralProducto(p) &&
+            evaluarEstadoProductoStock(p).critico &&
             p.proveedor && p.proveedor.toLowerCase() !== 'sin proveedor'
         );
         if (criticoConProv) provInicial = criticoConProv.proveedor;
@@ -718,7 +841,10 @@ function abrirModalPedidoProveedor(opciones = {}) {
 
         let marcar = false;
         if (opciones.prodId && String(l.prodId) === String(opciones.prodId)) {
-            marcar = true;
+            // Si el producto tiene variantes, marcar las variantes críticas (o todas si ninguna está crítica)
+            const lineasMismoProd = lineas.filter(x => String(x.prodId) === String(opciones.prodId));
+            const hayVarCritica = lineasMismoProd.some(x => x.stock <= x.umbral);
+            marcar = hayVarCritica ? esCritico : true;
             if (!perteneceProv) {
                 window.stockState.pedVerTodos = true;
                 if (chkTodos) chkTodos.checked = true;
@@ -846,7 +972,6 @@ function construirTextoMensajePedido(provObj, items, notaExtra = '') {
         return 'Selecciona al menos 1 producto de la lista izquierda para generar el mensaje de pedido.';
     }
 
-    // 1. Leer plantilla y opciones guardadas desde Ajustes
     let plantilla = '';
     let comercio = obtenerNombreComercioLocal();
     try {
@@ -867,7 +992,6 @@ function construirTextoMensajePedido(provObj, items, notaExtra = '') {
         if (rawOpts && typeof rawOpts === 'object') opts = { ...opts, ...rawOpts };
     } catch { /* defaults */ }
 
-    // 2. Formatear lista de productos según las preferencias elegidas
     const lineasProds = items.map((it, idx) => {
         const abrev = abrevUnidadStock(it.unidadMedida);
         const cantTxt = formatearCantidadStock(it.cantidadPedida, it.familiaMedicion, it.unidadMedida);
@@ -886,7 +1010,6 @@ function construirTextoMensajePedido(provObj, items, notaExtra = '') {
     const totalEstimado = items.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0);
     const notaLimpia = String(notaExtra || '').trim();
 
-    // 3. Reemplazar variables ({VAR} y [VAR])
     const usaVarNota = /\{NOTA\}|\[NOTA\]/i.test(plantilla);
     const reemplazos = {
         PROVEEDOR: nombreProv,
@@ -903,7 +1026,6 @@ function construirTextoMensajePedido(provObj, items, notaExtra = '') {
         return reemplazos[key.toUpperCase()] ?? '';
     });
 
-    // Si hay nota adicional y la plantilla no incluía {NOTA}, la agregamos prolijamente al final
     if (notaLimpia && !usaVarNota) {
         msg = `${msg.trim()}\n\n📝 *Nota:* ${notaLimpia}`;
     }
@@ -963,8 +1085,10 @@ function registrarPedidoEnEspera(canalSalida) {
         mensaje: mensajeFinal,
         totalEstimado,
         items: items.map(it => ({
-            prodId: it.prodId,
-            varIdx: it.varIdx,
+            prodId: String(it.prodId),
+            varIdx: it.varIdx !== undefined ? it.varIdx : null,
+            varNombre: String(it.varNombre || ''),
+            varSku: String(it.varSku || ''),
             nombre: it.nombre,
             sku: it.sku,
             unidadMedida: it.unidadMedida,
@@ -1134,12 +1258,10 @@ function obtenerOrdenesFiltradasYOrdenadasRecepcion(listaBase) {
     const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
 
     const filtradas = listaBase.filter(ped => {
-        // 1. Filtro por proveedor
         if (st.recFiltroProv !== 'todos') {
             if ((ped.proveedorNombre || '').toLowerCase() !== st.recFiltroProv.toLowerCase()) return false;
         }
 
-        // 2. Filtro por estado de pago (solo en Recibidos / Historial)
         if (st.recTabActiva === 'recibido' && st.recFiltroPago !== 'todos') {
             const tienePago = !!ped.pagoInfo;
             const deuda = tienePago ? (Number(ped.pagoInfo.deudaPendiente) || 0) : 0;
@@ -1148,7 +1270,6 @@ function obtenerOrdenesFiltradasYOrdenadasRecepcion(listaBase) {
             if (st.recFiltroPago === 'sin_pago' && tienePago) return false;
         }
 
-        // 3. Filtro por período de fecha
         if (st.recFiltroPeriodo !== 'todos') {
             const fechaRef = new Date(ped.fechaRecepcion || ped.fechaCreacion).getTime();
             if (st.recFiltroPeriodo === 'hoy' && fechaRef < inicioHoy) return false;
@@ -1157,7 +1278,6 @@ function obtenerOrdenesFiltradasYOrdenadasRecepcion(listaBase) {
             if (st.recFiltroPeriodo === 'anio' && new Date(fechaRef).getFullYear() !== ahora.getFullYear()) return false;
         }
 
-        // 4. Búsqueda multi-parámetro (orden, proveedor, productos, SKUs, factura, notas)
         if (q) {
             const itemsTxt = (ped.items || []).map(it => `${it.nombre || ''} ${it.sku || ''}`).join(' ');
             const pagoTxt = ped.pagoInfo ? `${ped.pagoInfo.comprobante || ''} ${ped.pagoInfo.medioPago || ''} ${ped.pagoInfo.notas || ''}` : '';
@@ -1168,7 +1288,6 @@ function obtenerOrdenesFiltradasYOrdenadasRecepcion(listaBase) {
         return true;
     });
 
-    // 5. Ordenamiento
     const montoOrden = (p) => Number(p.pagoInfo?.totalGeneral ?? p.totalFinal ?? p.totalEstimado) || 0;
     const deudaOrden = (p) => Number(p.pagoInfo?.deudaPendiente) || 0;
     const fechaOrden = (p) => new Date(p.fechaRecepcion || p.fechaCreacion).getTime() || 0;
@@ -1207,7 +1326,6 @@ function renderizarBandejaRecepcion() {
 
     const listaBase = st.recTabActiva === 'en_espera' ? enEspera : recibidos;
 
-    // Mostrar u ocultar controles exclusivos de Historial
     const selPago = document.getElementById('rec-filter-pago');
     if (selPago) selPago.style.display = st.recTabActiva === 'recibido' ? '' : 'none';
 
@@ -1218,7 +1336,6 @@ function renderizarBandejaRecepcion() {
         btnLimpiarSaldados.textContent = `🧹 Limpiar saldados (${cantSaldados})`;
     }
 
-    // Poblar selector de proveedores según las órdenes de la pestaña actual
     const selProv = document.getElementById('rec-filter-prov');
     if (selProv) {
         const provsUnicos = Array.from(new Set(listaBase.map(p => (p.proveedorNombre || '').trim()).filter(Boolean)))
@@ -1237,14 +1354,12 @@ function renderizarBandejaRecepcion() {
         }
     }
 
-    // Mostrar botón de limpiar filtros si hay alguno activo
     const hayFiltros = !!(st.recBusqueda.trim() || st.recFiltroProv !== 'todos' || (st.recTabActiva === 'recibido' && st.recFiltroPago !== 'todos') || st.recFiltroPeriodo !== 'todos' || st.recOrden !== 'recientes');
     const btnClear = document.getElementById('btn-rec-clear-filters');
     if (btnClear) btnClear.style.display = hayFiltros ? 'inline-flex' : 'none';
 
     const listaFiltrada = obtenerOrdenesFiltradasYOrdenadasRecepcion(listaBase);
 
-    // Resumen superior
     const elSummary = document.getElementById('rec-filter-summary');
     if (elSummary) {
         const deudaFiltrada = listaFiltrada.reduce((acc, p) => acc + (Number(p.pagoInfo?.deudaPendiente) || 0), 0);
@@ -1275,7 +1390,6 @@ function renderizarBandejaRecepcion() {
         st.recPedidoActivoId = listaFiltrada[0].id;
     }
 
-    // Carga progresiva para soportar 1.000+ registros sin lag
     const visibles = listaFiltrada.slice(0, st.recLimiteVisible);
     const restantes = listaFiltrada.length - visibles.length;
 
@@ -1464,7 +1578,6 @@ function renderizarDetalleOrdenRecepcion(pedido) {
         </footer>
     `;
 
-    // Eventos dinámicos del detalle
     document.getElementById('btn-rec-descargar-pdf')?.addEventListener('click', () => generarPdfOrdenCompra(pedido));
 
     if (esEspera) {
@@ -1530,20 +1643,22 @@ function confirmarRecepcionMercaderia(pedidoId) {
         item.costoUnitario = costoReal;
         subtotalFinal += cantRec * costoReal;
 
-        // Sumar automáticamente al stock real en la Bóveda Local
         const prod = productos.find(p => String(p.id) === String(item.prodId));
         if (prod && cantRec > 0) {
-            if (item.varIdx !== null && item.varIdx !== undefined && Array.isArray(prod.variantesDetalle) && prod.variantesDetalle[item.varIdx]) {
-                const actualVar = Number(prod.variantesDetalle[item.varIdx].stock) || 0;
-                prod.variantesDetalle[item.varIdx].stock = Math.round((actualVar + cantRec) * 1000) / 1000;
+            const vIdxReal = resolverIndiceVarianteStock(prod, item);
+            if (vIdxReal !== -1 && Array.isArray(prod.variantesDetalle) && prod.variantesDetalle[vIdxReal]) {
+                const actualVar = Number(prod.variantesDetalle[vIdxReal].stock) || 0;
+                prod.variantesDetalle[vIdxReal].stock = Math.round((actualVar + cantRec) * 1000) / 1000;
+                if (actualizarCostos && costoReal > 0) {
+                    prod.variantesDetalle[vIdxReal].precioCosto = costoReal;
+                }
                 prod.stock = Math.round(prod.variantesDetalle.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000;
             } else {
                 const actual = Number(prod.stock) || 0;
                 prod.stock = Math.round((actual + cantRec) * 1000) / 1000;
-            }
-
-            if (actualizarCostos && costoReal > 0) {
-                prod.precioCosto = costoReal;
+                if (actualizarCostos && costoReal > 0) {
+                    prod.precioCosto = costoReal;
+                }
             }
             prod.actualizadoEn = new Date().toISOString();
         }
@@ -1553,18 +1668,15 @@ function confirmarRecepcionMercaderia(pedidoId) {
     pedido.fechaRecepcion = new Date().toISOString();
     pedido.totalFinal = Math.round(subtotalFinal * 100) / 100;
 
+    // Dispara sync-privada.js -> sincroniza variantesDetalle[], stock total y pedido recibido a Firestore
     guardarProductosStock();
     guardarPedidosStock(pedidos);
     renderizarTodoControlStock();
     cerrarModalRecepcionTransito();
 
-    // Abre automáticamente la ventana de pago para completar envío, entrega y deuda
     abrirModalPagoPedido(pedido.id);
 }
 
-/* ==========================================================================
-   VENTANA DE PAGO (PAGO ÚNICO / DIVIDIDO, ENVÍO Y DEUDA PARA FINANZAS)
-   ========================================================================== */
 /* ==========================================================================
    VENTANA DE PAGO (SUBTOTAL AUTO/MANUAL, PAGO ÚNICO / DIVIDIDO, ENVÍO Y DEUDA)
    ========================================================================== */
@@ -1609,7 +1721,6 @@ function abrirModalPagoPedido(pedidoId) {
     recalcularResumenPagoPedido();
     document.getElementById('modal-pago-pedido')?.classList.add('active');
 
-    // Si el pedido viene en $0 (sin costos cargados), enfocar directo el campo de mercadería
     if (subtotalCalculado <= 0 && inpSub) {
         setTimeout(() => { inpSub.focus(); inpSub.select(); }, 80);
     }
@@ -1630,7 +1741,6 @@ function recalcularResumenPagoPedido() {
     const envio = Math.round(Math.max(0, parseFloat(document.getElementById('pago-costo-envio')?.value) || 0) * 100) / 100;
     const totalGeneral = Math.round((subtotal + envio) * 100) / 100;
 
-    // Indicador de diferencia vs. catálogo y botón de restaurar
     const diff = Math.round((subtotal - subtotalCalculado) * 100) / 100;
     const elHintSub = document.getElementById('pago-subtotal-hint');
     const btnRestaurar = document.getElementById('btn-pago-restaurar-sub');
@@ -1755,7 +1865,6 @@ function guardarPagoPedidoFormulario(e) {
 
     cerrarModalPagoPedido();
 
-    // Refrescar historial de recepción si quedó abierto detrás
     const modalRec = document.getElementById('modal-recepcion-transito');
     if (modalRec && modalRec.classList.contains('active')) {
         renderizarBandejaRecepcion();
@@ -1769,14 +1878,14 @@ function guardarPagoPedidoFormulario(e) {
 }
 
 /* ==========================================================================
-   FILTROS Y TABLA OPERATIVA DE STOCK
+   FILTROS Y TABLA OPERATIVA DE STOCK (CON ALERTAS Y BÚSQUEDA POR VARIANTE)
    ========================================================================== */
 function renderizarFiltrosControlStock() {
     const cont = document.getElementById('stock-filter-chips');
     if (!cont) return;
 
     const productos = obtenerProductosStock();
-    const criticosCount = productos.filter(p => (Number(p.stock) || 0) <= obtenerUmbralProducto(p)).length;
+    const criticosCount = productos.filter(p => evaluarEstadoProductoStock(p).critico).length;
 
     const categoriasMap = {};
     productos.forEach(p => {
@@ -1832,22 +1941,25 @@ function renderizarTablaControlStock() {
 
     const filtrados = productos.filter(p => {
         if (filtro === 'criticos') {
-            if ((Number(p.stock) || 0) > obtenerUmbralProducto(p)) return false;
+            if (!evaluarEstadoProductoStock(p).critico) return false;
         } else if (filtro.startsWith('cat:')) {
             const buscada = filtro.slice(4);
             if ((p.categoria || 'General').toLowerCase() !== buscada) return false;
         }
 
         if (q) {
-            const texto = `${p.nombre || ''} ${p.sku || ''} ${p.categoria || ''} ${p.proveedor || ''}`.toLowerCase();
+            const varTxt = Array.isArray(p.variantesDetalle)
+                ? p.variantesDetalle.map(v => `${v.nombre || ''} ${v.sku || ''}`).join(' ')
+                : '';
+            const texto = `${p.nombre || ''} ${p.sku || ''} ${p.categoria || ''} ${p.proveedor || ''} ${varTxt}`.toLowerCase();
             if (!texto.includes(q)) return false;
         }
         return true;
     });
 
     filtrados.sort((a, b) => {
-        const critA = (Number(a.stock) || 0) <= obtenerUmbralProducto(a) ? 0 : 1;
-        const critB = (Number(b.stock) || 0) <= obtenerUmbralProducto(b) ? 0 : 1;
+        const critA = evaluarEstadoProductoStock(a).critico ? 0 : 1;
+        const critB = evaluarEstadoProductoStock(b).critico ? 0 : 1;
         if (critA !== critB) return critA - critB;
         return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' });
     });
@@ -1887,7 +1999,7 @@ function renderizarTablaControlStock() {
 
         const abrev = abrevUnidadStock(p.unidadMedida);
         const umbral = obtenerUmbralProducto(p);
-        const estado = evaluarEstadoStock(p.stock, umbral);
+        const estado = evaluarEstadoProductoStock(p);
         const stockTxt = formatearCantidadStock(p.stock, p.familiaMedicion, p.unidadMedida);
         const umbralTxt = formatearCantidadStock(umbral, p.familiaMedicion, p.unidadMedida);
 
@@ -1960,15 +2072,25 @@ function renderizarTablaControlStock() {
                 const vStock = Number(v.stock) || 0;
                 const vEstado = evaluarEstadoStock(vStock, umbral);
                 const vStockTxt = formatearCantidadStock(vStock, p.familiaMedicion, p.unidadMedida);
+                const vNorm = Number(v.precio) > 0 ? Number(v.precio) : venta;
+                const vOf = Number(v.precioOferta) || 0;
+                const vTieneOf = vOf > 0 && vOf < vNorm;
+                const vFotoHtml = v.imagen_url
+                    ? `<img src="${escaparHtmlStock(v.imagen_url)}" alt="${escaparHtmlStock(v.nombre)}" style="width:24px; height:24px; border-radius:6px; object-fit:cover; border:1px solid #cbd5e1; flex-shrink:0;">`
+                    : '';
 
                 filasHtml.push(`
                     <tr class="stk-variant-row ${vStock <= 0 ? 'is-empty' : ''}">
                         <td colspan="9">
                             <div class="stk-var-line">
                                 <div class="stk-var-info">
+                                    ${vFotoHtml}
                                     <span class="stk-var-dot" style="background:${escaparHtmlStock(v.color || '#0f766e')};"></span>
                                     <strong>${escaparHtmlStock(v.nombre)}</strong>
                                     <span class="stk-sku-code">SKU: ${escaparHtmlStock(v.sku)}</span>
+                                    <span style="font-size:0.75rem; font-weight:700; color:${vTieneOf ? '#dc2626' : '#334155'};">
+                                        ${vTieneOf ? `${formatearMonedaArs(vOf)} <del style="color:#94a3b8; font-weight:500;">${formatearMonedaArs(vNorm)}</del>` : formatearMonedaArs(vNorm)}
+                                    </span>
                                     ${vEstado.tag ? `<span class="stk-tag-status ${vEstado.claseTag}">${vEstado.tag}</span>` : ''}
                                 </div>
                                 <div class="stk-var-right">
@@ -2072,14 +2194,12 @@ function cerrarModalAjusteStock() {
    EVENTOS DEL MÓDULO (ETAPAS 1 A 4 COMPLETAS)
    ========================================================================== */
 function inicializarEventosControlStock() {
-    // Buscador principal
     document.getElementById('stock-search-input')?.addEventListener('input', (e) => {
         window.stockState.busqueda = e.target.value;
         window.stockState.paginaActual = 1;
         renderizarTablaControlStock();
     });
 
-    // Umbral global por defecto
     document.getElementById('stock-umbral-global')?.addEventListener('input', (e) => {
         const val = Math.max(0, parseFloat(e.target.value) || 0);
         window.stockState.umbralGlobal = val;
@@ -2087,7 +2207,6 @@ function inicializarEventosControlStock() {
         renderizarTodoControlStock();
     });
 
-    // Delegación en la tabla
     document.getElementById('stock-table-tbody')?.addEventListener('click', (e) => {
         const btnExpand = e.target.closest('.stk-expand-btn');
         if (btnExpand) {
@@ -2116,7 +2235,6 @@ function inicializarEventosControlStock() {
         }
     });
 
-    // Directorio de proveedores
     document.getElementById('btn-stock-gestionar-provs')?.addEventListener('click', () => {
         abrirModalAgendaProveedores();
     });
@@ -2134,12 +2252,10 @@ function inicializarEventosControlStock() {
         }
     });
 
-    // Botones Auto-Orden
     const dispararAutoOrden = () => abrirModalPedidoProveedor({ modoAuto: true });
     document.getElementById('btn-stock-auto-orden')?.addEventListener('click', dispararAutoOrden);
     document.getElementById('btn-stock-generar-todos')?.addEventListener('click', dispararAutoOrden);
 
-    // Eventos Modal Agenda de Proveedores (Etapa 2)
     document.getElementById('btn-cerrar-modal-prov')?.addEventListener('click', cerrarModalAgendaProveedores);
     document.getElementById('btn-cancelar-modal-prov')?.addEventListener('click', cerrarModalAgendaProveedores);
     document.getElementById('btn-prov-nuevo')?.addEventListener('click', prepararNuevoProveedorEnAgenda);
@@ -2184,7 +2300,6 @@ function inicializarEventosControlStock() {
         }
     });
 
-    // Eventos Modal Generador de Pedidos (Etapa 3)
     document.getElementById('btn-cerrar-modal-pedido')?.addEventListener('click', cerrarModalPedidoProveedor);
     document.getElementById('modal-pedido-proveedor')?.addEventListener('click', (e) => {
         if (e.target.id === 'modal-pedido-proveedor') cerrarModalPedidoProveedor();
@@ -2299,7 +2414,6 @@ function inicializarEventosControlStock() {
     document.getElementById('btn-ped-descargar-pdf')?.addEventListener('click', despacharPedidoPdf);
     document.getElementById('btn-ped-solo-guardar')?.addEventListener('click', despacharPedidoSoloGuardar);
 
-    // Eventos Etapa 4: Recepción en Tránsito (F8), Buscador, Filtros y Ordenamiento
     document.getElementById('btn-stock-recepcion-f8')?.addEventListener('click', () => abrirModalRecepcionTransito());
     document.getElementById('btn-cerrar-modal-recepcion')?.addEventListener('click', cerrarModalRecepcionTransito);
     document.getElementById('modal-recepcion-transito')?.addEventListener('click', (e) => {
@@ -2399,7 +2513,6 @@ function inicializarEventosControlStock() {
         stockF8Registrado = true;
     }
 
-    // Eventos Etapa 4B: Ventana de Pago y Deudas
     document.getElementById('btn-cerrar-modal-pago')?.addEventListener('click', cerrarModalPagoPedido);
     document.getElementById('btn-cancelar-modal-pago')?.addEventListener('click', cerrarModalPagoPedido);
     document.getElementById('modal-pago-pedido')?.addEventListener('click', (e) => {
@@ -2440,7 +2553,6 @@ function inicializarEventosControlStock() {
     document.getElementById('pago-monto-entregado')?.addEventListener('input', recalcularResumenPagoPedido);
     document.getElementById('form-pago-pedido')?.addEventListener('submit', guardarPagoPedidoFormulario);
 
-    // Eventos Modal Ajuste Rápido
     document.getElementById('btn-cerrar-modal-ajuste')?.addEventListener('click', cerrarModalAjusteStock);
     document.getElementById('btn-cancelar-modal-ajuste')?.addEventListener('click', cerrarModalAjusteStock);
     document.getElementById('ajuste-tipo')?.addEventListener('change', actualizarPreviewAjusteStock);
