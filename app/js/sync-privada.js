@@ -63,6 +63,18 @@
         }
     }
 
+    function normalizarMedioPagoSync(raw) {
+        const s = String(raw || '').trim();
+        const low = s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (!low || low === 'efectivo') return 'Efectivo';
+        if (low === 'transferencia' || low === 'qr' || low === 'qr / transferencia') return 'QR / Transferencia';
+        if (low === 'online' || low === 'pago online') return 'Pago Online';
+        if (low === 'debito' || low === 'tarjeta debito') return 'Tarjeta Débito';
+        if (low === 'credito' || low === 'tarjeta credito') return 'Tarjeta Crédito';
+        if (low.includes('corriente') || low.includes('fiado')) return 'Cuenta Corriente';
+        return s;
+    }
+
     function obtenerTurnoActivoIdParaFecha(fechaIso) {
         const turnos = leerJson('cat_alogo_pos_turnos_v1', []);
         if (!Array.isArray(turnos)) return null;
@@ -173,7 +185,6 @@
             }
         }
 
-        // Subir también fotos propias de variantes si vienen en Base64
         for (let idx = 0; idx < copia.variantesDetalle.length; idx++) {
             const v = copia.variantesDetalle[idx];
             const src = v?.imagen_url || '';
@@ -264,7 +275,6 @@
     }
 
     function construirPayloadProductoCompat(prod) {
-        // Excluir siempre campos de visibilidad en Catálogo PDF (son locales por dispositivo)
         const { incluirPdf, visiblePdf, enCatalogo, ...prodSinPdf } = prod || {};
         const imagenesLimpias = filtrarUrlsImagenesValidas(prodSinPdf.imagenes, prodSinPdf.imagen_url || prodSinPdf.imagen || '');
         const imgPrincipal = imagenesLimpias[0] || '';
@@ -310,7 +320,6 @@
     }
 
     function normalizarProductoRemotoAPc(docId, remoto, localPrev = null) {
-        // Ignorar campos de visibilidad PDF que vengan de la nube
         const { incluirPdf: _rInc, visiblePdf: _rVis, enCatalogo: _rEnCat, ...remotoSinPdf } = remoto || {};
         let base = { ...remotoSinPdf, id: String(docId) };
 
@@ -333,7 +342,6 @@
                 ? !!remotoSinPdf.visibleWeb
                 : (remotoSinPdf.publicado !== undefined ? !!remotoSinPdf.publicado : (remotoSinPdf.visible !== false)));
 
-        // Conservar la selección PDF local si el producto ya existe; si es nuevo desde App, llega oculto en PDF
         const enPdfLocal = localPrev
             ? (localPrev.incluirPdf !== undefined
                 ? !!localPrev.incluirPdf
@@ -433,7 +441,7 @@
             })
             .map((m) => {
                 const monto = Math.max(0, Math.round((Number(m.monto) || 0) * 100) / 100);
-                const medio = String(m.medio || 'Efectivo').trim();
+                const medio = normalizarMedioPagoSync(m.medio || 'Efectivo');
                 const fecha = m.fecha || new Date().toISOString();
                 const cajaId = obtenerTurnoActivoIdParaFecha(fecha);
                 const docId = `cobro_pc_${cli.id}_${m.id}`;
@@ -617,6 +625,9 @@
 
         const productosSolicitados = itemsPc.map(it => ({
             idProducto: String(it.prodId || it.idProducto || it.id || ''),
+            varIdx: it.varIdx !== undefined ? it.varIdx : null,
+            varNombre: String(it.varNombre || ''),
+            varSku: String(it.varSku || ''),
             nombre: String(it.nombre || 'Producto').trim(),
             cantidad: Number(it.cantidadPedida ?? it.cantidad) || 0,
             unidad: String(it.unidadMedida || it.unidad || 'U')
@@ -658,7 +669,7 @@
             modalidadPago: (Number(cxp.deudaPendiente) || 0) > 0 ? 'dividido' : 'unico',
             montoEntregado: Number(cxp.montoEntregado) || 0,
             deudaPendiente: Number(cxp.deudaPendiente) || 0,
-            medioPago: cxp.medioPago || cxp.metodoPago || 'Efectivo',
+            medioPago: normalizarMedioPagoSync(cxp.medioPago || cxp.metodoPago || 'Efectivo'),
             comprobante: cxp.comprobante || '',
             notas: cxp.notas || 'Liquidado desde App Móvil',
             fechaPago: cxp.fecha || new Date().toISOString()
@@ -744,8 +755,10 @@
             return {
                 prodId: prodInv ? String(prodInv.id) : prodId,
                 varIdx: it.varIdx ?? null,
+                varNombre: String(it.varNombre || ''),
+                varSku: String(it.varSku || ''),
                 nombre: String(it.nombre || prodInv?.nombre || 'Producto').trim(),
-                sku: String(it.sku || prodInv?.sku || '').trim(),
+                sku: String(it.sku || it.varSku || prodInv?.sku || '').trim(),
                 unidadMedida: String(it.unidadMedida || it.unidad || prodInv?.unidadMedida || 'Unidad').trim(),
                 familiaMedicion: String(it.familiaMedicion || prodInv?.familiaMedicion || 'unidad').trim(),
                 cantidadPedida: cantPed,
@@ -792,7 +805,10 @@
 
     function construirPayloadVentaCompat(v) {
         const total = Math.max(0, Math.round((Number(v.total) || 0) * 100) / 100);
-        const pagos = Array.isArray(v.pagos) ? v.pagos : [];
+        const pagos = (Array.isArray(v.pagos) ? v.pagos : []).map(p => ({
+            ...p,
+            medio: normalizarMedioPagoSync(p.medio || p.metodo || 'Efectivo')
+        }));
         const montoFiado = Math.round(
             pagos
                 .filter(p => String(p.medio || '').toLowerCase().includes('corriente') || String(p.medio || '').toLowerCase().includes('fiado'))
@@ -806,7 +822,7 @@
 
         const medioPrincipal = pagos.length > 1
             ? 'Pago Mixto'
-            : (pagos[0]?.medio || 'Efectivo');
+            : normalizarMedioPagoSync(pagos[0]?.medio || 'Efectivo');
         const esWeb = v.canal === 'web' || v.origen === 'web' || !!v.esPedidoWeb;
 
         return sanitizarParaFirestore({
@@ -820,8 +836,9 @@
             total,
             deudaGenerada: montoFiado,
             metodoPago: medioPrincipal,
+            pagos,
             desglosePagos: pagos.length > 1
-                ? pagos.map(p => ({ metodo: p.medio || 'Efectivo', monto: Number(p.monto) || 0 }))
+                ? pagos.map(p => ({ metodo: normalizarMedioPagoSync(p.medio || 'Efectivo'), monto: Number(p.monto) || 0 }))
                 : null,
             cajaId: v.turnoId || obtenerTurnoActivoIdParaFecha(v.fecha),
             concepto: `Ticket ${v.numeroTicket || ''} • ${v.clienteNombre || 'Consumidor Final'}`.trim(),
@@ -837,15 +854,15 @@
 
     function normalizarVentaRemotaAPc(docId, remoto) {
         const total = Math.max(0, Math.round((Number(remoto.total ?? remoto.montoTotal ?? remoto.monto) || 0) * 100) / 100);
-        const medio = remoto.metodoPago || remoto.pagos?.[0]?.medio || 'Efectivo';
+        const medio = normalizarMedioPagoSync(remoto.metodoPago || remoto.pagos?.[0]?.medio || 'Efectivo');
         const anulada = remoto.estado === 'anulada' || remoto.estadoPago === 'Anulado';
         const esWeb = remoto.canal === 'web' || remoto.origen === 'web' || !!remoto.esPedidoWeb;
 
         let pagos = [];
         if (Array.isArray(remoto.pagos) && remoto.pagos.length > 0) {
-            pagos = remoto.pagos.map(p => ({ medio: p.medio || p.metodo || 'Efectivo', monto: Number(p.monto) || 0 }));
+            pagos = remoto.pagos.map(p => ({ medio: normalizarMedioPagoSync(p.medio || p.metodo || 'Efectivo'), monto: Number(p.monto) || 0 }));
         } else if (Array.isArray(remoto.desglosePagos) && remoto.desglosePagos.length > 0) {
-            pagos = remoto.desglosePagos.map(p => ({ medio: p.metodo || p.medio || 'Efectivo', monto: Number(p.monto) || 0 }));
+            pagos = remoto.desglosePagos.map(p => ({ medio: normalizarMedioPagoSync(p.metodo || p.medio || 'Efectivo'), monto: Number(p.monto) || 0 }));
         } else if (Number(remoto.deudaGenerada) > 0) {
             const deuda = Math.min(total, Math.round(Number(remoto.deudaGenerada) * 100) / 100);
             const pagado = Math.max(0, Math.round((total - deuda) * 100) / 100);
@@ -881,7 +898,7 @@
 
     function construirPayloadMovFinCompat(mov) {
         const esIng = mov.tipo === 'ingreso';
-        const medio = String(mov.medio || 'Efectivo').trim();
+        const medio = normalizarMedioPagoSync(mov.medio || 'Efectivo');
         const monto = Math.max(0, Math.round((Number(mov.monto) || 0) * 100) / 100);
         const cajaId = mov.cajaId || mov.turnoId || obtenerTurnoActivoIdParaFecha(mov.fecha);
         const concepto = String(mov.concepto || mov.categoria || 'Movimiento PC').trim();
@@ -916,7 +933,7 @@
             id: String(docId),
             tipo: esIng ? 'ingreso' : 'gasto',
             monto: Math.max(0, Math.round((Number(remoto.monto ?? remoto.montoTotal) || 0) * 100) / 100),
-            medio: remoto.medio || remoto.metodoPago || 'Efectivo',
+            medio: normalizarMedioPagoSync(remoto.medio || remoto.metodoPago || 'Efectivo'),
             categoria: String(remoto.categoria || (esIng ? 'Otros Ingresos' : 'Otros Gastos Operativos')).trim(),
             concepto: String(remoto.concepto || remoto.nota || remoto.categoria || 'Movimiento App').trim(),
             fecha: remoto.fecha || new Date().toISOString(),
@@ -955,7 +972,7 @@
         const montoInicial = pagoInicial
             ? Math.max(0, Math.round((Number(pagoInicial.monto) || 0) * 100) / 100)
             : (adelantos.length > 0 ? 0 : entregadoTotal);
-        const medioInicial = String(pagoInicial?.medio || cxp.medioPago || 'Efectivo').trim();
+        const medioInicial = normalizarMedioPagoSync(pagoInicial?.medio || cxp.medioPago || 'Efectivo');
         const cajaId = cxp.cajaId || cxp.turnoId || obtenerTurnoActivoIdParaFecha(cxp.fecha);
 
         return sanitizarParaFirestore({
@@ -998,7 +1015,7 @@
             const monto = Math.max(0, Math.round((Number(pg.monto) || 0) * 100) / 100);
             if (monto <= 0) return null;
             const docId = String(pg.id || `${cxp.id}_pg_${idx + 1}`);
-            const medio = String(pg.medio || cxp.medioPago || 'Efectivo').trim();
+            const medio = normalizarMedioPagoSync(pg.medio || cxp.medioPago || 'Efectivo');
             const fecha = pg.fecha || new Date().toISOString();
             const cajaId = obtenerTurnoActivoIdParaFecha(fecha) || cxp.cajaId || cxp.turnoId || null;
             const prov = String(cxp.proveedorNombre || 'Proveedor').trim();
@@ -1050,7 +1067,7 @@
             ? localPrev.pagos
             : (Array.isArray(remoto.pagos) && remoto.pagos.length > 0
                 ? remoto.pagos
-                : (entregado > 0 ? [{ id: `init-${docId}`, fecha: remoto.fecha || new Date().toISOString(), monto: entregado, medio: remoto.metodoPago || remoto.medioPago || 'Efectivo', nota: 'Pago inicial (App)' }] : []));
+                : (entregado > 0 ? [{ id: `init-${docId}`, fecha: remoto.fecha || new Date().toISOString(), monto: entregado, medio: normalizarMedioPagoSync(remoto.metodoPago || remoto.medioPago || 'Efectivo'), nota: 'Pago inicial (App)' }] : []));
 
         return {
             ...(localPrev || {}),
@@ -1065,7 +1082,7 @@
             montoEntregado: entregado,
             deudaPendiente: deuda,
             estado: saldado ? 'pagado' : 'pendiente',
-            medioPago: remoto.medioPago || remoto.metodoPago || localPrev?.medioPago || 'Efectivo',
+            medioPago: normalizarMedioPagoSync(remoto.medioPago || remoto.metodoPago || localPrev?.medioPago || 'Efectivo'),
             pagos,
             origen: remoto.origen || localPrev?.origen || (remoto.updatedBy === 'app_android' ? 'app' : 'pc')
         };
@@ -1314,6 +1331,15 @@
 
     function detectarCambioSoloCampoAtomico(prev, next, atomicField) {
         if (!prev || !next || !atomicField) return null;
+        // Productos con variantes SIEMPRE hacen upsert completo (variantesDetalle[] + stock total)
+        if (
+            atomicField === 'stock' &&
+            ((Array.isArray(prev.variantesDetalle) && prev.variantesDetalle.length > 0) ||
+             (Array.isArray(next.variantesDetalle) && next.variantesDetalle.length > 0))
+        ) {
+            return null;
+        }
+
         const valPrev = Number(prev[atomicField]);
         const valNext = Number(next[atomicField]);
         if (isNaN(valPrev) || isNaN(valNext) || valPrev === valNext) return null;
@@ -1439,7 +1465,7 @@
         const monto = Math.max(0, Math.round((Number(remoto.monto ?? remoto.montoPagado ?? remoto.montoTotal) || 0) * 100) / 100);
         if (monto <= 0) return;
 
-        const medio = String(remoto.metodoPago || remoto.medio || 'Efectivo').trim();
+        const medio = normalizarMedioPagoSync(remoto.metodoPago || remoto.medio || 'Efectivo');
         const fecha = remoto.fecha || new Date().toISOString();
         const tsNuevo = new Date(fecha).getTime() || Date.now();
 
@@ -1513,7 +1539,7 @@
                         id: String(docId),
                         fecha: remoto.fecha || new Date().toISOString(),
                         monto: montoPago,
-                        medio: remoto.medio || remoto.metodoPago || 'Efectivo',
+                        medio: normalizarMedioPagoSync(remoto.medio || remoto.metodoPago || 'Efectivo'),
                         nota: remoto.nota || 'Cancelación de deuda desde App Móvil'
                     });
                     cxpOrig.montoEntregado = Math.round(((Number(cxpOrig.montoEntregado) || 0) + montoPago) * 100) / 100;
@@ -1576,7 +1602,6 @@
                     ? normalizado.imagenes
                     : (normalizado.imagen_url ? [normalizado.imagen_url] : []);
 
-                // Si el remoto trae explícitamente variantesDetalle (aunque sea vacío por quitar variantes), respetarlo
                 const tieneCampoVarRemoto = Array.isArray(remoto.variantesDetalle);
                 const variantesFinal = tieneCampoVarRemoto
                     ? normalizado.variantesDetalle
@@ -1621,6 +1646,9 @@
             if (storageKey === 'cat_alogo_productos_v1') {
                 window.bovedaProductos = dataObj;
                 if (typeof window.renderizarProductosCreados === 'function') window.renderizarProductosCreados();
+                if (document.getElementById('pos-module-root') && typeof window.renderizarCatalogoPos === 'function') {
+                    window.renderizarCatalogoPos();
+                }
                 if (document.getElementById('stock-module-root') && typeof window.renderizarTodoControlStock === 'function') {
                     window.renderizarTodoControlStock();
                 }
@@ -1799,6 +1827,7 @@
             await publicarPunteroEstadoCajaMaestra();
 
             const colsPull = [
+                'cat_alogo_productos_v1',
                 'cat_alogo_clientes_v1',
                 'cat_alogo_proveedores_v1',
                 'cat_alogo_cuentas_pagar_v1',

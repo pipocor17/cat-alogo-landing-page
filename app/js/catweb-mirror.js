@@ -13,7 +13,6 @@
         storage: null,
         uid: null,
         unsubVendor: null,
-        unsubProducts: null,
         unsubOrders: null,
         publicando: false,
         idsNotificados: new Set(),
@@ -33,6 +32,17 @@
     function fmtArs(v) {
         const n = Number(v) || 0;
         return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    }
+
+    function normalizarMedioPagoWeb(raw) {
+        const s = String(raw || '').trim();
+        const low = s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        if (!low || low === 'efectivo') return 'Efectivo';
+        if (low === 'transferencia' || low === 'qr' || low.includes('transferencia')) return 'QR / Transferencia';
+        if (low === 'online' || low === 'pago online') return 'Pago Online';
+        if (low.includes('debito')) return 'Tarjeta Débito';
+        if (low.includes('credito')) return 'Tarjeta Crédito';
+        return s;
     }
 
     function slugify(texto) {
@@ -283,7 +293,6 @@
 
             await vendorRef.set(vendorPayload, { merge: true });
 
-            // 1. Preparar operaciones de publicación solo para productos actualmente visibles
             const productos = leerJson(STORAGE_KEY_PRODUCTOS, []);
             const ocultarSinStock = webCfg.ocultarSinStock !== false;
             const productsCol = vendorRef.collection('products');
@@ -299,7 +308,6 @@
 
                 if (!debePublicarse) continue;
 
-                // Subir galería principal (hasta 5 fotos)
                 const rawImgs = Array.isArray(p.imagenes) && p.imagenes.length > 0
                     ? p.imagenes
                     : (p.imagen_url ? [p.imagen_url] : []);
@@ -313,7 +321,6 @@
                     if (urlPub) imagenesPublicas.push(urlPub);
                 }
 
-                // Subir fotos propias de variantes si existen (y limpiar costos internos)
                 const precioBase = Math.max(0, Number(p.precioNormal) || 0);
                 const variantesRaw = Array.isArray(p.variantesDetalle) ? p.variantesDetalle.map(v => ({ ...v })) : [];
                 for (let vIdx = 0; vIdx < variantesRaw.length; vIdx++) {
@@ -333,7 +340,6 @@
                 operaciones.push({ tipo: 'set', ref: productsCol.doc(prodId), data: docPublico });
             }
 
-            // 2. Detectar y eliminar de Firestore productos fantasma (borrados) u ocultos
             const snapRemotos = await productsCol.get();
             let eliminadosNube = 0;
             snapRemotos.forEach((docSnap) => {
@@ -343,7 +349,6 @@
                 }
             });
 
-            // 3. Ejecutar en lotes seguros de 400 operaciones
             for (let i = 0; i < operaciones.length; i += 400) {
                 const chunk = operaciones.slice(i, i + 400);
                 const batch = state.db.batch();
@@ -384,7 +389,9 @@
         }
     }
 
-    /* --- 3. ESCUCHA EN VIVO APP/NUBE -> PC (vendors/{uid} + products + orders) --- */
+    /* --- 3. ESCUCHA EN VIVO DE PERSONALIZACIÓN (vendors/{uid}) ---
+       Nota: El inventario y sus variantesDetalle[] se sincronizan únicamente por
+       sync-privada.js (users/{uid}/inventario) para evitar pisadas y ecos. --- */
     function aplicarVendorRemotoEnLocal(d) {
         if (!d || typeof d !== 'object') return;
         const actual = leerJson(STORAGE_KEY_WEB_CFG, {}) || {};
@@ -437,7 +444,7 @@
         }
     }
 
-    function iniciarEscuchaVendorYProductos() {
+    function iniciarEscuchaVendor() {
         if (!state.db || !state.uid) return;
         const vendorRef = state.db.collection('vendors').doc(state.uid);
 
@@ -447,60 +454,6 @@
             if (d.updatedBy === 'web_pc') return;
             aplicarVendorRemotoEnLocal(d);
         }, (err) => console.warn('Error escuchando vendors/{uid}:', err));
-
-        state.unsubProducts = vendorRef.collection('products').onSnapshot((snap) => {
-            const cambios = snap.docChanges().filter(ch => !ch.doc.metadata.hasPendingWrites && ch.type !== 'removed');
-            if (cambios.length === 0) return;
-
-            const locales = leerJson(STORAGE_KEY_PRODUCTOS, []);
-            const mapaId = new Map(locales.map((p, idx) => [String(p.id), idx]));
-            let huboCambio = false;
-
-            cambios.forEach((ch) => {
-                const d = ch.doc.data() || {};
-                if (d.updatedBy === 'web_pc') return;
-                const docId = String(ch.doc.id);
-                const idx = mapaId.get(docId);
-                const visibleRemoto = Boolean(d.publicarWeb ?? d.publicado ?? d.visible ?? true);
-                const imgRemota = esImagenWebValida(d.imagen_url) ? d.imagen_url : (esImagenWebValida(d.imagen) ? d.imagen : '');
-
-                if (idx !== undefined) {
-                    const p = locales[idx];
-                    const nuevoPrecio = d.precio !== undefined ? (Number(d.precio) || 0) : p.precioNormal;
-                    const nuevaOferta = d.precioOferta !== undefined ? (Number(d.precioOferta) || 0) : p.precioOferta;
-                    const nuevoStock = d.stock !== undefined ? (Number(d.stock) || 0) : p.stock;
-
-                    if (
-                        p.visible !== visibleRemoto ||
-                        p.precioNormal !== nuevoPrecio ||
-                        p.precioOferta !== nuevaOferta ||
-                        p.stock !== nuevoStock ||
-                        (imgRemota && (!p.imagenes || p.imagenes[0] !== imgRemota))
-                    ) {
-                        locales[idx] = {
-                            ...p,
-                            nombre: d.nombre || p.nombre,
-                            categoria: d.categoria || p.categoria,
-                            descripcion: d.descripcionCorta !== undefined ? d.descripcionCorta : p.descripcion,
-                            precioNormal: nuevoPrecio,
-                            precioOferta: nuevaOferta,
-                            stock: nuevoStock,
-                            visible: visibleRemoto,
-                            publicarWeb: visibleRemoto,
-                            visibleWeb: visibleRemoto,
-                            imagenes: imgRemota ? [imgRemota, ...(p.imagenes || []).slice(1)] : (p.imagenes || [])
-                        };
-                        huboCambio = true;
-                    }
-                }
-            });
-
-            if (huboCambio) {
-                window.bovedaProductos = locales;
-                localStorage.setItem(STORAGE_KEY_PRODUCTOS, JSON.stringify(locales));
-                refrescarUiCatWebSiAbierta();
-            }
-        }, (err) => console.warn('Error escuchando vendors/{uid}/products:', err));
     }
 
     /* --- 4. RADAR DE PEDIDOS CON VARIANTES, PAGA CON, VUELTO, TIPO Y REFERENCIAS --- */
@@ -567,7 +520,7 @@
             tipoVivienda,
             referencia,
             costoEnvio,
-            medioPago: String(d.medioPago || d.formaPago || 'Efectivo'),
+            medioPago: normalizarMedioPagoWeb(d.medioPago || d.formaPago || 'Efectivo'),
             pagaCon,
             vuelto,
             notas: String(d.notas || d.clienteNotas || ''),
@@ -627,11 +580,10 @@
     }
 
     function detenerTodasLasEscuchas() {
-        [state.unsubVendor, state.unsubProducts, state.unsubOrders].forEach(u => {
+        [state.unsubVendor, state.unsubOrders].forEach(u => {
             if (typeof u === 'function') { try { u(); } catch { /* ignore */ } }
         });
         state.unsubVendor = null;
-        state.unsubProducts = null;
         state.unsubOrders = null;
     }
 
@@ -773,7 +725,7 @@
 
         detenerTodasLasEscuchas();
         if (state.db && state.uid && (!window.CatAlogoAuth || window.CatAlogoAuth.estaSuscripcionActiva())) {
-            iniciarEscuchaVendorYProductos();
+            iniciarEscuchaVendor();
             iniciarEscuchaRadarOrders();
         }
         actualizarBadgeEstadoUnificado();
