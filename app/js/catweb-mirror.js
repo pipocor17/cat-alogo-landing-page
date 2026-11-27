@@ -1,6 +1,6 @@
 /* ==========================================================================
    ETAPA 5 (UNIFICADA): ESPEJO BIDIRECCIONAL CAT-WEB & RADAR EN TIEMPO REAL
-   (vendors/{uid}, vendors/{uid}/products, vendors/{uid}/orders + VARIANTES)
+   (vendors/{uid}, vendors/{uid}/products, vendors/{uid}/orders + ANTI-DOBLE COBRO)
    ========================================================================== */
 (function () {
     const STORAGE_KEY_WEB_CFG = 'cat_alogo_web_config_v1';
@@ -389,9 +389,7 @@
         }
     }
 
-    /* --- 3. ESCUCHA EN VIVO DE PERSONALIZACIÓN (vendors/{uid}) ---
-       Nota: El inventario y sus variantesDetalle[] se sincronizan únicamente por
-       sync-privada.js (users/{uid}/inventario) para evitar pisadas y ecos. --- */
+    /* --- 3. ESCUCHA EN VIVO DE PERSONALIZACIÓN (vendors/{uid}) --- */
     function aplicarVendorRemotoEnLocal(d) {
         if (!d || typeof d !== 'object') return;
         const actual = leerJson(STORAGE_KEY_WEB_CFG, {}) || {};
@@ -632,7 +630,37 @@
         body.appendChild(bar);
     }
 
-    /* --- 6. ESPEJO DE ESTADO DE PEDIDOS Y DESCUENTO PÚBLICO (CON VARIANTES) --- */
+    /* --- 6. ESCUDO ANTI-DOBLE COBRO, ESTADOS Y DESCUENTO PÚBLICO (CON VARIANTES) --- */
+    async function reservarFacturacionPedidoPublico(pedidoId, ticketNumero) {
+        if (!state.db || !state.uid || !pedidoId) return { ok: true, localOnly: true };
+        const orderRef = state.db.collection('vendors').doc(state.uid).collection('orders').doc(String(pedidoId));
+
+        try {
+            return await state.db.runTransaction(async (tx) => {
+                const snap = await tx.get(orderRef);
+                if (!snap.exists) return { ok: false, motivo: 'eliminado' };
+                const est = String(snap.data()?.estado || 'pendiente').toLowerCase();
+                if (['facturado', 'despachado', 'completado', 'pagado'].includes(est)) {
+                    return { ok: false, motivo: 'ya_facturado' };
+                }
+                if (['cancelado', 'anulado'].includes(est)) {
+                    return { ok: false, motivo: 'cancelado' };
+                }
+                tx.update(orderRef, {
+                    estado: 'facturado',
+                    ticketPosNumero: ticketNumero || '',
+                    facturadoEn: new Date().toISOString(),
+                    updatedAtMs: Date.now(),
+                    updatedBy: 'web_pc'
+                });
+                return { ok: true };
+            });
+        } catch (err) {
+            console.warn('Error en reserva atómica de pedido web:', err);
+            return { ok: false, motivo: 'error_red', error: err?.message || 'Error de conexión' };
+        }
+    }
+
     async function sincronizarEstadoPedidoPublico(pedido) {
         if (!state.db || !state.uid || !pedido?.id) return;
         try {
@@ -773,25 +801,12 @@
             window.inicializarCatWeb._conMirror = true;
         }
 
-        document.addEventListener('click', (e) => {
-            const btnFact = e.target.closest('#cw-radar-list [data-oact="facturar"]');
-            if (!btnFact || !state.db || !state.uid) return;
-            const oid = btnFact.closest('[data-oid]')?.getAttribute('data-oid');
-            if (!oid) return;
-            setTimeout(() => {
-                const ped = leerJson(STORAGE_KEY_WEB_PEDIDOS, []).find(p => String(p.id) === String(oid));
-                if (ped && ped.estado === 'facturado') {
-                    sincronizarEstadoPedidoPublico(ped);
-                    descontarStockPublicoAtomico(ped.items);
-                }
-            }, 120);
-        });
-
         conectarEspejoConAuth();
     });
 
     window.CatWebMirror = {
         publicarCatalogo: publicarCatalogoPublicoEnVivo,
+        reservarFacturacionPedido: reservarFacturacionPedidoPublico,
         descontarStockPublicoAtomico,
         sincronizarEstadoPedido: sincronizarEstadoPedidoPublico
     };

@@ -1053,7 +1053,8 @@ function abrirModalTicketWebCw(pedidoId) {
     const canc = pedido.estado === 'cancelado';
     document.getElementById('cw-tk-footer').innerHTML = `
         ${!yaFact && !canc ? `<button type="button" class="cw-btn cw-btn-danger-soft" data-tk-act="cancelar">✕ Cancelar</button>` : ''}
-        <button type="button" class="cw-btn cw-btn-light" data-tk-act="wa-prep">💬 Avisar Preparando</button>
+        <button type="button" class="cw-btn cw-btn-light" data-tk-act="wa-smart">${yaFact ? '💬 Avisar Envío / Listo' : '💬 Avisar Preparando'}</button>
+        ${pedido.estado === 'nuevo' ? `<button type="button" class="cw-btn cw-btn-light" data-tk-act="preparar">👍 Preparar</button>` : ''}
         ${!yaFact && !canc ? `<button type="button" class="cw-btn cw-btn-primary" data-tk-act="facturar">🏪 Facturar en POS</button>` : ''}
         ${pedido.estado === 'facturado' ? `<button type="button" class="cw-btn cw-btn-indigo" data-tk-act="despachar">📦 Despachado</button>` : ''}
     `;
@@ -1061,7 +1062,7 @@ function abrirModalTicketWebCw(pedidoId) {
     modal.classList.add('active');
 }
 
-function facturarPedidoWebEnPosCw(pedidoId) {
+async function facturarPedidoWebEnPosCw(pedidoId) {
     const pedidos = obtenerPedidosCatWeb();
     const pedido = pedidos.find(p => p.id === pedidoId);
     if (!pedido || pedido.estado === 'facturado' || pedido.estado === 'despachado') return;
@@ -1080,6 +1081,24 @@ function facturarPedidoWebEnPosCw(pedidoId) {
         `• Aparecerá en Finanzas bajo el filtro "🌐 Ventas Cat-Web".`
     );
     if (!ok) return;
+
+    const ventasPrev = JSON.parse(localStorage.getItem('cat_alogo_pos_ventas_v1') || '[]');
+    const numTicket = `T-${String(ventasPrev.length + 1).padStart(4, '0')}`;
+
+    // 🛡️ Escudo anti-doble cobro en Firestore (evita cobrar 2 veces entre App y PC)
+    if (pedido.origenNube && window.CatWebMirror?.reservarFacturacionPedido) {
+        const resReserva = await window.CatWebMirror.reservarFacturacionPedido(pedido.id, numTicket);
+        if (!resReserva.ok) {
+            const msg = resReserva.motivo === 'ya_facturado'
+                ? '⚠️ Este pedido ya fue cobrado desde la App Android. No se descontó stock ni se duplicó el cobro.'
+                : (resReserva.motivo === 'cancelado'
+                    ? '⚠️ Este pedido ya fue cancelado desde otro dispositivo.'
+                    : `⚠️ No se pudo verificar el pedido en la nube (${resReserva.error || resReserva.motivo}).`);
+            alert(msg);
+            renderizarTodoCatWeb();
+            return;
+        }
+    }
 
     const productos = obtenerProductosCatWeb();
     let costoTotal = 0;
@@ -1114,8 +1133,12 @@ function facturarPedidoWebEnPosCw(pedidoId) {
     // Dispara sync-privada.js -> sincroniza variantesDetalle[] y stock total a Firestore
     guardarProductosCatWeb(productos);
 
+    const medioRaw = String(pedido.medioPago || 'Efectivo').trim().toLowerCase();
+    const medioFinal = medioRaw === 'efectivo'
+        ? 'Efectivo'
+        : (medioRaw === 'transferencia' ? 'QR / Transferencia' : (medioRaw === 'online' ? 'Pago Online' : (pedido.medioPago || 'Efectivo')));
+
     const ventas = JSON.parse(localStorage.getItem('cat_alogo_pos_ventas_v1') || '[]');
-    const numTicket = `T-${String(ventas.length + 1).padStart(4, '0')}`;
     const nuevaVenta = {
         id: 'vta-web-' + Date.now(),
         numeroTicket: numTicket,
@@ -1137,7 +1160,7 @@ function facturarPedidoWebEnPosCw(pedidoId) {
         total: pedido.total,
         costoTotal: Math.round(costoTotal * 100) / 100,
         gananciaBruta: Math.round((pedido.total - costoTotal) * 100) / 100,
-        pagos: [{ medio: pedido.medioPago || 'Efectivo', monto: pedido.total, pagaCon: pedido.total, vuelto: 0, referencia: pedido.codigo }],
+        pagos: [{ medio: medioFinal, monto: pedido.total, pagaCon: pedido.total, vuelto: 0, referencia: pedido.codigo }],
         vueltoTotal: 0,
         nota: `Pedido Cat-Web ${pedido.codigo}${pedido.costoEnvio > 0 ? ` (Envío ${formatearArsCw(pedido.costoEnvio)})` : ''}`,
         estado: 'completada'
@@ -1148,6 +1171,10 @@ function facturarPedidoWebEnPosCw(pedidoId) {
     pedido.estado = 'facturado';
     pedido.ticketPosNumero = numTicket;
     guardarPedidosCatWeb(pedidos);
+
+    if (window.CatWebMirror?.descontarStockPublicoAtomico) {
+        window.CatWebMirror.descontarStockPublicoAtomico(pedido.items);
+    }
 
     document.getElementById('modal-cw-ticket')?.classList.remove('active');
     renderizarTodoCatWeb();
@@ -1267,16 +1294,25 @@ function enlazarEventosCatWebEtapa2() {
 
         if (act === 'ticket') abrirModalTicketWebCw(oid);
         else if (act === 'comanda') imprimirComandaDepositoCw(ped);
-        else if (act === 'wa-camino') enviarAvisoWhatsAppPedidoCw(ped, 'camino');
-        else if (act === 'facturar') facturarPedidoWebEnPosCw(oid);
+        else if (act === 'wa-camino') {
+            const tipoWa = (ped.estado === 'nuevo' || ped.estado === 'preparando') ? 'prep' : 'camino';
+            enviarAvisoWhatsAppPedidoCw(ped, tipoWa);
+        } else if (act === 'preparar') {
+            ped.estado = 'preparando';
+            guardarPedidosCatWeb(pedidos);
+            window.sincronizarEstadoPedidoEnNubeCw?.(ped);
+            renderizarTodoCatWeb();
+        } else if (act === 'facturar') facturarPedidoWebEnPosCw(oid);
         else if (act === 'despachar') {
             ped.estado = 'despachado';
             guardarPedidosCatWeb(pedidos);
+            window.sincronizarEstadoPedidoEnNubeCw?.(ped);
             renderizarTodoCatWeb();
         } else if (act === 'cancelar') {
             if (!confirm(`¿Cancelar el pedido ${ped.codigo}?`)) return;
             ped.estado = 'cancelado';
             guardarPedidosCatWeb(pedidos);
+            window.sincronizarEstadoPedidoEnNubeCw?.(ped);
             renderizarTodoCatWeb();
         }
     });
@@ -1398,16 +1434,26 @@ function enlazarEventosCatWebEtapa2() {
         if (!ped) return;
 
         if (act === 'facturar') facturarPedidoWebEnPosCw(ped.id);
-        else if (act === 'wa-prep') enviarAvisoWhatsAppPedidoCw(ped, 'prep');
-        else if (act === 'despachar') {
+        else if (act === 'preparar') {
+            ped.estado = 'preparando';
+            guardarPedidosCatWeb(pedidos);
+            window.sincronizarEstadoPedidoEnNubeCw?.(ped);
+            abrirModalTicketWebCw(ped.id);
+            renderizarTodoCatWeb();
+        } else if (act === 'wa-smart' || act === 'wa-prep') {
+            const tipoWa = (ped.estado === 'facturado' || ped.estado === 'despachado') ? 'camino' : 'prep';
+            enviarAvisoWhatsAppPedidoCw(ped, tipoWa);
+        } else if (act === 'despachar') {
             ped.estado = 'despachado';
             guardarPedidosCatWeb(pedidos);
+            window.sincronizarEstadoPedidoEnNubeCw?.(ped);
             cerrarTk();
             renderizarTodoCatWeb();
         } else if (act === 'cancelar') {
             if (!confirm(`¿Cancelar el pedido ${ped.codigo}?`)) return;
             ped.estado = 'cancelado';
             guardarPedidosCatWeb(pedidos);
+            window.sincronizarEstadoPedidoEnNubeCw?.(ped);
             cerrarTk();
             renderizarTodoCatWeb();
         }
@@ -2035,13 +2081,6 @@ function enlazarEventosCatWebEtapa3() {
     });
 }
 
-const _facturarPedidoE2 = facturarPedidoWebEnPosCw;
-facturarPedidoWebEnPosCw = function (pedidoId) {
-    _facturarPedidoE2(pedidoId);
-    const ped = obtenerPedidosCatWeb().find(p => p.id === pedidoId);
-    if (ped) sincronizarEstadoPedidoEnNubeCw(ped);
-};
-
 /* ==========================================================================
    RADAR PRO: BORRADO SEGURO, FILTRO HOY+PENDIENTES, COMPACTOS Y PAGINACIÓN
    ========================================================================== */
@@ -2100,7 +2139,7 @@ async function eliminarPedidoRadarCw(pedidoId) {
 
     const restantes = pedidos.filter(p => p.id !== pedidoId);
     guardarPedidosCatWeb(restantes);
-    await borrarDocumentoPedidoNubeCw(ped);
+    await window.borrarDocumentoPedidoNubeCw?.(ped);
 
     document.getElementById('modal-cw-ticket')?.classList.remove('active');
     renderizarTodoCatWeb();
@@ -2144,7 +2183,7 @@ async function limpiarPedidosCerradosRadarCw() {
     guardarPedidosCatWeb(restantes);
 
     for (const p of aBorrar) {
-        if (p.origenNube) await borrarDocumentoPedidoNubeCw(p);
+        if (p.origenNube) await window.borrarDocumentoPedidoNubeCw?.(p);
     }
 
     renderizarTodoCatWeb();
@@ -2285,6 +2324,7 @@ function renderizarRadarPedidosCw() {
                     <div class="cw-order-actions-right">
                         ${!yaFacturado ? `
                             <button type="button" class="cw-btn cw-btn-danger-soft cw-btn-sm" data-oact="cancelar">✕ Cancelar</button>
+                            ${p.estado === 'nuevo' ? `<button type="button" class="cw-btn cw-btn-light cw-btn-sm" data-oact="preparar">👍 Preparar</button>` : ''}
                             <button type="button" class="cw-btn cw-btn-primary cw-btn-sm" data-oact="facturar">🏪 Confirmar y Facturar en POS</button>
                         ` : `
                             <button type="button" class="cw-btn cw-btn-indigo cw-btn-sm" data-oact="despachar">📦 Marcar Despachado</button>
@@ -2368,17 +2408,6 @@ function enlazarEventosRadarProCw() {
         } else if (act === 'ticket' && btn.closest('.cw-order-compact')) {
             abrirModalTicketWebCw(oid);
         }
-    });
-
-    document.getElementById('cw-radar-list')?.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-oact="despachar"], [data-oact="cancelar"]');
-        if (!btn) return;
-        const oid = btn.closest('[data-oid]')?.getAttribute('data-oid');
-        if (!oid) return;
-        setTimeout(() => {
-            const ped = obtenerPedidosCatWeb().find(p => p.id === oid);
-            if (ped) sincronizarEstadoPedidoEnNubeCw(ped);
-        }, 50);
     });
 
     document.getElementById('cw-tk-footer')?.addEventListener('click', (e) => {
