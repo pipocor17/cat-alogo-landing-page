@@ -39,12 +39,25 @@
                             </button>
                         </div>
 
-                        <!-- CAJA CONDICIONAL: TALLES / VARIANTES -->
+                        <!-- CAJA CONDICIONAL: TALLES / VARIANTES + ETIQUETA PERSONALIZABLE -->
                         <div class="variants-alert-box" id="box-variantes" style="display: none;">
-                            <label for="prod-variantes">INGRESA TALLES / VARIANTES</label>
-                            <input type="text" id="prod-variantes" placeholder="Ej: S, M, L o 39, 40, 41 (separados por coma)">
+                            <div style="display:flex; flex-direction:column; gap:0.4rem; margin-bottom:0.55rem;">
+                                <label for="prod-etiqueta-variante" style="margin:0;">TIPO DE ETIQUETA (CÓMO SE MOSTRARÁ EN INVENTARIO, PDF Y WEB)</label>
+                                <div id="var-label-presets" style="display:flex; flex-wrap:wrap; gap:0.35rem;">
+                                    <button type="button" class="var-label-chip" data-var-label="Variantes" style="padding:0.22rem 0.6rem; border-radius:999px; font-size:0.72rem; font-weight:700; border:1px solid #1e3a8a; background:#1e3a8a; color:#ffffff; cursor:pointer;">Variantes</button>
+                                    <button type="button" class="var-label-chip" data-var-label="Talles" style="padding:0.22rem 0.6rem; border-radius:999px; font-size:0.72rem; font-weight:700; border:1px solid #cbd5e1; background:#ffffff; color:#334155; cursor:pointer;">Talles</button>
+                                    <button type="button" class="var-label-chip" data-var-label="Presentaciones" style="padding:0.22rem 0.6rem; border-radius:999px; font-size:0.72rem; font-weight:700; border:1px solid #cbd5e1; background:#ffffff; color:#334155; cursor:pointer;">Presentaciones</button>
+                                    <button type="button" class="var-label-chip" data-var-label="Colores" style="padding:0.22rem 0.6rem; border-radius:999px; font-size:0.72rem; font-weight:700; border:1px solid #cbd5e1; background:#ffffff; color:#334155; cursor:pointer;">Colores</button>
+                                    <button type="button" class="var-label-chip" data-var-label="Sabores" style="padding:0.22rem 0.6rem; border-radius:999px; font-size:0.72rem; font-weight:700; border:1px solid #cbd5e1; background:#ffffff; color:#334155; cursor:pointer;">Sabores</button>
+                                    <button type="button" class="var-label-chip" data-var-label="Pesos" style="padding:0.22rem 0.6rem; border-radius:999px; font-size:0.72rem; font-weight:700; border:1px solid #cbd5e1; background:#ffffff; color:#334155; cursor:pointer;">Pesos</button>
+                                </div>
+                                <input type="text" id="prod-etiqueta-variante" value="Variantes" maxlength="24" placeholder="O escribe tu etiqueta personalizada (ej: Medidas, Envases, Modelos)...">
+                            </div>
+
+                            <label for="prod-variantes" id="label-prod-variantes">INGRESA LAS OPCIONES (SEPARADAS POR COMA)</label>
+                            <input type="text" id="prod-variantes" placeholder="Ej: S, M, L o 150 g., 300 g. (separados por coma)">
                             <div class="variants-preview-chips" id="variantes-chips"></div>
-                            <small>El sistema creará una sub-ficha vinculada para cada variante automáticamente.</small>
+                            <small>El sistema creará una sub-ficha vinculada para cada opción automáticamente.</small>
                         </div>
                     </div>
 
@@ -74,7 +87,6 @@
                                     <button type="button" class="icon-addon" id="btn-abrir-gestor-cat-modal" title="Administrar categorías">🏷️</button>
                                 </div>
 
-                                <!-- Mini barra oculta para crear una categoría nueva al instante -->
                                 <div class="quick-cat-box" id="box-nueva-cat-rapida" style="display: none;">
                                     <input type="text" id="input-cat-rapida" placeholder="Nombre de la nueva categoría...">
                                     <button type="button" class="quick-cat-btn save" id="btn-guardar-cat-rapida" title="Crear categoría">✓</button>

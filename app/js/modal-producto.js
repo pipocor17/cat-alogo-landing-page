@@ -1,7 +1,7 @@
 /* ==========================================================================
    MÓDULO: MODAL DE CREACIÓN, EDICIÓN, VARIANTES Y ELIMINACIÓN DE PRODUCTOS
    (CON PEGADO CTRL+V, DRAG & DROP, COMPRESIÓN, DECIMALES EXACTOS, UNIDADES,
-    FOTO Y PRECIO OFERTA OPCIONALES POR VARIANTE)
+    ETIQUETA PERSONALIZABLE, FOTO Y PRECIO OFERTA OPCIONALES POR VARIANTE)
    ========================================================================== */
 
 const MAX_IMAGENES_WEB = 5;
@@ -17,7 +17,6 @@ let varianteEditandoRef = { prodId: null, varIdx: null };
 let varianteImagenActual = '';
 let pasteListenerRegistrado = false;
 
-// Carga inicial desde localStorage (bóveda temporal antes de IndexedDB)
 window.bovedaProductos = JSON.parse(localStorage.getItem(STORAGE_KEY_PRODUCTOS) || '[]');
 
 const UNIDADES_POR_FAMILIA = {
@@ -44,14 +43,31 @@ function escaparHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+function obtenerEtiquetaVarianteProd(prod) {
+    const raw = String(prod?.etiquetaVariante || '').trim();
+    return raw || 'Variantes';
+}
+
+function sincronizarChipsEtiquetaVariante(valorActual) {
+    const limpio = String(valorActual || '').trim().toLowerCase();
+    document.querySelectorAll('#var-label-presets .var-label-chip').forEach(btn => {
+        const esActivo = String(btn.getAttribute('data-var-label') || '').toLowerCase() === limpio;
+        btn.style.background = esActivo ? '#1e3a8a' : '#ffffff';
+        btn.style.color = esActivo ? '#ffffff' : '#334155';
+        btn.style.borderColor = esActivo ? '#1e3a8a' : '#cbd5e1';
+    });
+    const lblVar = document.getElementById('label-prod-variantes');
+    if (lblVar) {
+        const nom = String(valorActual || 'Variantes').trim() || 'Variantes';
+        lblVar.textContent = `INGRESA ${nom.toUpperCase()} (SEPARADOS POR COMA)`;
+    }
+}
+
 function obtenerPrecioBaseProducto(prod) {
     const tieneOferta = prod.precioOferta > 0 && prod.precioOferta < prod.precioNormal;
     return tieneOferta ? prod.precioOferta : (Number(prod.precioNormal) || 0);
 }
 
-/**
-- Traduce la unidad de medida guardada a su abreviatura comercial corta
- */
 window.obtenerAbrevUnidad = function(unidadMedida) {
     const raw = String(unidadMedida || 'Unidad').trim().toLowerCase();
     if (raw.includes('kilogramo') || raw === 'kg') return 'kg';
@@ -68,31 +84,17 @@ window.obtenerAbrevUnidad = function(unidadMedida) {
     return 'u.';
 };
 
-/**
-- Formatea el stock respetando decimales exactos (evita errores flotantes y conserva ceros como 0.150 o 0.875)
- */
 window.formatearStockProducto = function(valor, familiaMedicion = 'unidad', unidadMedida = 'Unidad') {
     const num = Math.round((Number(valor) || 0) * 1000) / 1000;
     const abrev = window.obtenerAbrevUnidad(unidadMedida);
     const esFraccionable3Dec = ['kg', 'L', 'm', 'm²'].includes(abrev) || familiaMedicion === 'peso' || familiaMedicion === 'longitud';
 
     if (num === 0) return '0';
-
-    if (esFraccionable3Dec && !Number.isInteger(num)) {
-        return num.toFixed(3);
-    }
-
-    if (!Number.isInteger(num)) {
-        return String(num);
-    }
-
+    if (esFraccionable3Dec && !Number.isInteger(num)) return num.toFixed(3);
+    if (!Number.isInteger(num)) return String(num);
     return String(num);
 };
 
-/**
-- Selecciona automáticamente el contenido al hacer clic en el texto de un campo numérico,
-- sin interferir con las flechas nativas de subir/bajar (spinbuttons)
- */
 (function activarAutoSeleccionCamposNumericos() {
     if (window.__autoSelectNumericReady) return;
     window.__autoSelectNumericReady = true;
@@ -163,10 +165,6 @@ function mostrarEstadoCargaImagen(tipo, mensaje, targetId = 'img-upload-status')
     box.innerHTML = mensaje;
 }
 
-/**
-- Convierte un File o Blob de imagen en DataURL comprimido (máx. 900px, WebP liviano)
-- manteniendo proporciones y transparencia, 100% libre de CORS.
- */
 function comprimirBlobImagenALocal(blob, maxLado = 900, calidad = 0.84) {
     return new Promise((resolve, reject) => {
         if (!blob) return reject(new Error('Archivo de imagen vacío'));
@@ -273,9 +271,7 @@ async function intentarLocalizarUrlExterna(url) {
         if (!blob) continue;
         try {
             return await comprimirBlobImagenALocal(blob);
-        } catch (_) {
-            /* probar siguiente puente */
-        }
+        } catch (_) { /* probar siguiente */ }
     }
     return null;
 }
@@ -316,9 +312,6 @@ function registrarListenerPegadoGlobal() {
     pasteListenerRegistrado = true;
 }
 
-/**
-- Asegura que cada variante tenga nombre, sku, stock, precio, oferta, costo, color y foto opcional
- */
 function asegurarVariantesDetalle(prod) {
     if (!Array.isArray(prod.variantes) || prod.variantes.length === 0) {
         prod.variantesDetalle = [];
@@ -426,7 +419,7 @@ function renderizarPreviewFotoVariante() {
 }
 
 /* ==========================================================================
-   MODAL DE EDICIÓN DE VARIANTE INDIVIDUAL (PRECIO, OFERTA, COSTO, FOTO, COLOR, SKU Y STOCK)
+   MODAL DE EDICIÓN DE VARIANTE INDIVIDUAL
    ========================================================================== */
 async function abrirModalEditarVariante(prodId, varIdx) {
     const prod = window.bovedaProductos.find(p => String(p.id) === String(prodId));
@@ -505,7 +498,6 @@ function inicializarEventosModalVariante() {
         if (e.target === overlay) cerrarModalEditarVariante();
     });
 
-    // Subir foto de variante desde equipo
     const inputVarFile = document.getElementById('input-var-img-file');
     if (inputVarFile) {
         inputVarFile.addEventListener('change', async (e) => {
@@ -524,7 +516,6 @@ function inicializarEventosModalVariante() {
         });
     }
 
-    // Aplicar URL externa a la variante con auto-localización
     const btnAplicarUrlVar = document.getElementById('btn-var-aplicar-url');
     if (btnAplicarUrlVar) {
         btnAplicarUrlVar.addEventListener('click', async () => {
@@ -558,7 +549,6 @@ function inicializarEventosModalVariante() {
         });
     }
 
-    // Quitar foto propia de variante
     const btnQuitarVarImg = document.getElementById('btn-var-quitar-img');
     if (btnQuitarVarImg) {
         btnQuitarVarImg.addEventListener('click', () => {
@@ -683,6 +673,11 @@ async function abrirModalEditarProducto(idProducto) {
     });
     actualizarSegunFamilia(familiaActiva);
 
+    const etiquetaVar = obtenerEtiquetaVarianteProd(prod);
+    const inpEtiqueta = document.getElementById('prod-etiqueta-variante');
+    if (inpEtiqueta) inpEtiqueta.value = etiquetaVar;
+    sincronizarChipsEtiquetaVariante(etiquetaVar);
+
     if (prod.variantes && prod.variantes.length > 0) {
         document.getElementById('prod-variantes').value = prod.variantes.join(', ');
         actualizarVistaPreviaVariantes();
@@ -782,13 +777,13 @@ function agregarVarianteRapida(idProducto) {
     const prod = window.bovedaProductos.find(p => String(p.id) === String(idProducto));
     if (!prod) return;
 
-    const nombreVar = prompt(`Nueva variante para "${prod.nombre}" (ej: XL, Rojo, 42):`);
+    const nombreVar = prompt(`Nueva opción para "${prod.nombre}" (ej: XL, Rojo, 42, 500 g.):`);
     if (!nombreVar || !nombreVar.trim()) return;
 
     const limpio = nombreVar.trim();
     asegurarVariantesDetalle(prod);
 
-    const stockStr = prompt(`Stock inicial para la variante "${limpio}":`, '10');
+    const stockStr = prompt(`Stock inicial para "${limpio}":`, '10');
     const stockInicial = Math.max(0, parseInt(stockStr, 10) || 0);
     const precioBase = obtenerPrecioBaseProducto(prod);
     const colorDefault = COLORES_VARIANTES_DEFAULT[prod.variantesDetalle.length % COLORES_VARIANTES_DEFAULT.length];
@@ -927,6 +922,22 @@ function inicializarEventosModalProducto() {
         });
     });
 
+    // Chips rápidos + texto libre para etiqueta de variante
+    document.getElementById('var-label-presets')?.addEventListener('click', (e) => {
+        const chip = e.target.closest('.var-label-chip');
+        if (!chip) return;
+        const val = chip.getAttribute('data-var-label') || 'Variantes';
+        const inp = document.getElementById('prod-etiqueta-variante');
+        if (inp) inp.value = val;
+        sincronizarChipsEtiquetaVariante(val);
+        actualizarVistaPreviaVariantes();
+    });
+
+    document.getElementById('prod-etiqueta-variante')?.addEventListener('input', (e) => {
+        sincronizarChipsEtiquetaVariante(e.target.value);
+        actualizarVistaPreviaVariantes();
+    });
+
     document.getElementById('prod-variantes').addEventListener('input', actualizarVistaPreviaVariantes);
 
     document.getElementById('btn-gen-sku').addEventListener('click', () => {
@@ -1051,6 +1062,7 @@ function actualizarVistaPreviaVariantes() {
 
     const raw = document.getElementById('prod-variantes').value;
     const lista = raw.split(',').map(v => v.trim()).filter(Boolean);
+    const etiqueta = (document.getElementById('prod-etiqueta-variante')?.value || 'Variantes').trim() || 'Variantes';
 
     chipsContainer.innerHTML = lista
         .map(v => `<span class="var-chip">${escaparHtml(v)}</span>`)
@@ -1058,8 +1070,8 @@ function actualizarVistaPreviaVariantes() {
 
     if (!productoEditandoId) {
         summary.innerHTML = lista.length > 0
-            ? `🧩 Se crearán <strong>${lista.length} variantes</strong> vinculadas automáticamente`
-            : '⚠️ Ingresa al menos una variante separada por coma (ej: S, M, L)';
+            ? `🧩 Se crearán <strong>${lista.length} ${escaparHtml(etiqueta)}</strong> vinculadas automáticamente`
+            : '⚠️ Ingresa al menos una opción separada por coma (ej: S, M, L o 150 g., 300 g.)';
     }
 }
 
@@ -1167,9 +1179,12 @@ function guardarProductoFormulario(e) {
     const variantes = familiaActiva === 'variantes'
         ? document.getElementById('prod-variantes').value.split(',').map(v => v.trim()).filter(Boolean)
         : [];
+    const etiquetaVariante = familiaActiva === 'variantes'
+        ? ((document.getElementById('prod-etiqueta-variante')?.value || 'Variantes').trim() || 'Variantes')
+        : '';
 
     if (familiaActiva === 'variantes' && variantes.length === 0) {
-        alert('Ingresa al menos una variante o talle (ej: S, M, L).');
+        alert('Ingresa al menos una opción o variante (ej: S, M, L o 150 g., 300 g.).');
         return;
     }
 
@@ -1215,6 +1230,7 @@ function guardarProductoFormulario(e) {
         proveedor,
         stock: stockFinal,
         umbralCritico: umbral,
+        etiquetaVariante,
         variantes,
         variantesDetalle,
         imagenes: [...galeriaImagenes],
@@ -1273,8 +1289,10 @@ function renderizarProductosCreados() {
         const incluirEnPdf = prod.incluirPdf !== false;
         const dataCat = `${catLimpia} ${tieneOferta ? 'oferta' : ''} ${prod.stock <= 0 ? 'sinstock' : ''} ${!prod.publicarWeb ? 'ocultos' : ''}`;
 
-        // TARJETA EXPANDIDA (PRODUCTOS CON VARIANTES / TALLES)
+        // TARJETA EXPANDIDA (PRODUCTOS CON VARIANTES / TALLES / PRESENTACIONES)
         if (prod.variantesDetalle && prod.variantesDetalle.length > 0) {
+            const etiquetaVar = obtenerEtiquetaVarianteProd(prod);
+
             const variantesHtml = prod.variantesDetalle.map((v, idx) => {
                 const colorDot = v.color || COLORES_VARIANTES_DEFAULT[idx % COLORES_VARIANTES_DEFAULT.length];
                 const precioVar = typeof v.precio === 'number' ? v.precio : precioFinal;
@@ -1300,7 +1318,7 @@ function renderizarProductosCreados() {
                             <button type="button" class="variant-price btn-editar-variante"
                                 data-prod-id="${prod.id}"
                                 data-var-idx="${idx}"
-                                title="Clic para editar precio, oferta, foto, color, código y stock de esta variante"
+                                title="Clic para editar precio, oferta, foto, color, código y stock de esta opción"
                                 style="display:flex; flex-direction:column; align-items:flex-end; line-height:1.15;">
                                 ${tieneOfertaVar
                                     ? `<span style="color:#dc2626; font-weight:800;">${ofertaVarTxt}</span><del style="font-size:0.72em; color:#94a3b8; font-weight:600;">${precioVarTxt}</del>`
@@ -1324,7 +1342,7 @@ function renderizarProductosCreados() {
                     <div class="prod-main-row">
                         <div class="prod-thumb-wrap">
                             <span class="thumb-badge ${tieneOferta ? 'badge-amber-solid' : 'badge-dark'}">
-                                ${prod.variantesDetalle.length} Talles
+                                ${prod.variantesDetalle.length} ${escaparHtml(etiquetaVar)}
                             </span>
                             <img src="${fotoPortada}" alt="${escaparHtml(prod.nombre)}">
                         </div>
@@ -1375,8 +1393,8 @@ function renderizarProductosCreados() {
 
                     <div class="variants-drawer">
                         <div class="variants-header">
-                            <span>🧩 <strong>${prod.variantesDetalle.length} Variantes configuradas</strong> (clic en el precio para editar foto, oferta y stock) &nbsp;|&nbsp; Suma: <strong class="prod-variants-sum">${stockFormateado} ${escaparHtml(abrevUnidad)}</strong></span>
-                            <button type="button" class="link-btn btn-add-variante" data-id="${prod.id}">+ Añadir Variante</button>
+                            <span>🧩 <strong>${prod.variantesDetalle.length} ${escaparHtml(etiquetaVar)}</strong> (clic en el precio para editar foto, oferta y stock) &nbsp;|&nbsp; Suma: <strong class="prod-variants-sum">${stockFormateado} ${escaparHtml(abrevUnidad)}</strong></span>
+                            <button type="button" class="link-btn btn-add-variante" data-id="${prod.id}">+ Añadir Opción</button>
                         </div>
                         <div class="variants-grid">
                             ${variantesHtml}
@@ -1455,9 +1473,6 @@ function renderizarProductosCreados() {
     aplicarFiltrosYPaginacionInventario(false);
 }
 
-/**
-- Devuelve una copia ordenada de los productos según el criterio elegido en #inv-sort-select
- */
 function obtenerProductosOrdenados(lista) {
     const copia = Array.isArray(lista) ? [...lista] : [];
     const criterio = window.ordenInventarioActual || 'recientes';
@@ -1505,9 +1520,6 @@ const STORAGE_KEY_POR_PAGINA = 'cat_alogo_inv_por_pagina';
 window.paginaActualInventario = 1;
 window.productosPorPagina = parseInt(localStorage.getItem(STORAGE_KEY_POR_PAGINA) || '30', 10) || 30;
 
-/**
-- Aplica en conjunto: filtro de categoría/estado + buscador de texto + paginación real.
- */
 function aplicarFiltrosYPaginacionInventario(resetearPagina = false) {
     if (resetearPagina) {
         window.paginaActualInventario = 1;
@@ -1650,6 +1662,10 @@ function resetearFormularioProducto() {
     familiaActiva = 'unidad';
     galeriaImagenes = [];
     mostrarEstadoCargaImagen('', '');
+
+    const inpEtiqueta = document.getElementById('prod-etiqueta-variante');
+    if (inpEtiqueta) inpEtiqueta.value = 'Variantes';
+    sincronizarChipsEtiquetaVariante('Variantes');
 
     document.querySelectorAll('.family-card').forEach(c => c.classList.remove('active'));
     const defaultFam = document.querySelector('.family-card[data-family="unidad"]');

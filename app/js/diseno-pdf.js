@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MÓDULO: ESTUDIO DE DISEÑO PDF (WYSIWYG) - COMPLETO (ETAPAS 1 A 4 + FASES 1 A 3)
+   MÓDULO: ESTUDIO DE DISEÑO PDF (WYSIWYG) - COMPLETO (ETAPAS 1 A 4 + VARIANTES)
    ========================================================================== */
 
 const STORAGE_KEY_PDF_CONFIG = 'cat_alogo_pdf_config_v1';
@@ -106,6 +106,8 @@ const PDF_CONFIG_BASE = {
     soloOfertas: false,
     showCatHeaders: false,
     categoriasExcluidas: [],
+    modoVariantes: 'compacto',      // 'compacto' | 'expandido' | 'oculto'
+    variantesExcluidas: [],         // claves `${prodId}::${varSku || varIdx}`
 
     // Geometría e imagen
     orientacion: 'portrait',
@@ -140,13 +142,13 @@ const PDF_CONFIG_BASE = {
     modoGrises: false,
     colorAcento: '#0f766e',
     colorHoja: '#ffffff',
-    hojaBgTipo: 'solid',           // 'solid' | 'gradient' | 'image'
+    hojaBgTipo: 'solid',
     colorHoja2: '#e2e8f0',
     hojaGradDir: '180deg',
     hojaBgImg: '',
     hojaBgOpacity: 40,
     colorCard: '#ffffff',
-    cardBgTipo: 'solid',           // 'solid' | 'gradient' | 'image'
+    cardBgTipo: 'solid',
     colorCard2: '#f1f5f9',
     cardGradDir: '180deg',
     cardBgImg: '',
@@ -170,20 +172,20 @@ const PDF_CONFIG_BASE = {
 
     // Carátula, logos, fechas y colores independientes
     logoDataUrl: '',
-    logoOrigen: '',                // '' | 'custom' | 'generic:tienda' ...
+    logoOrigen: '',
     fechaCreacion: obtenerFechaIsoOffsetPdf(0),
     fechaValidez: obtenerFechaIsoOffsetPdf(30),
 
     // Portada (Hoja 1)
     incluirPortada: false,
-    portadaEstilo: 'moderna',      // 'moderna' | 'editorial' | 'minimal'
+    portadaEstilo: 'moderna',
     colorPortadaTitulo: '#0f172a',
     colorPortadaTexto: '#475569',
     portadaTitulo: 'Catálogo de Productos',
     portadaSub: 'Nueva Colección & Lista de Precios',
     portadaEslogan: '¡Calidad garantizada y atención personalizada!',
 
-    // Hoja de Cierre (colores propios + recuadro personalizable)
+    // Hoja de Cierre
     incluirCierre: false,
     colorCierreTitulo: '#0f172a',
     colorCierreTexto: '#475569',
@@ -258,14 +260,230 @@ window.pdfHistory = {
 
 let pdfShortcutsRegistrados = false;
 
+/* ==========================================================================
+   HELPERS DE VARIANTES Y ESTILOS DINÁMICOS PARA EL PDF
+   ========================================================================== */
+function asegurarEstilosVariantesPdf() {
+    if (document.getElementById('cat-alogo-pdf-variantes-css')) return;
+    const st = document.createElement('style');
+    st.id = 'cat-alogo-pdf-variantes-css';
+    st.textContent = `
+        .a4-var-block { margin-top: 2px; display: flex; flex-direction: column; gap: 3px; }
+        .a4-var-label { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.72; }
+        .a4-var-pills { display: flex; flex-wrap: wrap; gap: 3px; }
+        .text-align-center .a4-var-pills { justify-content: center; }
+        .text-align-right .a4-var-pills { justify-content: flex-end; }
+        .a4-var-pill {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 1.5px 6px; border-radius: 5px;
+            border: 1px solid #cbd5e1; background: #f8fafc;
+            color: #1e293b; font-weight: 700; line-height: 1.25;
+        }
+        .a4-var-pill.is-out { opacity: 0.45; text-decoration: line-through; background: #f1f5f9; }
+        .a4-var-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+        .a4-var-rows { display: flex; flex-direction: column; gap: 2.5px; margin-top: 1px; }
+        .a4-var-row {
+            display: flex; align-items: center; justify-content: space-between; gap: 6px;
+            padding: 2px 5px; border-radius: 5px;
+            background: rgba(15, 23, 42, 0.035); border: 1px solid rgba(15, 23, 42, 0.07);
+            line-height: 1.2;
+        }
+        .a4-var-row.is-out { opacity: 0.48; }
+        .a4-var-row-name { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: #1e293b; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .a4-var-row-price { font-weight: 800; white-space: nowrap; flex-shrink: 0; }
+        .a4-var-row-old { text-decoration: line-through; opacity: 0.55; font-weight: 500; margin-right: 3px; font-size: 0.85em; }
+        .a4-var-tag-expanded {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 1.5px 6px; border-radius: 5px;
+            background: rgba(15, 118, 110, 0.1); color: #0f766e;
+            font-weight: 800; margin-bottom: 2px;
+        }
+        .pdf-var-box {
+            margin-top: 0.75rem; padding-top: 0.75rem;
+            border-top: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 0.55rem;
+        }
+        .pdf-var-prod-item {
+            border: 1px solid #e2e8f0; border-radius: 9px; background: #f8fafc;
+            padding: 0.45rem 0.55rem; display: flex; flex-direction: column; gap: 0.35rem;
+        }
+        .pdf-var-prod-head {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
+            font-size: 0.74rem; font-weight: 700; color: #1e293b;
+        }
+        .pdf-var-prod-actions { display: flex; gap: 0.35rem; font-size: 0.68rem; }
+        .pdf-var-prod-actions button {
+            border: none; background: none; color: #2563eb; cursor: pointer;
+            font-weight: 700; padding: 0; font-size: 0.68rem;
+        }
+        .pdf-var-checks { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+        .pdf-var-chk-chip {
+            display: inline-flex; align-items: center; gap: 0.25rem;
+            padding: 0.18rem 0.45rem; border-radius: 6px;
+            border: 1px solid #cbd5e1; background: #ffffff;
+            font-size: 0.7rem; font-weight: 600; color: #334155; cursor: pointer;
+        }
+        .pdf-var-chk-chip input { margin: 0; accent-color: #0f766e; }
+    `;
+    document.head.appendChild(st);
+}
+
+function obtenerEtiquetaVariantePdf(prod) {
+    const custom = String(prod?.etiquetaVariante || '').trim();
+    if (custom) return custom;
+    return 'Variantes';
+}
+
+function obtenerClaveVariantePdf(prodId, v, idx) {
+    return `${String(prodId)}::${String(v?.sku || idx)}`;
+}
+
+function obtenerPreciosVariantePdf(prod, v) {
+    const c = window.pdfConfig;
+    const pNormBase = Number(prod.precioNormal) || 0;
+    const pMayBase = Number(prod.precioMayorista) || 0;
+
+    if (c.precioModo === 'mayorista') {
+        const val = pMayBase > 0 ? pMayBase : ((Number(v?.precio) > 0) ? Number(v.precio) : pNormBase);
+        return { precioNormal: val, precioOferta: 0, tieneOferta: false, precioFinal: val, esMayorista: pMayBase > 0 };
+    }
+
+    const pNorm = (v && Number(v.precio) > 0) ? Number(v.precio) : pNormBase;
+    const pOf = v ? (Number(v.precioOferta) || 0) : (Number(prod.precioOferta) || 0);
+    const tieneOferta = pOf > 0 && pOf < pNorm;
+    return {
+        precioNormal: pNorm,
+        precioOferta: pOf,
+        tieneOferta,
+        precioFinal: tieneOferta ? pOf : pNorm,
+        esMayorista: false
+    };
+}
+
+function inyectarControlesVariantesEnPanelContenidoPdf() {
+    const panel = document.getElementById('pdf-panel-contenido');
+    if (!panel || document.getElementById('pdf-variantes-config-box')) return;
+
+    const box = document.createElement('div');
+    box.id = 'pdf-variantes-config-box';
+    box.className = 'pdf-var-box';
+    box.innerHTML = `
+        <div class="pdf-field" style="margin-bottom:0;">
+            <label for="pdf-modo-variantes">🧩 Mostrar Variantes / Talles</label>
+            <select id="pdf-modo-variantes" class="pdf-select">
+                <option value="compacto">Compacto (dentro de la misma tarjeta)</option>
+                <option value="expandido">Expandido (1 tarjeta por cada variante)</option>
+                <option value="oculto">Ocultar variantes (solo producto padre)</option>
+            </select>
+        </div>
+        <div id="pdf-variantes-selector-wrap" style="display:none; flex-direction:column; gap:0.4rem;">
+            <label style="font-size:0.72rem; font-weight:700; color:#475569;">Elegir variantes a incluir en PDF</label>
+            <div id="pdf-variantes-checklist" style="display:flex; flex-direction:column; gap:0.45rem; max-height:190px; overflow-y:auto; padding-right:2px;"></div>
+        </div>
+    `;
+
+    panel.appendChild(box);
+
+    document.getElementById('pdf-modo-variantes')?.addEventListener('change', (e) => {
+        window.pdfConfig.modoVariantes = e.target.value;
+        guardarConfigPdf(true);
+        renderizarSelectorVariantesPdf();
+        renderizarVisorPdf();
+    });
+}
+
+function renderizarSelectorVariantesPdf() {
+    const wrap = document.getElementById('pdf-variantes-selector-wrap');
+    const cont = document.getElementById('pdf-variantes-checklist');
+    if (!wrap || !cont) return;
+
+    const c = window.pdfConfig;
+    if (c.modoVariantes === 'oculto') {
+        wrap.style.display = 'none';
+        return;
+    }
+
+    const excluidasCat = (c.categoriasExcluidas || []).map(x => x.toLowerCase());
+    const prodsConVar = obtenerProductosBasePdf().filter(p =>
+        Array.isArray(p.variantesDetalle) &&
+        p.variantesDetalle.length > 0 &&
+        !excluidasCat.includes((p.categoria || 'General').toLowerCase())
+    );
+
+    if (prodsConVar.length === 0) {
+        wrap.style.display = 'none';
+        return;
+    }
+
+    wrap.style.display = 'flex';
+    const excluidasSet = new Set(Array.isArray(c.variantesExcluidas) ? c.variantesExcluidas : []);
+
+    cont.innerHTML = prodsConVar.map(p => {
+        const chips = p.variantesDetalle.map((v, idx) => {
+            const key = obtenerClaveVariantePdf(p.id, v, idx);
+            const checked = v.incluirPdf !== false && !excluidasSet.has(key);
+            return `
+                <label class="pdf-var-chk-chip">
+                    <input type="checkbox" class="pdf-var-checkbox" data-var-key="${escaparHtmlPdf(key)}" ${checked ? 'checked' : ''}>
+                    <span>${escaparHtmlPdf(v.nombre)}</span>
+                </label>
+            `;
+        }).join('');
+
+        return `
+            <div class="pdf-var-prod-item" data-var-prod-id="${escaparHtmlPdf(p.id)}">
+                <div class="pdf-var-prod-head">
+                    <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escaparHtmlPdf(p.nombre)}</span>
+                    <div class="pdf-var-prod-actions">
+                        <button type="button" class="btn-pdf-var-all" data-pid="${escaparHtmlPdf(p.id)}">Todas</button>
+                        <button type="button" class="btn-pdf-var-none" data-pid="${escaparHtmlPdf(p.id)}">Ninguna</button>
+                    </div>
+                </div>
+                <div class="pdf-var-checks">${chips}</div>
+            </div>
+        `;
+    }).join('');
+
+    cont.querySelectorAll('.pdf-var-checkbox').forEach(chk => {
+        chk.addEventListener('change', () => {
+            const key = chk.getAttribute('data-var-key');
+            const set = new Set(Array.isArray(window.pdfConfig.variantesExcluidas) ? window.pdfConfig.variantesExcluidas : []);
+            if (chk.checked) set.delete(key);
+            else set.add(key);
+            window.pdfConfig.variantesExcluidas = Array.from(set);
+            guardarConfigPdf(true);
+            renderizarVisorPdf();
+        });
+    });
+
+    cont.querySelectorAll('.btn-pdf-var-all, .btn-pdf-var-none').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const pid = btn.getAttribute('data-pid');
+            const marcar = btn.classList.contains('btn-pdf-var-all');
+            const set = new Set(Array.isArray(window.pdfConfig.variantesExcluidas) ? window.pdfConfig.variantesExcluidas : []);
+            cont.querySelectorAll(`.pdf-var-prod-item[data-var-prod-id="${pid}"] .pdf-var-checkbox`).forEach(chk => {
+                chk.checked = marcar;
+                const key = chk.getAttribute('data-var-key');
+                if (marcar) set.delete(key);
+                else set.add(key);
+            });
+            window.pdfConfig.variantesExcluidas = Array.from(set);
+            guardarConfigPdf(true);
+            renderizarVisorPdf();
+        });
+    });
+}
+
 function inicializarDisenoPdf() {
     asegurarGoogleFontsPdf();
+    asegurarEstilosVariantesPdf();
     cargarConfigPdfGuardada();
+    inyectarControlesVariantesEnPanelContenidoPdf();
     reiniciarHistorialPdf();
     renderizarLogosGenericosPdf();
     sincronizarControlesDesdeConfig();
     renderizarSelectorPlantillasPdf();
     renderizarChecklistCategoriasPdf();
+    renderizarSelectorVariantesPdf();
     renderizarListaOrdenCapasPdf();
     inicializarEventosDisenoPdf();
     renderizarVisorPdf();
@@ -294,6 +512,12 @@ function cargarConfigPdfGuardada() {
             }
             if (!Array.isArray(window.pdfConfig.categoriasExcluidas)) {
                 window.pdfConfig.categoriasExcluidas = [];
+            }
+            if (!Array.isArray(window.pdfConfig.variantesExcluidas)) {
+                window.pdfConfig.variantesExcluidas = [];
+            }
+            if (!['compacto', 'expandido', 'oculto'].includes(window.pdfConfig.modoVariantes)) {
+                window.pdfConfig.modoVariantes = 'compacto';
             }
         }
     } catch (err) {
@@ -408,6 +632,7 @@ function deshacerCambioPdf() {
     guardarConfigPdf(false);
     sincronizarControlesDesdeConfig();
     renderizarChecklistCategoriasPdf();
+    renderizarSelectorVariantesPdf();
     renderizarListaOrdenCapasPdf();
     renderizarVisorPdf();
     actualizarBotonesHistorialPdf();
@@ -420,6 +645,7 @@ function rehacerCambioPdf() {
     guardarConfigPdf(false);
     sincronizarControlesDesdeConfig();
     renderizarChecklistCategoriasPdf();
+    renderizarSelectorVariantesPdf();
     renderizarListaOrdenCapasPdf();
     renderizarVisorPdf();
     actualizarBotonesHistorialPdf();
@@ -499,6 +725,7 @@ function aplicarPlantillaSeleccionadaPdf(valor) {
     guardarConfigPdf(true);
     sincronizarControlesDesdeConfig();
     renderizarChecklistCategoriasPdf();
+    renderizarSelectorVariantesPdf();
     renderizarListaOrdenCapasPdf();
     renderizarVisorPdf();
 }
@@ -536,7 +763,7 @@ function eliminarPlantillaPropiaPdf() {
 }
 
 /* ==========================================================================
-   PRODUCTOS, FILTRADO Y ORDENAMIENTO
+   PRODUCTOS, FILTRADO POR VARIANTES Y ORDENAMIENTO
    ========================================================================== */
 function obtenerProductosBasePdf() {
     const productos = Array.isArray(window.bovedaProductos)
@@ -548,6 +775,10 @@ function obtenerProductosBasePdf() {
 
 function obtenerPrecioEfectivoPdf(prod) {
     const c = window.pdfConfig;
+    if (Array.isArray(prod._variantesVisiblesPdf) && prod._variantesVisiblesPdf.length > 0 && c.precioModo !== 'mayorista') {
+        const precios = prod._variantesVisiblesPdf.map(v => obtenerPreciosVariantePdf(prod, v).precioFinal);
+        return Math.min(...precios);
+    }
     if (c.precioModo === 'mayorista') {
         const may = Number(prod.precioMayorista) || 0;
         return may > 0 ? may : (Number(prod.precioNormal) || 0);
@@ -558,20 +789,78 @@ function obtenerPrecioEfectivoPdf(prod) {
 
 function obtenerProductosFiltradosYOrdenadosPdf() {
     const c = window.pdfConfig;
-    let lista = [...obtenerProductosBasePdf()];
+    let base = [...obtenerProductosBasePdf()];
 
     if (c.categoriasExcluidas.length > 0) {
         const excluidas = c.categoriasExcluidas.map(x => x.toLowerCase());
-        lista = lista.filter(p => !excluidas.includes((p.categoria || 'General').toLowerCase()));
+        base = base.filter(p => !excluidas.includes((p.categoria || 'General').toLowerCase()));
     }
 
-    if (c.ocultarSinStock) {
-        lista = lista.filter(p => Number(p.stock) > 0);
-    }
+    const excluidasVarSet = new Set(Array.isArray(c.variantesExcluidas) ? c.variantesExcluidas : []);
+    const modoVar = c.modoVariantes || 'compacto';
+    const lista = [];
 
-    if (c.soloOfertas) {
-        lista = lista.filter(p => Number(p.precioOferta) > 0 && Number(p.precioOferta) < Number(p.precioNormal));
-    }
+    base.forEach(p => {
+        const tieneVariantes = Array.isArray(p.variantesDetalle) && p.variantesDetalle.length > 0;
+
+        if (!tieneVariantes || modoVar === 'oculto') {
+            if (c.ocultarSinStock && (Number(p.stock) || 0) <= 0) return;
+            if (c.soloOfertas && !(Number(p.precioOferta) > 0 && Number(p.precioOferta) < Number(p.precioNormal))) return;
+            lista.push(p);
+            return;
+        }
+
+        // Filtrar variantes según selección manual, stock 0 y ofertas
+        const variantesActivas = [];
+        p.variantesDetalle.forEach((v, idx) => {
+            if (!v || !String(v.nombre || '').trim()) return;
+            const key = obtenerClaveVariantePdf(p.id, v, idx);
+            if (v.incluirPdf === false || excluidasVarSet.has(key)) return;
+            if (c.ocultarSinStock && (Number(v.stock) || 0) <= 0) return;
+            const pr = obtenerPreciosVariantePdf(p, v);
+            if (c.soloOfertas && !pr.tieneOferta) return;
+            variantesActivas.push({ ...v, _varIdxOriginal: idx });
+        });
+
+        if (variantesActivas.length === 0) return;
+
+        const etiquetaVar = obtenerEtiquetaVariantePdf(p);
+
+        if (modoVar === 'expandido') {
+            variantesActivas.forEach(v => {
+                const pr = obtenerPreciosVariantePdf(p, v);
+                const imgVar = (typeof v.imagen_url === 'string' && v.imagen_url.trim()) ? v.imagen_url.trim() : '';
+                const imagenesExp = imgVar
+                    ? [imgVar, ...(Array.isArray(p.imagenes) ? p.imagenes : [])]
+                    : (Array.isArray(p.imagenes) ? p.imagenes : []);
+
+                lista.push({
+                    ...p,
+                    id: `${p.id}::${v.sku || v._varIdxOriginal}`,
+                    nombre: `${p.nombre} — ${v.nombre}`,
+                    sku: v.sku || p.sku,
+                    precioNormal: pr.precioNormal,
+                    precioOferta: pr.precioOferta,
+                    stock: Math.max(0, Number(v.stock) || 0),
+                    imagenes: imagenesExp,
+                    variantesDetalle: [],
+                    _esTarjetaVariante: true,
+                    _varNombre: v.nombre,
+                    _varColor: v.color || '',
+                    _etiquetaVar: etiquetaVar
+                });
+            });
+        } else {
+            // Modo compacto: 1 tarjeta con las variantes filtradas adjuntas
+            const stockSuma = Math.round(variantesActivas.reduce((acc, v) => acc + (Number(v.stock) || 0), 0) * 1000) / 1000;
+            lista.push({
+                ...p,
+                stock: stockSuma,
+                _variantesVisiblesPdf: variantesActivas,
+                _etiquetaVar: etiquetaVar
+            });
+        }
+    });
 
     lista.sort((a, b) => {
         const nomA = String(a.nombre || '');
@@ -587,7 +876,7 @@ function obtenerProductosFiltradosYOrdenadosPdf() {
             case 'precio-desc':
                 return obtenerPrecioEfectivoPdf(b) - obtenerPrecioEfectivoPdf(a);
             case 'recientes':
-                return (Number(b.id) || 0) - (Number(a.id) || 0);
+                return (Number(String(b.id).split('::')[0]) || 0) - (Number(String(a.id).split('::')[0]) || 0);
             case 'categoria':
             default: {
                 const cmp = catA.localeCompare(catB, 'es', { sensitivity: 'base' });
@@ -645,6 +934,7 @@ function actualizarCategoriasExcluidasDesdeUI() {
     });
     window.pdfConfig.categoriasExcluidas = excluidas;
     guardarConfigPdf(true);
+    renderizarSelectorVariantesPdf();
     renderizarVisorPdf();
 }
 
@@ -696,6 +986,7 @@ function sincronizarControlesDesdeConfig() {
     // Contenido
     setVal('pdf-precio-modo', c.precioModo);
     setVal('pdf-orden-productos', c.orden);
+    setVal('pdf-modo-variantes', c.modoVariantes || 'compacto');
     setChk('pdf-ocultar-sinstock', c.ocultarSinStock);
     setChk('pdf-solo-ofertas', c.soloOfertas);
     setChk('pdf-show-cat-headers', c.showCatHeaders);
@@ -778,7 +1069,7 @@ function sincronizarControlesDesdeConfig() {
     setVal('pdf-header-validez', c.headerValidez);
     setVal('pdf-footer-texto', c.footerTexto);
 
-    // Fechas, Portada y Hoja de Cierre (con colores propios)
+    // Fechas, Portada y Hoja de Cierre
     setVal('pdf-fecha-creacion', c.fechaCreacion || '');
     setVal('pdf-fecha-validez', c.fechaValidez || '');
 
@@ -803,7 +1094,6 @@ function sincronizarControlesDesdeConfig() {
 
     actualizarVistaPreviaLogoPdf();
 
-    // Segmentados
     document.querySelectorAll('#pdf-orientacion-group .seg-btn').forEach(b => {
         b.classList.toggle('active', b.getAttribute('data-val') === c.orientacion);
     });
@@ -914,7 +1204,6 @@ function obtenerTextoFechasCabeceraPdf() {
 }
 
 function inicializarEventosDisenoPdf() {
-    // 1. Pestañas
     document.querySelectorAll('#pdf-tabs-nav .pdf-tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('#pdf-tabs-nav .pdf-tab-btn').forEach(b => b.classList.remove('active'));
@@ -924,7 +1213,6 @@ function inicializarEventosDisenoPdf() {
         });
     });
 
-    // 2. Plantillas e Historial
     document.getElementById('pdf-select-plantilla')?.addEventListener('change', (e) => {
         aplicarPlantillaSeleccionadaPdf(e.target.value);
     });
@@ -950,7 +1238,6 @@ function inicializarEventosDisenoPdf() {
         pdfShortcutsRegistrados = true;
     }
 
-    // 3. Visor A4 (Paginador, 1/2 hojas, Zoom, Pantalla Completa)
     document.getElementById('btn-pdf-page-prev')?.addEventListener('click', () => {
         if (window.pdfViewerState.paginaActual > 1) {
             window.pdfViewerState.paginaActual = Math.max(1, window.pdfViewerState.paginaActual - window.pdfViewerState.hojasVisibles);
@@ -996,7 +1283,6 @@ function inicializarEventosDisenoPdf() {
         });
     }
 
-    // Helpers de enlace en vivo (mantienen siempre la página actual)
     const enlazarSelect = (id, prop) => {
         document.getElementById(id)?.addEventListener('change', (e) => {
             window.pdfConfig[prop] = e.target.value;
@@ -1048,7 +1334,6 @@ function inicializarEventosDisenoPdf() {
         });
     };
 
-    // 4. Pestaña CONTENIDO
     enlazarSelect('pdf-precio-modo', 'precioModo');
     enlazarSelect('pdf-orden-productos', 'orden');
     enlazarCheckbox('pdf-ocultar-sinstock', 'ocultarSinStock');
@@ -1064,7 +1349,6 @@ function inicializarEventosDisenoPdf() {
         actualizarCategoriasExcluidasDesdeUI();
     });
 
-    // 5. Pestaña LAYOUT E IMAGEN
     enlazarSegmentado('pdf-orientacion-group', 'orientacion', false);
     enlazarSegmentado('pdf-columnas-group', 'columnas', true);
     enlazarSegmentado('pdf-escala-group', 'escalaGlobal', true);
@@ -1091,7 +1375,6 @@ function inicializarEventosDisenoPdf() {
         });
     });
 
-    // 6. Pestaña TIPOGRAFÍA Y TEXTOS
     enlazarSelect('pdf-font-family', 'fontFamily');
     enlazarRange('pdf-size-titulo', 'val-size-titulo', 'sizeTitulo', ' px');
     enlazarRange('pdf-size-precio', 'val-size-precio', 'sizePrecio', ' px');
@@ -1105,7 +1388,6 @@ function inicializarEventosDisenoPdf() {
     enlazarColor('pdf-color-stock', 'colorStock');
     enlazarColor('pdf-color-stock-bg', 'colorStockBg');
 
-    // 7. Pestaña ESTILO, FONDOS AVANZADOS Y B&N
     enlazarCheckbox('pdf-modo-grises', 'modoGrises');
     enlazarColor('pdf-color-acento', 'colorAcento');
     enlazarColor('pdf-color-hoja', 'colorHoja');
@@ -1200,7 +1482,6 @@ function inicializarEventosDisenoPdf() {
         });
     });
 
-    // 8. Pestaña CAPAS Y CABECERA / PIE
     enlazarCheckbox('pdf-show-sku', 'showSku');
     enlazarCheckbox('pdf-show-desc', 'showDesc');
     enlazarCheckbox('pdf-show-stock', 'showStock');
@@ -1212,7 +1493,6 @@ function inicializarEventosDisenoPdf() {
     enlazarTexto('pdf-header-validez', 'headerValidez');
     enlazarTexto('pdf-footer-texto', 'footerTexto');
 
-    // 9. Pestaña CARÁTULA, LOGOS, FECHAS Y HOJA DE CIERRE
     enlazarSelect('pdf-fecha-creacion', 'fechaCreacion');
     enlazarSelect('pdf-fecha-validez', 'fechaValidez');
 
@@ -1263,7 +1543,6 @@ function inicializarEventosDisenoPdf() {
         });
     }
 
-    // 10. Motores reales de exportación (Etapa 4)
     document.getElementById('btn-export-pdf-hd')?.addEventListener('click', () => {
         exportarCatalogoPdf('hd');
     });
@@ -1300,10 +1579,6 @@ function ajustarZoomAutomaticoPdf() {
     aplicarZoomVisorPdf();
 }
 
-/**
- * Construye la lista de hojas A4 midiendo el alto real en píxeles de cada fila y separador.
- * Funciona de forma exacta tanto en Vertical (794x1123) como en Horizontal (1123x794).
- */
 function construirListaCompletaHojasPdf() {
     const c = window.pdfConfig;
     const productosPdf = obtenerProductosFiltradosYOrdenadosPdf();
@@ -1321,7 +1596,6 @@ function construirListaCompletaHojasPdf() {
         return { hojas, totalProductos: 0 };
     }
 
-    // 1. Armar los bloques visuales (separadores de categoría + filas de productos)
     const bloques = [];
     let filaActual = [];
     let ultimaCat = null;
@@ -1349,7 +1623,6 @@ function construirListaCompletaHojasPdf() {
     });
     cerrarFila();
 
-    // 2. Medir alturas exactas en un contenedor oculto con el ancho real de la hoja A4
     const anchoHoja = c.orientacion === 'landscape' ? 1123 : 794;
     const altoHoja = c.orientacion === 'landscape' ? 794 : 1123;
     const padPx = Math.round(c.margenMm * 3.2);
@@ -1427,7 +1700,6 @@ function construirListaCompletaHojasPdf() {
 
     document.body.removeChild(medidor);
 
-    // 3. Repartir bloques en páginas A4 respetando el alto real y evitando separadores huérfanos
     let itemsHoja = [];
     let altoUsado = 0;
 
@@ -1727,6 +1999,68 @@ function formatearStockPdf(valor, familiaMedicion = 'unidad', unidadMedida = 'Un
     return String(num);
 }
 
+function construirBloqueVariantesCompactoPdf(prod, sizeDescEsc, sizeStockEsc) {
+    const c = window.pdfConfig;
+    const vars = Array.isArray(prod._variantesVisiblesPdf) ? prod._variantesVisiblesPdf : [];
+    if (vars.length === 0) return { html: '', preciosDistintos: false, precioMin: 0, hayOfertaEnVars: false };
+
+    const preciosVars = vars.map(v => obtenerPreciosVariantePdf(prod, v));
+    const valoresUnicos = new Set(preciosVars.map(p => p.precioFinal));
+    const preciosDistintos = c.precioModo !== 'oculto' && valoresUnicos.size > 1;
+    const precioMin = Math.min(...preciosVars.map(p => p.precioFinal));
+    const hayOfertaEnVars = preciosVars.some(p => p.tieneOferta);
+    const etiqueta = prod._etiquetaVar || obtenerEtiquetaVariantePdf(prod);
+    const fz = Math.max(7.5, Math.min(10.5, sizeDescEsc * 0.92));
+
+    if (preciosDistintos && c.precioModo !== 'oculto') {
+        const filasHtml = vars.map((v, idx) => {
+            const pr = preciosVars[idx];
+            const out = (Number(v.stock) || 0) <= 0;
+            const pTxt = `$${pr.precioFinal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+            const oldTxt = pr.tieneOferta
+                ? `<span class="a4-var-row-old">$${pr.precioNormal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>`
+                : '';
+            const dot = v.color ? `<span class="a4-var-dot" style="background:${escaparHtmlPdf(v.color)};"></span>` : '';
+            return `
+                <div class="a4-var-row ${out ? 'is-out' : ''}" style="font-size: ${fz}px;">
+                    <span class="a4-var-row-name">${dot}${escaparHtmlPdf(v.nombre)}</span>
+                    <span class="a4-var-row-price" style="color: ${c.colorPrecio};">${oldTxt}${pTxt}</span>
+                </div>
+            `;
+        }).join('');
+
+        return {
+            html: `
+                <div class="a4-var-block">
+                    <span class="a4-var-label" style="font-size: ${Math.max(6.8, fz - 1)}px; color: ${c.colorSku};">${escaparHtmlPdf(etiqueta)}:</span>
+                    <div class="a4-var-rows">${filasHtml}</div>
+                </div>
+            `,
+            preciosDistintos: true,
+            precioMin,
+            hayOfertaEnVars
+        };
+    }
+
+    const pillsHtml = vars.map(v => {
+        const out = (Number(v.stock) || 0) <= 0;
+        const dot = v.color ? `<span class="a4-var-dot" style="background:${escaparHtmlPdf(v.color)};"></span>` : '';
+        return `<span class="a4-var-pill ${out ? 'is-out' : ''}" style="font-size: ${Math.max(7, sizeStockEsc)}px;">${dot}${escaparHtmlPdf(v.nombre)}</span>`;
+    }).join('');
+
+    return {
+        html: `
+            <div class="a4-var-block">
+                <span class="a4-var-label" style="font-size: ${Math.max(6.8, fz - 1)}px; color: ${c.colorSku};">${escaparHtmlPdf(etiqueta)}:</span>
+                <div class="a4-var-pills">${pillsHtml}</div>
+            </div>
+        `,
+        preciosDistintos: false,
+        precioMin,
+        hayOfertaEnVars
+    };
+}
+
 function construirHtmlTarjetaA4(prod, esLista) {
     const c = window.pdfConfig;
     const esc = Math.max(0.5, Math.min(1, (Number(c.escalaGlobal) || 100) / 100));
@@ -1753,7 +2087,8 @@ function construirHtmlTarjetaA4(prod, esLista) {
     const imgRadius = Math.max(0, Number(c.imgRadiusPx ?? 6));
 
     const foto = (prod.imagenes && prod.imagenes[0]) ? prod.imagenes[0] : '../img/producto.png';
-    const tieneOferta = Number(prod.precioOferta) > 0 && Number(prod.precioOferta) < Number(prod.precioNormal);
+    const varInfo = construirBloqueVariantesCompactoPdf(prod, sizeDescEsc, sizeStockEsc);
+    const tieneOferta = varInfo.hayOfertaEnVars || (Number(prod.precioOferta) > 0 && Number(prod.precioOferta) < Number(prod.precioNormal));
     const sinStock = Number(prod.stock) <= 0;
 
     const abrevUnidad = obtenerAbrevUnidadPdf(prod.unidadMedida);
@@ -1765,24 +2100,39 @@ function construirHtmlTarjetaA4(prod, esLista) {
     let precioHtml = '';
     if (c.precioModo === 'mayorista') {
         const precioMay = Number(prod.precioMayorista) || 0;
-        const valor = precioMay > 0 ? precioMay : (Number(prod.precioNormal) || 0);
+        const valor = precioMay > 0 ? precioMay : (varInfo.preciosDistintos ? varInfo.precioMin : (Number(prod.precioNormal) || 0));
+        const prefDesde = (precioMay <= 0 && varInfo.preciosDistintos) ? `<span style="font-size:${Math.max(7.5, Math.round(sizePrecioEsc * 0.58))}px; font-weight:700; opacity:0.78; margin-right:3px;">Desde</span>` : '';
         const txt = `$${valor.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
         precioHtml = `
             <div class="a4-price-wrap">
-                <span class="a4-price-main" style="font-size: ${sizePrecioEsc}px; color: ${c.colorPrecio};">${txt}${unidadPrecioHtml}</span>
+                <span class="a4-price-main" style="font-size: ${sizePrecioEsc}px; color: ${c.colorPrecio};">${prefDesde}${txt}${unidadPrecioHtml}</span>
                 ${precioMay > 0 ? '<span class="a4-price-tag">MAYORISTA</span>' : ''}
             </div>
         `;
     } else if (c.precioModo === 'publico') {
-        const finalVal = tieneOferta ? Number(prod.precioOferta) : (Number(prod.precioNormal) || 0);
-        const precioTxt = `$${finalVal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-        const oldTxt = `$${(Number(prod.precioNormal) || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-        precioHtml = `
-            <div class="a4-price-wrap">
-                <span class="a4-price-main" style="font-size: ${sizePrecioEsc}px; color: ${c.colorPrecio};">${precioTxt}${unidadPrecioHtml}</span>
-                ${tieneOferta ? `<span class="a4-price-old" style="font-size: ${Math.max(7, Math.round(sizePrecioEsc * 0.65))}px;">${oldTxt}</span>` : ''}
-            </div>
-        `;
+        if (varInfo.preciosDistintos) {
+            const txtMin = `$${varInfo.precioMin.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+            precioHtml = `
+                <div class="a4-price-wrap">
+                    <span class="a4-price-main" style="font-size: ${sizePrecioEsc}px; color: ${c.colorPrecio};">
+                        <span style="font-size:${Math.max(7.5, Math.round(sizePrecioEsc * 0.58))}px; font-weight:700; opacity:0.78; margin-right:3px;">Desde</span>${txtMin}${unidadPrecioHtml}
+                    </span>
+                </div>
+            `;
+        } else {
+            const finalVal = (Number(prod.precioOferta) > 0 && Number(prod.precioOferta) < Number(prod.precioNormal))
+                ? Number(prod.precioOferta)
+                : (Number(prod.precioNormal) || 0);
+            const precioTxt = `$${finalVal.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+            const oldTxt = `$${(Number(prod.precioNormal) || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+            const hayOfSimple = Number(prod.precioOferta) > 0 && Number(prod.precioOferta) < Number(prod.precioNormal);
+            precioHtml = `
+                <div class="a4-price-wrap">
+                    <span class="a4-price-main" style="font-size: ${sizePrecioEsc}px; color: ${c.colorPrecio};">${precioTxt}${unidadPrecioHtml}</span>
+                    ${hayOfSimple ? `<span class="a4-price-old" style="font-size: ${Math.max(7, Math.round(sizePrecioEsc * 0.65))}px;">${oldTxt}</span>` : ''}
+                </div>
+            `;
+        }
     }
 
     const imgBoxStyle = esLateral
@@ -1798,15 +2148,20 @@ function construirHtmlTarjetaA4(prod, esLista) {
             </div>
         `;
 
+    const tagExpandidaHtml = prod._esTarjetaVariante
+        ? `<div class="a4-var-tag-expanded" style="font-size: ${Math.max(6.8, sizeSkuEsc)}px; color: ${c.colorAcento};">${prod._varColor ? `<span class="a4-var-dot" style="background:${escaparHtmlPdf(prod._varColor)};"></span>` : ''}${escaparHtmlPdf(prod._etiquetaVar || 'Variante')}: ${escaparHtmlPdf(prod._varNombre)}</div>`
+        : '';
+
     const bloqueTitulo = `
         <div>
+            ${tagExpandidaHtml}
             ${c.showSku ? `<div class="a4-sku" style="font-size: ${sizeSkuEsc}px; color: ${c.colorSku};">SKU: ${escaparHtmlPdf(prod.sku)}</div>` : ''}
             <h4 class="a4-prod-name" style="font-size: ${sizeTituloEsc}px; color: ${c.colorTitulo};">${escaparHtmlPdf(prod.nombre)}</h4>
         </div>
     `;
 
-    const bloqueDesc = (c.showDesc && prod.descripcion)
-        ? `<p class="a4-prod-desc" style="font-size: ${sizeDescEsc}px; color: ${c.colorDesc};">${escaparHtmlPdf(prod.descripcion)}</p>`
+    const bloqueDesc = ((c.showDesc && prod.descripcion) || varInfo.html)
+        ? `<div>${(c.showDesc && prod.descripcion) ? `<p class="a4-prod-desc" style="font-size: ${sizeDescEsc}px; color: ${c.colorDesc};">${escaparHtmlPdf(prod.descripcion)}</p>` : ''}${varInfo.html}</div>`
         : '';
 
     const estiloStock = sinStock
@@ -2000,7 +2355,7 @@ function cargarElementoImagen(url, usarCors = false) {
             clearTimeout(timeout);
             try {
                 if (typeof img.decode === 'function') await img.decode();
-            } catch (_) { /* continuar con la imagen ya cargada */ }
+            } catch (_) { /* continuar */ }
             resolve(img.naturalWidth > 0 ? img : null);
         };
 
@@ -2418,4 +2773,3 @@ async function exportarCatalogoPngZip() {
         actualizarEtiquetaBotonPngPdf();
     }
 }
-
