@@ -1,7 +1,7 @@
 /* ==========================================================================
    MÓDULO: COPIA DE SEGURIDAD EN GOOGLE DRIVE (WEB / PC ↔ APP ANDROID)
    - Carpeta compartida: "Cat-Alogo Backups"
-   - Nomenclatura PC: cat-alogo-web-pc_YYYY-MM-DD_HH-mm.catbak / .json
+   - Nomenclatura PC (hora local): cat-alogo-web-pc_YYYY-MM-DD_HH-mm.catbak / .json
    - Rotación automática (últimas 5 copias de PC; nunca borra archivos de Android)
    - Restauración cruzada (.catbak PC + catalogo_backup.json Android)
    - Cifrado opcional AES-GCM 256 + Auto-subida al cerrar turno (Corte Z)
@@ -394,7 +394,9 @@
         const sha256 = typeof window.calcularSha256HexCfg === 'function'
             ? await window.calcularSha256HexCfg(payloadStr)
             : '';
-        const fechaIso = new Date().toISOString();
+
+        const ahora = new Date();
+        const fechaIso = ahora.toISOString();
 
         const archivoObj = {
             formato: 'CAT-ALOGO-BACKUP',
@@ -413,7 +415,8 @@
             archivoObj.data = data;
         }
 
-        const stamp = fechaIso.slice(0, 16).replace('T', '_').replace(':', '-');
+        const pad = (n) => String(n).padStart(2, '0');
+        const stamp = `${ahora.getFullYear()}-${pad(ahora.getMonth() + 1)}-${pad(ahora.getDate())}_${pad(ahora.getHours())}-${pad(ahora.getMinutes())}`;
         const ext = esFull ? 'catbak' : 'json';
         const tagModo = sufijoExtra ? `-${sufijoExtra}` : (esFull ? '' : '-liviano');
         const nombreArchivo = `${PC_BACKUP_PREFIX}${tagModo}_${stamp}.${ext}`;
@@ -875,13 +878,19 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    function arrancarModuloDrive() {
         enlazarHooksAjustes();
         if (document.getElementById('cfg-panel-boveda')) {
             renderizarTarjetaGoogleDrive();
             mejorarBotonDriveEnPestanaNube();
         }
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', arrancarModuloDrive);
+    } else {
+        arrancarModuloDrive();
+    }
 
     // API pública por si se quiere invocar desde otro módulo
     window.CatAlogoGoogleDrive = {
