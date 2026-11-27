@@ -24,8 +24,8 @@ window.CAT_ALOGO_CLOUD_CONFIG = {
     // false = permite trabajar sin login mientras pruebas en local
     exigirLoginConFirebase: true,
 
-    // 5. Endpoints de Cloud Functions (southamerica-east1)
-    endpointActivarPrueba: "https://southamerica-east1-cat-alogo.cloudfunctions.net/activarPruebaGratis",
+    // 5. Endpoints de Cloud Functions v2 (southamerica-east1)
+    endpointActivarPrueba: "https://activarpruebagratis-llt2fk2sua-rj.a.run.app",
 
     // 6. Planes y Pasarelas de Pago Web (Paddle Global en USD + Mercado Pago Argentina en ARS)
     billingWeb: {
@@ -35,7 +35,7 @@ window.CAT_ALOGO_CLOUD_CONFIG = {
         ahorroAnualTexto: "Ahorrás 26%",
         // Si lo dejás en 0, toma automáticamente config_global/billing.cotizacionArs desde Firestore (si existe)
         cotizacionArsReferencia: 0,
-        endpointMercadoPago: "https://southamerica-east1-cat-alogo.cloudfunctions.net/crearCheckoutMercadoPago",
+        endpointMercadoPago: "https://crearcheckoutmercadopago-llt2fk2sua-rj.a.run.app",
 
         // Paddle Billing v2 (cambiar a "production" y claves live_... al salir en vivo)
         endpointPaddle: "",

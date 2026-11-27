@@ -26,6 +26,7 @@ const DOMINIOS_DESCARTABLES = new Set([
 ]);
 
 const FALLBACK_RETURN_URL = 'https://cat-alogo-landing-page.vercel.app/app/dashboard.html';
+const WEBHOOK_MP_URL = 'https://webhookmercadopago-llt2fk2sua-rj.a.run.app';
 
 /* --- HELPERS --- */
 function normalizarEmail(email) {
@@ -53,6 +54,19 @@ function parsearFechaMs(val) {
     if (typeof val?.seconds === 'number') return val.seconds * 1000;
     const parsed = Date.parse(String(val));
     return isNaN(parsed) ? 0 : parsed;
+}
+
+function resolverUidRevenueCat(ev) {
+    const candidatos = [
+        ev?.app_user_id,
+        ev?.original_app_user_id,
+        ...(Array.isArray(ev?.aliases) ? ev.aliases : [])
+    ];
+    for (const c of candidatos) {
+        const s = String(c || '').trim();
+        if (s && !s.startsWith('$RCAnonymousID:')) return s;
+    }
+    return '';
 }
 
 function verificarFirmaPaddle(rawBody, signatureHeader, secret) {
@@ -116,7 +130,7 @@ async function escribirLicenciaEnFirestore(uid, payload) {
 }
 
 /* ==========================================================================
-1. ACTIVAR PRUEBA GRATIS (14 DÍAS) DESDE EL SERVIDOR (ANTI-TRAMPAS)
+   1. ACTIVAR PRUEBA GRATIS (14 DÍAS) DESDE EL SERVIDOR (ANTI-TRAMPAS)
    ========================================================================== */
 exports.activarPruebaGratis = onRequest({ cors: true, region: 'southamerica-east1' }, async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
@@ -201,7 +215,7 @@ exports.activarPruebaGratis = onRequest({ cors: true, region: 'southamerica-east
 });
 
 /* ==========================================================================
-2. CREAR CHECKOUT DE MERCADO PAGO (ARGENTINA • PESOS ARS)
+   2. CREAR CHECKOUT DE MERCADO PAGO (ARGENTINA • PESOS ARS)
    ========================================================================== */
 exports.crearCheckoutMercadoPago = onRequest(
     { cors: true, region: 'southamerica-east1', secrets: [MP_ACCESS_TOKEN] },
@@ -227,9 +241,6 @@ exports.crearCheckoutMercadoPago = onRequest(
                 throw new Error('MP_ACCESS_TOKEN no está configurado en el servidor.');
             }
 
-            const projectId = process.env.GCLOUD_PROJECT || 'cat-alogo';
-            const webhookUrl = `https://southamerica-east1-${projectId}.cloudfunctions.net/webhookMercadoPago`;
-
             const prefBody = {
                 items: [
                     {
@@ -244,7 +255,7 @@ exports.crearCheckoutMercadoPago = onRequest(
                     email: decoded.email || undefined
                 },
                 external_reference: `${uid}|${plan}`,
-                notification_url: webhookUrl,
+                notification_url: WEBHOOK_MP_URL,
                 back_urls: {
                     success: returnUrl,
                     pending: returnUrl,
@@ -288,7 +299,7 @@ exports.crearCheckoutMercadoPago = onRequest(
 );
 
 /* ==========================================================================
-3. WEBHOOK MERCADO PAGO (VERIFICA PAGO REAL Y ACTIVA LICENCIA EN FIRESTORE)
+   3. WEBHOOK MERCADO PAGO (VERIFICA PAGO REAL Y ACTIVA LICENCIA EN FIRESTORE)
    ========================================================================== */
 exports.webhookMercadoPago = onRequest(
     { region: 'southamerica-east1', secrets: [MP_ACCESS_TOKEN, RC_SECRET_API_KEY] },
@@ -338,6 +349,8 @@ exports.webhookMercadoPago = onRequest(
                 status: 'active',
                 activePlan: true,
                 fecha_expiracion: nuevaExpiraMs,
+                trialUsed: true,
+                usedTrial: true,
                 source: 'mercadopago',
                 ultimoPagoId: String(paymentId),
                 ultimoPagoMontoArs: Number(payment.transaction_amount) || 0
@@ -378,7 +391,7 @@ exports.webhookMercadoPago = onRequest(
 );
 
 /* ==========================================================================
-4. WEBHOOK REVENUECAT (UNIFICA GOOGLE PLAY ANDROID • PROTEGE PLANES WEB)
+   4. WEBHOOK REVENUECAT (UNIFICA GOOGLE PLAY ANDROID • PROTEGE PLANES WEB)
    ========================================================================== */
 exports.webhookRevenueCat = onRequest(
     { region: 'southamerica-east1', secrets: [RC_WEBHOOK_AUTH] },
@@ -396,8 +409,8 @@ exports.webhookRevenueCat = onRequest(
             const tipo = String(ev.type || '').toUpperCase();
             if (tipo === 'TEST') return res.status(200).send('OK (test)');
 
-            const uid = String(ev.app_user_id || '').trim();
-            if (!uid || uid.startsWith('$RCAnonymousID:')) {
+            const uid = resolverUidRevenueCat(ev);
+            if (!uid) {
                 return res.status(200).send('Usuario anónimo ignorado');
             }
 
@@ -410,7 +423,7 @@ exports.webhookRevenueCat = onRequest(
             const source = store === 'PLAY_STORE' ? 'google_play' : (store === 'PADDLE' || store === 'STRIPE' ? 'paddle' : 'revenuecat');
 
             const eventosActivos = new Set(['INITIAL_PURCHASE', 'RENEWAL', 'UNCANCELLATION', 'PRODUCT_CHANGE', 'NON_RENEWING_PURCHASE']);
-            const eventosVencidos = new Set(['EXPIRATION', 'BILLING_ISSUE']);
+            const eventosVencidos = new Set(['EXPIRATION']);
 
             const userSnap = await db.collection('users').doc(uid).get();
             const uData = userSnap.exists ? (userSnap.data() || {}) : {};
@@ -428,9 +441,31 @@ exports.webhookRevenueCat = onRequest(
                     status: 'active',
                     activePlan: true,
                     fecha_expiracion: expFinalMs,
+                    trialUsed: true,
+                    usedTrial: true,
                     source,
-                    rcProductId: ev.product_id || ''
+                    rcProductId: ev.product_id || '',
+                    ultimoPagoId: String(ev.transaction_id || ev.id || ''),
+                    ultimoPagoMonto: Number(ev.price_in_purchased_currency ?? ev.price ?? 0),
+                    ultimoPagoMoneda: String(ev.currency || 'USD')
                 });
+
+                const evId = String(ev.id || '').trim();
+                if (evId) {
+                    await db.collection('pagos_procesados').doc(`rc_${evId}`).set({
+                        uid,
+                        plan,
+                        gateway: source,
+                        eventType: tipo,
+                        environment: String(ev.environment || 'PRODUCTION'),
+                        productId: ev.product_id || '',
+                        transactionId: String(ev.transaction_id || ''),
+                        monto: Number(ev.price_in_purchased_currency ?? ev.price ?? 0),
+                        moneda: String(ev.currency || 'USD'),
+                        expirationAtMs: expFinalMs,
+                        procesadoEnMs: Date.now()
+                    }, { merge: true });
+                }
             } else if (eventosVencidos.has(tipo)) {
                 // Proteger planes Web vigentes (Paddle / Mercado Pago) frente a expiraciones tardías de RC/Play
                 if ((fuenteActual === 'paddle' || fuenteActual === 'mercadopago') && expActualMs > Date.now()) {
@@ -460,7 +495,7 @@ exports.webhookRevenueCat = onRequest(
 );
 
 /* ==========================================================================
-5. WEBHOOK PADDLE BILLING v2 (PAGOS INTERNACIONALES EN USD / MONEDA LOCAL)
+   5. WEBHOOK PADDLE BILLING v2 (PAGOS INTERNACIONALES EN USD / MONEDA LOCAL)
    ========================================================================== */
 exports.webhookPaddle = onRequest(
     { region: 'southamerica-east1', secrets: [PADDLE_WEBHOOK_SECRET, RC_SECRET_API_KEY] },
@@ -520,6 +555,8 @@ exports.webhookPaddle = onRequest(
                 status: 'active',
                 activePlan: true,
                 fecha_expiracion: nuevaExpiraMs,
+                trialUsed: true,
+                usedTrial: true,
                 source: 'paddle',
                 ultimoPagoId: txId,
                 ultimoPagoMonto: monto,
@@ -561,3 +598,4 @@ exports.webhookPaddle = onRequest(
         }
     }
 );
+
