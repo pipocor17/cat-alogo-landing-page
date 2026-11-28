@@ -24,8 +24,7 @@
     <link rel="stylesheet" href="css/auth-guard.css">
 
     <style>
-
-    /* Blindaje: el panel permanece oculto hasta que AuthGuard confirme licencia vigente */
+        /* Blindaje: el panel permanece oculto hasta que AuthGuard confirme licencia vigente */
         body:not(.cat-auth-unlocked) .app-container {
             display: none !important;
         }
@@ -232,6 +231,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 
+    <!-- Paddle Billing v2 (debe cargar antes de auth-guard.js) -->
     <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
     
     <script src="js/firebase-config.js"></script>
@@ -261,10 +261,7 @@
     <script src="js/importar-app-json.js"></script>
     <script src="js/sync-privada.js"></script>
     <script src="js/catweb-mirror.js"></script>
-    <script src="js/sync-privada.js"></script>
-    <script src="js/catweb-mirror.js"></script>
     <script src="js/sidebar-badges.js"></script>
-    <script src="js/dashboard.js"></script>
     <script src="js/dashboard.js"></script>
 
     <!-- Sincronización en vivo del indicador de Plan y botón Mejorar Plan en la barra superior -->
@@ -312,7 +309,6 @@
                 } else if (!esTrial) {
                     pill.classList.add('st-active');
                 }
-                // Si es trial con > 5 días, mantiene el estilo azul por defecto
 
                 btn.textContent = esTrial ? '⭐ Mejorar Plan' : '⭐ Renovar Plan';
             }

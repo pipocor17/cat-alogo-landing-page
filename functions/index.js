@@ -69,7 +69,7 @@ function resolverUidRevenueCat(ev) {
     return '';
 }
 
-function verificarFirmaPaddle(rawBody, signatureHeader, secret) {
+function verificarFirmaPaddle(rawBody, signatureHeader, secret, maxEdadSeg = 300) {
     if (!rawBody || !signatureHeader || !secret) return false;
     const partes = String(signatureHeader).split(';').map(p => p.trim());
     let ts = '';
@@ -79,6 +79,12 @@ function verificarFirmaPaddle(rawBody, signatureHeader, secret) {
         if (p.startsWith('h1=')) firmasH1.push(p.slice(3));
     }
     if (!ts || firmasH1.length === 0) return false;
+
+    const tsNum = Number(ts);
+    const ahoraSeg = Math.floor(Date.now() / 1000);
+    if (!Number.isFinite(tsNum) || Math.abs(ahoraSeg - tsNum) > maxEdadSeg) {
+        return false;
+    }
 
     const rawStr = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody);
     const esperadoHex = crypto
@@ -129,8 +135,27 @@ async function escribirLicenciaEnFirestore(uid, payload) {
     ]);
 }
 
+async function reflejarEnRevenueCat(uid, plan, origen) {
+    const rcKey = String(RC_SECRET_API_KEY.value() || '').trim();
+    if (!rcKey || !rcKey.startsWith('sk_')) return;
+
+    try {
+        const duracionRc = plan === 'anual' ? 'yearly' : 'monthly';
+        await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(uid)}/entitlements/pro/promotional`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${rcKey}`
+            },
+            body: JSON.stringify({ duration: duracionRc })
+        });
+    } catch (rcErr) {
+        console.warn(`No se pudo reflejar ${origen} en RevenueCat (Firestore sí actualizado):`, rcErr);
+    }
+}
+
 /* ==========================================================================
-   1. ACTIVAR PRUEBA GRATIS (14 DÍAS) DESDE EL SERVIDOR (ANTI-TRAMPAS)
+1. ACTIVAR PRUEBA GRATIS (14 DÍAS) DESDE EL SERVIDOR (ANTI-TRAMPAS)
    ========================================================================== */
 exports.activarPruebaGratis = onRequest({ cors: true, region: 'southamerica-east1' }, async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
@@ -215,7 +240,7 @@ exports.activarPruebaGratis = onRequest({ cors: true, region: 'southamerica-east
 });
 
 /* ==========================================================================
-   2. CREAR CHECKOUT DE MERCADO PAGO (ARGENTINA • PESOS ARS)
+2. CREAR CHECKOUT DE MERCADO PAGO (ARGENTINA • PESOS ARS)
    ========================================================================== */
 exports.crearCheckoutMercadoPago = onRequest(
     { cors: true, region: 'southamerica-east1', secrets: [MP_ACCESS_TOKEN] },
@@ -299,7 +324,7 @@ exports.crearCheckoutMercadoPago = onRequest(
 );
 
 /* ==========================================================================
-   3. WEBHOOK MERCADO PAGO (VERIFICA PAGO REAL Y ACTIVA LICENCIA EN FIRESTORE)
+3. WEBHOOK MERCADO PAGO (VERIFICA PAGO REAL Y ACTIVA LICENCIA EN FIRESTORE)
    ========================================================================== */
 exports.webhookMercadoPago = onRequest(
     { region: 'southamerica-east1', secrets: [MP_ACCESS_TOKEN, RC_SECRET_API_KEY] },
@@ -332,56 +357,53 @@ exports.webhookMercadoPago = onRequest(
             if (!uid) return res.status(200).send('Sin UID');
 
             const pagoRef = db.collection('pagos_procesados').doc(`mp_${paymentId}`);
-            const yaProcesado = await pagoRef.get();
-            if (yaProcesado.exists) {
+            const montoArs = Number(payment.transaction_amount) || 0;
+
+            // Transacción atómica: evita acreditar días dos veces si llegan reintentos simultáneos
+            const procesadoAhora = await db.runTransaction(async (tx) => {
+                const userRef = db.collection('users').doc(uid);
+                const subRef = userRef.collection('billing').doc('subscription');
+                const [pagoSnap, userSnap] = await Promise.all([tx.get(pagoRef), tx.get(userRef)]);
+
+                if (pagoSnap.exists) return false;
+
+                const dias = PRECIOS_USD[plan].dias;
+                const expActualMs = parsearFechaMs(userSnap.exists ? userSnap.data()?.fecha_expiracion : 0);
+                const baseMs = Math.max(Date.now(), expActualMs);
+                const nuevaExpiraMs = baseMs + (dias * 24 * 60 * 60 * 1000);
+
+                const licenciaData = {
+                    plan,
+                    plan_actual: plan,
+                    status: 'active',
+                    activePlan: true,
+                    fecha_expiracion: nuevaExpiraMs,
+                    trialUsed: true,
+                    usedTrial: true,
+                    source: 'mercadopago',
+                    ultimoPagoId: String(paymentId),
+                    ultimoPagoMontoArs: montoArs,
+                    updatedAtServer: admin.firestore.FieldValue.serverTimestamp()
+                };
+
+                tx.set(userRef, licenciaData, { merge: true });
+                tx.set(subRef, licenciaData, { merge: true });
+                tx.set(pagoRef, {
+                    uid,
+                    plan,
+                    gateway: 'mercadopago',
+                    paymentId: String(paymentId),
+                    montoArs,
+                    procesadoEnMs: Date.now()
+                });
+                return true;
+            });
+
+            if (!procesadoAhora) {
                 return res.status(200).send('Ya procesado');
             }
 
-            const dias = PRECIOS_USD[plan].dias;
-            const userSnap = await db.collection('users').doc(uid).get();
-            const expActualMs = parsearFechaMs(userSnap.data()?.fecha_expiracion);
-            const baseMs = Math.max(Date.now(), expActualMs);
-            const nuevaExpiraMs = baseMs + (dias * 24 * 60 * 60 * 1000);
-
-            await escribirLicenciaEnFirestore(uid, {
-                plan,
-                plan_actual: plan,
-                status: 'active',
-                activePlan: true,
-                fecha_expiracion: nuevaExpiraMs,
-                trialUsed: true,
-                usedTrial: true,
-                source: 'mercadopago',
-                ultimoPagoId: String(paymentId),
-                ultimoPagoMontoArs: Number(payment.transaction_amount) || 0
-            });
-
-            await pagoRef.set({
-                uid,
-                plan,
-                gateway: 'mercadopago',
-                paymentId: String(paymentId),
-                montoArs: Number(payment.transaction_amount) || 0,
-                procesadoEnMs: Date.now()
-            });
-
-            const rcKey = String(RC_SECRET_API_KEY.value() || '').trim();
-            if (rcKey && rcKey.startsWith('sk_')) {
-                try {
-                    const duracionRc = plan === 'anual' ? 'yearly' : 'monthly';
-                    await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(uid)}/entitlements/pro/promotional`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${rcKey}`
-                        },
-                        body: JSON.stringify({ duration: duracionRc })
-                    });
-                } catch (rcErr) {
-                    console.warn('No se pudo reflejar en RevenueCat (Firestore sí actualizado):', rcErr);
-                }
-            }
-
+            await reflejarEnRevenueCat(uid, plan, 'Mercado Pago');
             return res.status(200).send('OK');
         } catch (err) {
             console.error('Error en webhookMercadoPago:', err);
@@ -391,7 +413,7 @@ exports.webhookMercadoPago = onRequest(
 );
 
 /* ==========================================================================
-   4. WEBHOOK REVENUECAT (UNIFICA GOOGLE PLAY ANDROID • PROTEGE PLANES WEB)
+4. WEBHOOK REVENUECAT (UNIFICA GOOGLE PLAY ANDROID • PROTEGE PLANES WEB)
    ========================================================================== */
 exports.webhookRevenueCat = onRequest(
     { region: 'southamerica-east1', secrets: [RC_WEBHOOK_AUTH] },
@@ -495,7 +517,7 @@ exports.webhookRevenueCat = onRequest(
 );
 
 /* ==========================================================================
-   5. WEBHOOK PADDLE BILLING v2 (PAGOS INTERNACIONALES EN USD / MONEDA LOCAL)
+5. WEBHOOK PADDLE BILLING v2 (PAGOS INTERNACIONALES EN USD / MONEDA LOCAL)
    ========================================================================== */
 exports.webhookPaddle = onRequest(
     { region: 'southamerica-east1', secrets: [PADDLE_WEBHOOK_SECRET, RC_SECRET_API_KEY] },
@@ -507,7 +529,7 @@ exports.webhookPaddle = onRequest(
             const sigHdr = req.headers['paddle-signature'] || req.headers['Paddle-Signature'] || '';
 
             if (!verificarFirmaPaddle(req.rawBody, sigHdr, secret)) {
-                console.warn('Firma Paddle-Signature inválida o faltante.');
+                console.warn('Firma Paddle-Signature inválida, vencida o faltante.');
                 return res.status(401).send('Firma inválida');
             }
 
@@ -532,65 +554,58 @@ exports.webhookPaddle = onRequest(
                 plan = (desc.includes('anual') || desc.includes('365') || desc.includes('year')) ? 'anual' : 'mensual';
             }
 
-            // Idempotencia: no acreditar dos veces la misma transacción
-            const pagoRef = db.collection('pagos_procesados').doc(`paddle_${txId}`);
-            const yaProcesado = await pagoRef.get();
-            if (yaProcesado.exists) {
-                return res.status(200).send('Ya procesado');
-            }
-
-            const dias = PRECIOS_USD[plan].dias;
-            const userSnap = await db.collection('users').doc(uid).get();
-            const expActualMs = parsearFechaMs(userSnap.data()?.fecha_expiracion);
-            const baseMs = Math.max(Date.now(), expActualMs);
-            const nuevaExpiraMs = baseMs + (dias * 24 * 60 * 60 * 1000);
-
             const totalCentavos = Number(tx.details?.totals?.total || 0);
             const monto = totalCentavos > 0 ? totalCentavos / 100 : PRECIOS_USD[plan].usd;
             const moneda = String(tx.currency_code || 'USD');
+            const pagoRef = db.collection('pagos_procesados').doc(`paddle_${txId}`);
 
-            await escribirLicenciaEnFirestore(uid, {
-                plan,
-                plan_actual: plan,
-                status: 'active',
-                activePlan: true,
-                fecha_expiracion: nuevaExpiraMs,
-                trialUsed: true,
-                usedTrial: true,
-                source: 'paddle',
-                ultimoPagoId: txId,
-                ultimoPagoMonto: monto,
-                ultimoPagoMoneda: moneda
+            // Transacción atómica: idempotencia real frente a reintentos simultáneos
+            const procesadoAhora = await db.runTransaction(async (txFs) => {
+                const userRef = db.collection('users').doc(uid);
+                const subRef = userRef.collection('billing').doc('subscription');
+                const [pagoSnap, userSnap] = await Promise.all([txFs.get(pagoRef), txFs.get(userRef)]);
+
+                if (pagoSnap.exists) return false;
+
+                const dias = PRECIOS_USD[plan].dias;
+                const expActualMs = parsearFechaMs(userSnap.exists ? userSnap.data()?.fecha_expiracion : 0);
+                const baseMs = Math.max(Date.now(), expActualMs);
+                const nuevaExpiraMs = baseMs + (dias * 24 * 60 * 60 * 1000);
+
+                const licenciaData = {
+                    plan,
+                    plan_actual: plan,
+                    status: 'active',
+                    activePlan: true,
+                    fecha_expiracion: nuevaExpiraMs,
+                    trialUsed: true,
+                    usedTrial: true,
+                    source: 'paddle',
+                    ultimoPagoId: txId,
+                    ultimoPagoMonto: monto,
+                    ultimoPagoMoneda: moneda,
+                    updatedAtServer: admin.firestore.FieldValue.serverTimestamp()
+                };
+
+                txFs.set(userRef, licenciaData, { merge: true });
+                txFs.set(subRef, licenciaData, { merge: true });
+                txFs.set(pagoRef, {
+                    uid,
+                    plan,
+                    gateway: 'paddle',
+                    transactionId: txId,
+                    monto,
+                    moneda,
+                    procesadoEnMs: Date.now()
+                });
+                return true;
             });
 
-            await pagoRef.set({
-                uid,
-                plan,
-                gateway: 'paddle',
-                transactionId: txId,
-                monto,
-                moneda,
-                procesadoEnMs: Date.now()
-            });
-
-            // Opcional: reflejar el acceso en RevenueCat si configuraste RC_SECRET_API_KEY
-            const rcKey = String(RC_SECRET_API_KEY.value() || '').trim();
-            if (rcKey && rcKey.startsWith('sk_')) {
-                try {
-                    const duracionRc = plan === 'anual' ? 'yearly' : 'monthly';
-                    await fetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(uid)}/entitlements/pro/promotional`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            Authorization: `Bearer ${rcKey}`
-                        },
-                        body: JSON.stringify({ duration: duracionRc })
-                    });
-                } catch (rcErr) {
-                    console.warn('No se pudo reflejar Paddle en RevenueCat (Firestore sí actualizado):', rcErr);
-                }
+            if (!procesadoAhora) {
+                return res.status(200).send('Ya procesado');
             }
 
+            await reflejarEnRevenueCat(uid, plan, 'Paddle');
             return res.status(200).send('OK');
         } catch (err) {
             console.error('Error en webhookPaddle:', err);

@@ -353,7 +353,7 @@
                 font-weight: 700;
             }
 
-            /* --- MODAL MEJORAR PLAN (PRECIOS EN USD) --- */
+            /* --- MODAL MEJORAR PLAN (PRECIOS EN USD; z-index seguro debajo del overlay de Paddle 900000) --- */
             #cat-auth-plans-overlay { z-index: 100020 !important; }
             .auth-plans-modal-card {
                 max-width: 540px !important;
@@ -989,13 +989,30 @@
         if (btnMp) btnMp.textContent = `🇦🇷 Pagar Plan ${etiquetaPlan} con Mercado Pago — Solo Argentina${estimadoArs}`;
 
         const sub = state.subscripcion;
-        const activoEnPlay = Boolean(
-            sub?.activa && !esPlanTrial(sub.plan) && String(sub.source || '').toLowerCase() === 'google_play'
-        );
+        const sourceSub = String(sub?.source || '').toLowerCase();
+        const esPagoVigente = Boolean(sub?.activa && !esPlanTrial(sub.plan));
+        const activoEnPlay = Boolean(esPagoVigente && sourceSub === 'google_play');
+        const activoEnPaddle = Boolean(esPagoVigente && sourceSub === 'paddle');
+        const bloquearDobleCobro = activoEnPlay || activoEnPaddle;
+
         const gpWarn = document.getElementById('auth-plans-gp-warning');
-        if (gpWarn) gpWarn.style.display = activoEnPlay ? 'block' : 'none';
-        if (btnMp) btnMp.disabled = activoEnPlay;
-        if (btnPaddle) btnPaddle.disabled = activoEnPlay;
+        if (gpWarn) {
+            if (activoEnPlay) {
+                gpWarn.innerHTML =
+                    '📱 <strong>Ya tenés una suscripción activa en Google Play Store.</strong><br>' +
+                    'Para evitar un doble cobro, gestioná o cambiá tu plan directamente desde Google Play en tu celular. Si la cancelás y vence, podrás suscribirte desde la Web aquí.';
+                gpWarn.style.display = 'block';
+            } else if (activoEnPaddle) {
+                gpWarn.innerHTML =
+                    '💳 <strong>Ya tenés una suscripción recurrente activa en Paddle.</strong><br>' +
+                    'Se renueva automáticamente para que no pierdas acceso. Para cambiar o cancelar tu suscripción sin generar un doble cobro, usá el enlace de gestión del correo de recibo de Paddle.';
+                gpWarn.style.display = 'block';
+            } else {
+                gpWarn.style.display = 'none';
+            }
+        }
+        if (btnMp) btnMp.disabled = bloquearDobleCobro;
+        if (btnPaddle) btnPaddle.disabled = bloquearDobleCobro;
     }
 
     function abrirModalPlanes(planInicial = 'anual') {
@@ -1103,6 +1120,11 @@
 
             if (gateway === 'paddle') {
                 const priceId = bill.paddlePriceIds?.[plan];
+
+                if (bill.paddleClientToken && priceId && !window.Paddle) {
+                    throw new Error('No se pudo cargar la pasarela de pagos Paddle. Desactivá bloqueadores de anuncios o recargá la página e intentá nuevamente.');
+                }
+
                 if (window.Paddle && bill.paddleClientToken && priceId) {
                     if (!window._catPaddleInit) {
                         const esSandbox = bill.paddleEnvironment === 'sandbox' || String(bill.paddleClientToken).startsWith('test_');
@@ -1118,7 +1140,12 @@
                                         boxOk.textContent = '✅ ¡Pago recibido! Acreditando tu plan en segundos…';
                                         boxOk.style.display = 'block';
                                     }
-                                    setTimeout(() => refrescarSuscripcionManual(true), 3000);
+                                    setTimeout(() => refrescarSuscripcionManual(true), 2500);
+                                    setTimeout(() => {
+                                        if (document.getElementById('cat-auth-plans-overlay')?.classList.contains('active')) {
+                                            refrescarSuscripcionManual(true);
+                                        }
+                                    }, 6000);
                                 }
                             }
                         });
@@ -1453,6 +1480,11 @@
     }
 
     function aplicarEstadoSuscripcion(evalSub) {
+        const subAnterior = state.subscripcion;
+        const eraPagoActivo = Boolean(subAnterior?.activa && !esPlanTrial(subAnterior?.plan));
+        const esPagoAhora = Boolean(evalSub?.activa && !esPlanTrial(evalSub?.plan));
+        const cambioExp = Number(evalSub?.expiresAtMs || 0) > Number(subAnterior?.expiresAtMs || 0);
+
         state.subscripcion = evalSub;
 
         if (!evalSub.activa) {
@@ -1467,8 +1499,18 @@
         inyectarPanelCuentaEnAjustesNube();
         actualizarBannerVencimiento(evalSub);
 
-        if (document.getElementById('cat-auth-plans-overlay')?.classList.contains('active')) {
+        const plansOv = document.getElementById('cat-auth-plans-overlay');
+        if (plansOv?.classList.contains('active')) {
             actualizarBotonesModalPlanes();
+            // Si acaba de acreditarse un pago nuevo o renovación en vivo, cerrar el modal suavemente
+            if (esPagoAhora && (!eraPagoActivo || cambioExp)) {
+                const okBox = document.getElementById('auth-plans-success');
+                if (okBox) {
+                    okBox.textContent = `✅ ¡Listo! Se activó tu ${evalSub.planLabel} (${evalSub.diasRestantes} día(s) vigentes).`;
+                    okBox.style.display = 'block';
+                }
+                setTimeout(() => cerrarModalPlanes(), 1800);
+            }
         }
     }
 

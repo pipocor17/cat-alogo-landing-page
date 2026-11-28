@@ -37,7 +37,8 @@ window.CAT_ALOGO_CLOUD_CONFIG = {
         cotizacionArsReferencia: 0,
         endpointMercadoPago: "https://crearcheckoutmercadopago-llt2fk2sua-rj.a.run.app",
 
-        // Paddle Billing v2 (cambiar a "production" y claves live_... al salir en vivo)
+        // Paddle Billing v2 (abre checkout directo desde el cliente con Paddle.Checkout.open; endpointPaddle queda vacío)
+        // AL PASAR A PRODUCCIÓN: cambiar las 4 líneas de abajo por "production", "live_..." y los Price IDs de Paddle Live
         endpointPaddle: "",
         paddleEnvironment: "sandbox",
         paddleClientToken: "test_d90426b03ea7556c308b42c8343",
@@ -47,4 +48,3 @@ window.CAT_ALOGO_CLOUD_CONFIG = {
         }
     }
 };
-
